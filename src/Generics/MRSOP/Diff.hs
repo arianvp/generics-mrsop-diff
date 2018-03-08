@@ -21,4 +21,11 @@ data S (at :: Atom kon -> *)
 
 
 
+data Al (at :: Atom kon -> *) :: [Atom kon] -> [Atom kon] -> * where
+  A0 :: Al at '[] '[]
+  AD :: NA at ki fam -> Al at pi1 pi2 -> Al at (a ': pi1)  pi2
+  AI :: NA at ki fam -> Al at pi1 pi2 -> Al at pi1         (a ': pi2)
+  AX :: at a         -> Al at pi1 pi2 -> Al at pi1         pi2
+
+
 
