@@ -1,0 +1,50 @@
+name:                generics-mrsop-diff
+
+-- The package version.  See the Haskell package versioning policy (PVP) 
+-- for standards guiding when and how versions should be incremented.
+-- https://wiki.haskell.org/Package_versioning_policy
+-- PVP summary:      +-+------- breaking API changes
+--                   | | +----- non-breaking API additions
+--                   | | | +--- code changes with no API change
+version:             0.0.0.0
+license:             BSD3
+license-file:        LICENSE
+author:              Arian van Putten
+maintainer:          arian.vanputten@gmail.com
+category:            Generics
+build-type:          Simple
+extra-source-files:  ChangeLog.md, README.md
+cabal-version:       >=1.10
+
+library
+  -- Modules exported by the library.
+  exposed-modules: 
+    Generics.MRSOP.Diff
+  
+  -- LANGUAGE extensions used by modules in this package.
+  other-extensions: 
+    MultiParamTypeClasses,
+    FlexibleInstances,
+    FlexibleContexts,
+    TypeSynonymInstances,
+    RankNTypes,
+    TypeFamilies,
+    TypeOperators,
+    DataKinds,
+    PolyKinds,
+    GADTs,
+    TypeApplications,
+    ConstraintKinds,
+    FunctionalDependencies,
+    ScopedTypeVariables
+  
+  -- Other library packages from which modules are imported.
+  build-depends:       base,
+                       generics-mrsop
+  
+  -- Directories containing source files.
+  hs-source-dirs:      src
+  
+  -- Base language which the package is written in.
+  default-language:    Haskell2010
+  
