@@ -20,6 +20,7 @@ library
   -- Modules exported by the library.
   exposed-modules: 
     Generics.MRSOP.Diff
+    Generics.MRSOP.GDiff
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 
