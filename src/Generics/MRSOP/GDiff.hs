@@ -10,6 +10,7 @@
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.GDiff where
+import Control.Monad
 import Data.Proxy
 import Data.Semigroup
 import Generics.MRSOP.Base
@@ -71,6 +72,19 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (a ': i) (a ': j)
 
 
+npCat :: forall p xs ys. (L2 xs ys) 
+      => NP p xs -> NP p ys -> NP p (Append xs ys)
+npCat poa poa'
+  = case isList :: ListPrf xs of
+      Nil -> case poa of
+               NP0 -> poa'
+      Cons pfr -> case poa of
+                    (x :* xs) -> x :* npCat xs poa'
+   
+    
+    
+
+-- TODO generalise to np
 split :: forall xs ys ki f 
        . (L2 xs ys) => PoA ki f (Append xs ys) 
                     -> (PoA ki f xs, PoA ki f ys)
@@ -86,9 +100,36 @@ split poa =
 
 injCof :: Cof ki codes a c 
        -> PoA ki (Fix ki codes) (Tyof codes c) 
-       -> PoA ki (Fix ki codes) (a ': '[])
-injCof (ConstrI c) xs = NA_I (Fix $ inj c xs) :* NP0
-injCof (ConstrK k) xs = NA_K k :* NP0
+       -> NA ki (Fix ki codes) a
+injCof (ConstrI c) xs = NA_I (Fix $ inj c xs)
+injCof (ConstrK k) xs = NA_K k
+
+-- Easy option: forget about ki, use Generics.MRSOP.Opaque.Singl;
+-- Hard option: 
+class Eq1 (f :: k -> *) where
+  equal :: forall k . f k -> f k -> Bool
+
+matchNS :: Constr c sum -> NS (NP (NA ki fam)) sum
+      -> Maybe (PoA ki fam (Lkup c sum))
+matchNS CZ (Here ps) = Just ps
+matchNS (CS c) (There x) = matchNS c x
+matchNS _ _ = Nothing
+
+match :: Constr c sum -> Rep ki fam sum
+      -> Maybe (PoA ki fam (Lkup c sum))
+match c (Rep x) = matchNS c x
+
+
+matchCof :: (Eq1 ki) 
+  => Cof ki codes a c
+  -> NA ki (Fix ki codes) a
+  -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
+matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 x
+
+-- perhaps you want to check k == k2
+matchCof (ConstrK k) (NA_K k2) = 
+  guard (equal k k2) >> Just NP0
+
 
 -- we need to give Haskell a bit of a hint that Tyof codes c reduces to an IsList
 insCof :: forall ki codes a c xs. (IsList xs, IsList (Tyof codes c))
@@ -97,18 +138,19 @@ insCof :: forall ki codes a c xs. (IsList xs, IsList (Tyof codes c))
        -> PoA ki (Fix ki codes) (a ': xs)
 insCof c xs 
   = let (args , rest) = split @(Tyof codes c) @xs xs
-     in case injCof c args of
-          (x :* NP0) -> (x :* rest)
+     in injCof c args :* rest
 
 
-delCof :: forall ki codes a c xs ys. (IsList xs, IsList (Tyof codes c))
+delCof :: forall ki codes a c xs ys. (Eq1 ki, IsList xs, IsList (Tyof codes c))
        => Cof ki codes a c
        -> PoA ki (Fix ki codes) (a ': xs)
        -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
-delCof = undefined
+delCof c (x :* xs) = case matchCof c x of
+  Just poa -> Just (npCat poa xs)
+  Nothing -> Nothing
 
 
-applyES :: ES ki codes xs ys -> PoA ki (Fix ki codes) xs -> Maybe (PoA ki (Fix ki codes) ys)
+applyES :: Eq1 ki => ES ki codes xs ys -> PoA ki (Fix ki codes) xs -> Maybe (PoA ki (Fix ki codes) ys)
 applyES ES0 x = Just NP0
 applyES (Ins c es) xs = insCof c <$> applyES es xs
   where
@@ -130,11 +172,11 @@ data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] 
   NN :: ES  ki codes '[] '[] 
      -> EST ki codes '[] '[]
   NC :: L2 tys (Tyof codes c) => Cof ki codes y c
-     -> ES  ki codes '[] (y ': ys)
+     -> ES  ki codes '[] (y ': tys)
      -> EST ki codes '[] (Append (Tyof codes c) tys)
      -> EST ki codes '[] (y ': tys)
   CN :: L2 txs (Tyof codes c) => Cof ki codes x c 
-     -> ES  ki codes (x ': xs) '[]
+     -> ES  ki codes (x ': txs) '[]
      -> EST ki codes (Append (Tyof codes c) txs) '[]
      -> EST ki codes (x ': txs) '[]
   CC :: L4 txs tys (Tyof codes cy) (Tyof codes cx) => Cof ki codes x cx
@@ -145,3 +187,14 @@ data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] 
      -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
      -> EST ki codes (x ': txs) (y ': tys)
 
+getDiff :: forall ki codes rxs rys. EST ki codes rxs rys -> ES ki codes rxs rys
+getDiff (NN x)  = x
+getDiff (NC _ x _) = x
+getDiff (CN _ x _) = x
+getDiff (CC _ _ x _ _ _) = x
+    
+
+{-diffT :: PoA ki (Fix ki codes) txs -> PoA ki (Fix ki codes) tys -> EST txs tys 
+diffT = _
+
+-}
