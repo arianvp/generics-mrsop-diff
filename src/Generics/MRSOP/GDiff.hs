@@ -180,7 +180,28 @@ cost (Cpy c es) = cost es
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
 meet d1 d2 = if cost d1 <= cost d2 then d1 else d2
 
+diff' 
+  :: ListPrf xs
+  -> ListPrf ys
+  -> PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> ES ki codes xs ys
+diff' Nil Nil NP0 NP0 = ES0
+diff' (Cons ixs) Nil (x :* xs) NP0 =
+  case x of
+    NA_I (Fix x) ->
+      case sop x of
+        Tag cx dx -> del _ _ _ cx (diff' _ _ _ _)
+    NA_K k -> undefined
 
+diff :: forall xs ys ki codes. L2 xs ys
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> ES ki codes xs ys
+diff = diff' (isList :: ListPrf xs) (isList :: ListPrf ys)
+
+
+-- ********* MEMOIZATION **************
 data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES  ki codes '[] '[] 
      -> EST ki codes '[] '[]
@@ -275,26 +296,6 @@ diffT'
   -> EST ki codes xs ys
 diffT' = undefined
 
-
-diff' 
-  :: ListPrf xs
-  -> ListPrf ys
-  -> PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> ES ki codes xs ys
-diff' Nil Nil NP0 NP0 = ES0
-diff' (Cons ixs) Nil (x :* xs) NP0 =
-  case x of
-    NA_I (Fix x) ->
-      case sop x of
-        Tag cx dx -> _
-    NA_K k -> undefined
-
-diff :: forall xs ys ki codes. L2 xs ys
-  => PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> ES ki codes xs ys
-diff = diff' (isList :: ListPrf xs) (isList :: ListPrf ys)
 
 
 {-diffT :: PoA ki (Fix ki codes) txs -> PoA ki (Fix ki codes) tys -> EST txs tys 
