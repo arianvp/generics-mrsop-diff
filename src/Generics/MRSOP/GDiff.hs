@@ -44,6 +44,13 @@ instance IsList '[] where
 instance IsList xs => IsList (x ': xs) where
   isList = Cons isList
 
+data RList :: [k] -> * where
+  RList :: IsList ts => RList ts
+
+reify :: ListPrf ts -> RList ts
+reify Nil = RList
+reify (Cons x) = case reify x of RList -> RList
+
   
 data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) 
          (a :: Atom kon) (c :: SinglCof) where
@@ -70,6 +77,32 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
       -> ES ki codes (a ': i) (a ': j)
 
+ins
+  :: ListPrf i
+  -> ListPrf j
+  -> ListPrf ((Tyof codes c))
+  -> Cof ki codes a c
+  -> ES ki codes i (Append (Tyof codes c) j)
+  -> ES ki codes i (a ': j)
+ins x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Ins
+
+del
+  :: ListPrf i
+  -> ListPrf j
+  -> ListPrf (Tyof codes c)
+  -> Cof ki codes a c
+  -> ES ki codes (Append (Tyof codes c) i) j
+  -> ES ki codes (a ': i) j
+del x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Del
+
+cpy
+  :: ListPrf i
+  -> ListPrf j
+  -> ListPrf (Tyof codes c)
+  -> Cof ki codes a c
+  -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
+  -> ES ki codes (a ': i) (a ': j)
+cpy x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Cpy
 
 npCat :: forall p xs ys. (L2 xs ys) 
       => NP p xs -> NP p ys -> NP p (Append xs ys)
@@ -189,8 +222,8 @@ extracti
   => EST ki codes txs (ty ': tys)
   -> ((Cof ki codes ty cy) -> EST ki codes txs (Append (Tyof codes cy) tys) -> r)
   -> r
-extracti (CC _ c d i _ _) k = _
-extracti (NC c d i) k = _
+extracti (CC _ c d i _ _) k = undefined
+extracti (NC c d i) k = undefined
 
 extractd
   :: EST ki codes (tx ': txs) tys
@@ -241,6 +274,28 @@ diffT'
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
 diffT' = undefined
+
+
+diff' 
+  :: ListPrf xs
+  -> ListPrf ys
+  -> PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> ES ki codes xs ys
+diff' Nil Nil NP0 NP0 = ES0
+diff' (Cons ixs) Nil (x :* xs) NP0 =
+  case x of
+    NA_I (Fix x) ->
+      case sop x of
+        Tag cx dx -> _
+    NA_K k -> undefined
+
+diff :: forall xs ys ki codes. L2 xs ys
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> ES ki codes xs ys
+diff = diff' (isList :: ListPrf xs) (isList :: ListPrf ys)
+
 
 {-diffT :: PoA ki (Fix ki codes) txs -> PoA ki (Fix ki codes) tys -> EST txs tys 
 diffT = _
