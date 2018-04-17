@@ -172,7 +172,75 @@ getDiff (NN x)  = x
 getDiff (NC _ x _) = x
 getDiff (CN _ x _) = x
 getDiff (CC _ _ x _ _ _) = x
+
+
+best 
+  :: Cof ki codes tx cx 
+  -> Cof ki codes ty cy
+  -> EST ki codes (tx ': txs)                  (Append (Tyof codes cy) tys)
+  -> EST ki codes (Append (Tyof codes cx) txs) (ty ': tys)
+  -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
+  -> ES  ki codes (tx ': txs)                   (ty ': tys)
+best = undefined
     
+
+extracti
+  :: L3 txs tys (Tyof codes cy)
+  => EST ki codes txs (ty ': tys)
+  -> ((Cof ki codes ty cy) -> EST ki codes txs (Append (Tyof codes cy) tys) -> r)
+  -> r
+extracti (CC _ c d i _ _) k = _
+extracti (NC c d i) k = _
+
+extractd
+  :: EST ki codes (tx ': txs) tys
+  -> ((Cof ki codes tx cx) -> EST ki codes (Append (Tyof codes cx) txs) tys-> r)
+  -> r
+extractd = undefined
+
+
+extendi
+  :: L3 txs tys (Tyof codes cx)
+  => Cof ki codes tx cx
+  -> EST ki codes (Append (Tyof codes cx) txs) tys
+  -> EST ki codes (tx ': txs) tys
+extendi cx dt@(NN d) = CN cx (Del cx d) dt
+extendi cx dt@(CN _ d _) =  CN cx (Del cx d) dt
+extendi cx dt@(NC _ _ _) = extendi' cx dt
+extendi cx dt@(CC _ _ _ _ _ _) = extendi' cx dt
+
+extendi'
+  :: L3 txs tys (Tyof codes cx)
+  => Cof ki codes tx cx 
+  -> EST ki codes (Append (Tyof codes cx) txs) (ty ': tys)
+  -> EST ki codes (tx ': txs) (ty ': tys)
+extendi' cx dt =  undefined
+
+
+extendd
+  :: L3 txs tys (Tyof codes cy)
+  => Cof ki codes ty cy
+  -> EST ki codes txs (Append (Tyof codes cy) tys) 
+  -> EST ki codes txs (ty ': tys)
+extendd = undefined
+
+diffT
+  :: forall xs ys ki codes. L2 xs ys 
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> EST ki codes xs ys
+diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
+
+
+-- Okay lets do diffT on listPrfs instead, which is a bit easier
+
+diffT'
+  :: ListPrf xs 
+  -> ListPrf ys
+  -> PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> EST ki codes xs ys
+diffT' = undefined
 
 {-diffT :: PoA ki (Fix ki codes) txs -> PoA ki (Fix ki codes) tys -> EST txs tys 
 diffT = _
