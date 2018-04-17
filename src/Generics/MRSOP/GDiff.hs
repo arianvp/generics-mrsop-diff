@@ -15,19 +15,18 @@ import Data.Proxy
 import Data.Semigroup
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
-type family Append txs tys where
-  Append '[] tys = tys
-  Append (tx ': txs) tys = tx ': (Append txs tys)
 
 data SinglCof
   = CofI Nat Nat -- type index and constructor index within the type
   | CofK
 
+type family Append txs tys where
+  Append '[] tys = tys
+  Append (tx ': txs) tys = tx ': (Append txs tys)
+
 
 class IsList (xs :: [k]) where
   isList :: ListPrf xs
-
-
 
 data ListPrf :: [k] -> * where
   Nil ::  ListPrf '[]
@@ -81,13 +80,7 @@ npCat poa poa'
       Cons pfr -> case poa of
                     (x :* xs) -> x :* npCat xs poa'
    
-    
-    
-
--- TODO generalise to np
-split :: forall xs ys ki f 
-       . (L2 xs ys) => PoA ki f (Append xs ys) 
-                    -> (PoA ki f xs, PoA ki f ys)
+split :: forall xs ys p . (L2 xs ys) => NP p (Append xs ys) -> (NP p xs, NP p ys)
 split poa =
   case isList :: ListPrf xs of
     Nil    -> (NP0, poa)
@@ -104,20 +97,9 @@ injCof :: Cof ki codes a c
 injCof (ConstrI c) xs = NA_I (Fix $ inj c xs)
 injCof (ConstrK k) xs = NA_K k
 
--- Easy option: forget about ki, use Generics.MRSOP.Opaque.Singl;
--- Hard option: 
+-- TODO(arianvp): This typeclass probably exsists in hackage somwhere already. Also, it should _not_ live here :)
 class Eq1 (f :: k -> *) where
   equal :: forall k . f k -> f k -> Bool
-
-matchNS :: Constr c sum -> NS (NP (NA ki fam)) sum
-      -> Maybe (PoA ki fam (Lkup c sum))
-matchNS CZ (Here ps) = Just ps
-matchNS (CS c) (There x) = matchNS c x
-matchNS _ _ = Nothing
-
-match :: Constr c sum -> Rep ki fam sum
-      -> Maybe (PoA ki fam (Lkup c sum))
-match c (Rep x) = matchNS c x
 
 
 matchCof :: (Eq1 ki) 
@@ -125,8 +107,6 @@ matchCof :: (Eq1 ki)
   -> NA ki (Fix ki codes) a
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
 matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 x
-
--- perhaps you want to check k == k2
 matchCof (ConstrK k) (NA_K k2) = 
   guard (equal k k2) >> Just NP0
 
