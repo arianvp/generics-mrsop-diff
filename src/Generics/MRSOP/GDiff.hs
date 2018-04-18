@@ -22,6 +22,7 @@ data SinglCof
   = CofI Nat Nat -- type index and constructor index within the type
   | CofK
 
+
 type family Append txs tys where
   Append '[] tys = tys
   Append (tx ': txs) tys = tx ': (Append txs tys)
@@ -33,6 +34,19 @@ class IsList (xs :: [k]) where
 data ListPrf :: [k] -> * where
   Nil ::  ListPrf '[]
   Cons :: IsList l => ListPrf l ->  ListPrf (x ': l)
+
+data Trivial :: k -> * where
+  MkTrivial :: Trivial k
+
+-- We can have some kind of forgetful functor that ignores p
+npToListPrf :: forall xs p. IsList xs => NP p xs -> ListPrf xs
+npToListPrf _ = isList :: ListPrf xs
+
+-- we can go the other way around. not sure if useful
+listPrfToNP :: ListPrf xs -> NP Trivial xs
+listPrfToNP Nil = NP0
+listPrfToNP (Cons xs) = MkTrivial :* listPrfToNP xs
+
 
 
 type L1 xs = (IsList xs) 
@@ -208,6 +222,13 @@ best = undefined
 -- we will try all possible constructors, and once we find one that
 -- matches, we tell you which constructor it was,
 -- and a proof that that it's indeed of the correct type
+--
+--
+--   The gdiff lib wants a   ListPrf (tyof codes c)
+--   but we have a NP p (Tyof codes c)
+--
+--   however, we can't make a function   NP p xs -> ListPrf xs
+--   as the constructors of NP don't carry the List proof
 matchConstructor
   :: NA ki (Fix ki codes) a
   -- (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> r)
@@ -244,6 +265,6 @@ diffT' NP0 (y :* ys) =
   matchConstructor y $ \c ys' ->
     let
       i = diffT' NP0 (npCat ys' ys)
-    in
-      NC c (Ins c (getDiff i)) i
+    in undefined
+      --NC c (Ins c (getDiff i)) i
 diffT' (x :* xs) (y :* ys) = undefined

@@ -5,6 +5,7 @@
 module Generics.MRSOP.Diff where
 
 import Generics.MRSOP.Base
+import Generics.MRSOP.Base (match)
 import Generics.MRSOP.Util
 
 -- 
