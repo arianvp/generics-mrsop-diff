@@ -49,6 +49,7 @@ listPrfToNP (Cons xs) = MkTrivial :* listPrfToNP xs
 
 
 
+
 type L1 xs = (IsList xs) 
 type L2 xs ys = (IsList xs, IsList ys) 
 type L3 xs ys zs = (IsList xs, IsList ys, IsList zs) 
@@ -95,21 +96,24 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (a ': i) (a ': j)
 
 
+npCat' :: ListPrf xs -> ListPrf ys -> NP p  xs -> NP p ys -> NP p (Append xs ys)
+npCat' Nil _ NP0 ays = ays
+npCat' (Cons l) r (a :* axs) ays = a :* npCat' l r axs ays
+
 npCat :: NP p xs -> NP p ys -> NP p (Append xs ys)
 npCat NP0 ays = ays
 npCat (a :* axs) ays = a :* npCat axs ays
 
 -- We need to have some extra proof about the fact that xs and ys
 -- are actually lists. Otherwise  split won't work, hence the L2
-split :: forall xs ys p . (L2 xs ys) => NP p (Append xs ys) -> (NP p xs, NP p ys)
-split poa =
-  case isList :: ListPrf xs of
-    Nil    -> (NP0, poa)
-    Cons _ ->
-      case poa of
-        (x :* rs) -> 
-          let (xs , rest) = split rs
-          in (x :* xs , rest)
+-- We need to decide whether xs is empty or not
+split :: ListPrf xs -> NP p (Append xs ys) -> (NP p xs, NP p ys)
+split Nil poa = (NP0, poa)
+split (Cons p) (x :* rs) = 
+  let
+    (xs , rest) = split p rs
+  in
+    (x :* xs , rest)
 
 
 injCof
@@ -143,7 +147,7 @@ insCof
   -> PoA ki (Fix ki codes) (a ': xs)
 insCof c xs =
   let 
-    (args , rest) = split @(Tyof codes c) @xs xs
+    (args , rest) = split (isList :: ListPrf (Tyof codes c)) xs
   in
     injCof c args :* rest
 
@@ -200,6 +204,15 @@ data EST (ki :: kon -> *)
      -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
      -> EST ki codes (x ': txs) (y ': tys)
 
+nc
+  :: ListPrf txs 
+  -> ListPrf (Tyof codes c) 
+  -> Cof ki codes y c
+  -> ES  ki codes '[] (y ': tys)
+  -> EST ki codes '[] (Append (Tyof codes c) tys)
+  -> EST ki codes '[] (y ': tys)
+nc = undefined
+
 getDiff :: forall ki codes rxs rys. EST ki codes rxs rys -> ES ki codes rxs rys
 getDiff (NN x)  = x
 getDiff (NC _ x _) = x
@@ -231,11 +244,11 @@ best = undefined
 --   as the constructors of NP don't carry the List proof
 matchConstructor
   :: NA ki (Fix ki codes) a
-  -- -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
+  -- (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f =  f (ConstrK  k) NP0
-matchConstructor (NA_I (Fix rep)) f =
+matchConstructor (NA_I (Fix rep)) f = undefined {-
   case sop rep of
     -- TODO:
     -- Needed: ListPrf (Lkup n (Lkup k codes))
@@ -247,7 +260,7 @@ matchConstructor (NA_I (Fix rep)) f =
     -- with that fact though I Don't know yet what
     Tag c poa -> f (ConstrI c) poa
 
-
+-}
 diffT'
   :: PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
@@ -268,6 +281,6 @@ diffT' NP0 (y :* ys) =
   matchConstructor y $ \c ys' ->
     let
       i = diffT' NP0 (npCat ys' ys)
-    in NC c _ i
+    in nc _ _ c _ i
       --NC c (Ins c (getDiff i)) i
 diffT' (x :* xs) (y :* ys) = undefined
