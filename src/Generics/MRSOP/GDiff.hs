@@ -72,7 +72,7 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   Ins :: L3 i j (Tyof codes c) => Cof ki codes a c 
       -> ES ki codes i (Append (Tyof codes c) j)
       -> ES ki codes i (a ': j)
-  Del :: L3 i j (Tyof codes c) => Cof ki codes a c
+  Del :: Cof ki codes a c
       -> ES ki codes (Append (Tyof codes c) i) j
       -> ES ki codes (a ': i) j
   Cpy :: L3 i j (Tyof codes c) => Cof ki codes a c 
@@ -153,7 +153,7 @@ insCof c xs
      in injCof c args :* rest
 
 
-delCof :: forall ki codes a c xs ys. (Eq1 ki, IsList xs, IsList (Tyof codes c))
+delCof :: Eq1 ki
        => Cof ki codes a c
        -> PoA ki (Fix ki codes) (a ': xs)
        -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
@@ -189,7 +189,7 @@ data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] 
      -> ES  ki codes '[] (y ': tys)
      -> EST ki codes '[] (Append (Tyof codes c) tys)
      -> EST ki codes '[] (y ': tys)
-  CN :: L2 txs (Tyof codes c) => Cof ki codes x c 
+  CN :: Cof ki codes x c 
      -> ES  ki codes (x ': txs) '[]
      -> EST ki codes (Append (Tyof codes c) txs) '[]
      -> EST ki codes (x ': txs) '[]
