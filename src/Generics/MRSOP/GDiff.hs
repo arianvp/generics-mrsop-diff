@@ -141,7 +141,7 @@ matchCof :: (Eq1 ki)
   => Cof ki codes a c
   -> NA ki (Fix ki codes) a
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
-matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 x
+matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 Nil
 matchCof (ConstrK k) (NA_K k2) = 
   guard (equal k k2) >> Just NP0
 
@@ -289,7 +289,16 @@ matchConstructor
   -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f =  f (ConstrK  k) Nil
-matchConstructor (NA_I l) f = _helpme2
+matchConstructor (NA_I (Fix rep)) f =
+  case sop rep of
+    -- TODO:
+    -- Needed: ListPrf (Lkup n (Lkup k codes))
+    -- Have:   PoA ki (Fix ki codes) (Lkup n (Lkup k codes))
+    --
+    -- Note that these are very similar. We can probably do something
+    -- with that fact though I Don't know yet what
+    Tag c poa -> f (ConstrI c) _
+
 
 
 diffT'
