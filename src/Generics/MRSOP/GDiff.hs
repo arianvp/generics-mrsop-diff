@@ -144,22 +144,25 @@ matchCof (ConstrK k) (NA_K k2) =
 
 
 -- we need to give Haskell a bit of a hint that Tyof codes c reduces to an IsList
+-- insCof is also really the only place where we _need_ IsList I think
 insCof :: forall ki codes a c xs. (IsList xs, IsList (Tyof codes c))
        => Cof ki codes a c 
        -> PoA ki (Fix ki codes) (Append (Tyof codes c) xs) 
        -> PoA ki (Fix ki codes) (a ': xs)
-insCof c xs 
-  = let (args , rest) = split @(Tyof codes c) @xs xs
-     in injCof c args :* rest
+insCof c xs =
+  let 
+    (args , rest) = split @(Tyof codes c) @xs xs
+  in
+    injCof c args :* rest
 
 
-delCof :: Eq1 ki
-       => Cof ki codes a c
-       -> PoA ki (Fix ki codes) (a ': xs)
-       -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
-delCof c (x :* xs) = case matchCof c x of
-  Just poa -> Just (npCat poa xs)
-  Nothing -> Nothing
+delCof
+  :: Eq1 ki
+  => Cof ki codes a c
+  -> PoA ki (Fix ki codes) (a ': xs)
+  -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
+delCof c (x :* xs) =
+  flip npCat xs <$> matchCof c x
 
 
 applyES :: Eq1 ki => ES ki codes xs ys -> PoA ki (Fix ki codes) xs -> Maybe (PoA ki (Fix ki codes) ys)
