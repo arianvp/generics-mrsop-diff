@@ -161,8 +161,7 @@ delCof
   => Cof ki codes a c
   -> PoA ki (Fix ki codes) (a ': xs)
   -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
-delCof c (x :* xs) =
-  flip npCat xs <$> matchCof c x
+delCof c (x :* xs) = flip npCat xs <$> matchCof c x
 
 
 applyES :: Eq1 ki => ES ki codes xs ys -> PoA ki (Fix ki codes) xs -> Maybe (PoA ki (Fix ki codes) ys)
