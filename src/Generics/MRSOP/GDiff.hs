@@ -231,7 +231,7 @@ best = undefined
 --   as the constructors of NP don't carry the List proof
 matchConstructor
   :: NA ki (Fix ki codes) a
-  -- (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> r)
+  -- -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f =  f (ConstrK  k) NP0
@@ -240,6 +240,8 @@ matchConstructor (NA_I (Fix rep)) f =
     -- TODO:
     -- Needed: ListPrf (Lkup n (Lkup k codes))
     -- Have:   PoA ki (Fix ki codes) (Lkup n (Lkup k codes))
+    --
+    --  However we do not know that    IsList (Lkup n (Lkup k codes)) so we're stuck
     --
     -- Note that these are very similar. We can probably do something
     -- with that fact though I Don't know yet what
@@ -252,6 +254,7 @@ diffT'
   -> EST ki codes xs ys
 diffT' NP0 NP0 = NN ES0
 diffT' (x :* xs) NP0 = 
+  -- This one is easy, because Deletes don't require an IsList proof
   matchConstructor x $ \c xs' -> 
     let
       d = diffT' (npCat xs' xs) NP0
@@ -265,6 +268,6 @@ diffT' NP0 (y :* ys) =
   matchConstructor y $ \c ys' ->
     let
       i = diffT' NP0 (npCat ys' ys)
-    in undefined
+    in NC c _ i
       --NC c (Ins c (getDiff i)) i
 diffT' (x :* xs) (y :* ys) = undefined
