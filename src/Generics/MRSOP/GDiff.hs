@@ -11,6 +11,7 @@
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.GDiff where
+
 import Control.Monad
 import Data.Proxy
 import Data.Semigroup
@@ -97,9 +98,10 @@ split poa =
           in (x :* xs , rest)
 
 
-injCof :: Cof ki codes a c 
-       -> PoA ki (Fix ki codes) (Tyof codes c) 
-       -> NA ki (Fix ki codes) a
+injCof
+  :: Cof ki codes a c
+  -> PoA ki (Fix ki codes) (Tyof codes c)
+  -> NA ki (Fix ki codes) a
 injCof (ConstrI c) xs = NA_I (Fix $ inj c xs)
 injCof (ConstrK k) xs = NA_K k
 
@@ -108,7 +110,8 @@ class Eq1 (f :: k -> *) where
   equal :: forall k . f k -> f k -> Bool
 
 
-matchCof :: (Eq1 ki) 
+matchCof
+  :: (Eq1 ki) 
   => Cof ki codes a c
   -> NA ki (Fix ki codes) a
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
@@ -119,10 +122,11 @@ matchCof (ConstrK k) (NA_K k2) =
 
 -- we need to give Haskell a bit of a hint that Tyof codes c reduces to an IsList
 -- insCof is also really the only place where we _need_ IsList I think
-insCof :: forall ki codes a c xs. (IsList xs, IsList (Tyof codes c))
-       => Cof ki codes a c 
-       -> PoA ki (Fix ki codes) (Append (Tyof codes c) xs) 
-       -> PoA ki (Fix ki codes) (a ': xs)
+insCof
+  :: forall ki codes a c xs. (IsList xs, IsList (Tyof codes c))
+  => Cof ki codes a c 
+  -> PoA ki (Fix ki codes) (Append (Tyof codes c) xs) 
+  -> PoA ki (Fix ki codes) (a ': xs)
 insCof c xs =
   let 
     (args , rest) = split @(Tyof codes c) @xs xs
@@ -138,10 +142,13 @@ delCof
 delCof c (x :* xs) = flip npCat xs <$> matchCof c x
 
 
-applyES :: Eq1 ki => ES ki codes xs ys -> PoA ki (Fix ki codes) xs -> Maybe (PoA ki (Fix ki codes) ys)
+applyES
+  :: Eq1 ki 
+  => ES ki codes xs ys
+  -> PoA ki (Fix ki codes) xs
+  -> Maybe (PoA ki (Fix ki codes) ys)
 applyES ES0 x = Just NP0
 applyES (Ins c es) xs = insCof c <$> applyES es xs
-  where
 applyES (Del c es) xs = delCof c xs >>= applyES es
 applyES (Cpy c es) xs = insCof c <$> (delCof c xs >>= applyES es)
 
@@ -158,7 +165,9 @@ meet d1 d2 = if cost d1 <= cost d2 then d1 else d2
 
 
 -- ********* MEMOIZATION **************
-data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
+data EST (ki :: kon -> *)
+         (codes :: [[[Atom kon]]]) 
+         :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES  ki codes '[] '[] 
      -> EST ki codes '[] '[]
   NC :: L2 tys (Tyof codes c) => Cof ki codes y c
@@ -194,57 +203,6 @@ best
 best = undefined
     
 
-extracti
-  :: EST ki codes txs (ty ': tys)
-  -> (() -> r)
-  -> r
-extracti = undefined
-{-
-extracti
-  :: L3 txs tys (Tyof codes cy)
-  => EST ki codes txs (ty ': tys)
-  -> ((Cof ki codes ty cy) -> EST ki codes txs (Append (Tyof codes cy) tys) -> r)
-  -> r
-extracti (CC _ c d i _ _) k = undefined
-extracti (NC c d i) k = undefined
-
--}
-
--- probably wrong
-extractd
-  :: EST ki codes (tx ': txs) tys
-  -> ((Cof ki codes tx cx) -> EST ki codes (Append (Tyof codes cx) txs) tys-> r)
-  -> r
-extractd = undefined
-
-
-extendi
-  :: L3 txs tys (Tyof codes cx)
-  => Cof ki codes tx cx
-  -> EST ki codes (Append (Tyof codes cx) txs) tys
-  -> EST ki codes (tx ': txs) tys
-extendi cx dt@(NN d) = CN cx (Del cx d) dt
-extendi cx dt@(CN _ d _) =  CN cx (Del cx d) dt
-extendi cx dt@(NC _ _ _) = extendi' cx dt
-extendi cx dt@(CC _ _ _ _ _ _) = extendi' cx dt
-
-extendi'
-  :: L3 txs tys (Tyof codes cx)
-  => Cof ki codes tx cx 
-  -> EST ki codes (Append (Tyof codes cx) txs) (ty ': tys)
-  -> EST ki codes (tx ': txs) (ty ': tys)
-extendi' cx dt =  undefined
-
-
-extendd
-  :: L3 txs tys (Tyof codes cy)
-  => Cof ki codes ty cy
-  -> EST ki codes txs (Append (Tyof codes cy) tys) 
-  -> EST ki codes txs (ty ': tys)
-extendd = undefined
-
-
--- Okay lets do diffT on listPrfs instead, which is a bit easier
 
 -- in order to match a constructor of an Atom
 -- we will try all possible constructors, and once we find one that
@@ -289,18 +247,3 @@ diffT' NP0 (y :* ys) =
     in
       NC c (Ins c (getDiff i)) i
 diffT' (x :* xs) (y :* ys) = undefined
-
-
-{-diffT
-  :: forall xs ys ki codes. L2 xs ys 
-  => PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> EST ki codes xs ys
-diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
--}
-
-
-{-diffT :: PoA ki (Fix ki codes) txs -> PoA ki (Fix ki codes) tys -> EST txs tys 
-diffT = _
-
--}
