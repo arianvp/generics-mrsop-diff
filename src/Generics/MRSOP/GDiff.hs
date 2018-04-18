@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.GDiff where
@@ -43,6 +44,7 @@ instance IsList '[] where
 
 instance IsList xs => IsList (x ': xs) where
   isList = Cons isList
+
 
 data RList :: [k] -> * where
   RList :: IsList ts => RList ts
@@ -104,14 +106,14 @@ cpy
   -> ES ki codes (a ': i) (a ': j)
 cpy x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Cpy
 
-npCat :: forall p xs ys. (L2 xs ys) 
-      => NP p xs -> NP p ys -> NP p (Append xs ys)
-npCat poa poa'
-  = case isList :: ListPrf xs of
-      Nil -> case poa of
-               NP0 -> poa'
-      Cons pfr -> case poa of
-                    (x :* xs) -> x :* npCat xs poa'
+
+npCat' :: ListPrf xs ->  NP p xs -> NP p ys -> NP p (Append xs ys)
+npCat' Nil  NP0 ays = ays
+npCat' (Cons prf)  (a :* axs) ays = a :* npCat' prf axs ays
+
+-- TODO: L1 xs is probably enough
+npCat :: forall p xs ys. (L2 xs ys) => NP p xs -> NP p ys -> NP p (Append xs ys)
+npCat = npCat' (isList :: ListPrf xs)
    
 split :: forall xs ys p . (L2 xs ys) => NP p (Append xs ys) -> (NP p xs, NP p ys)
 split poa =
@@ -180,25 +182,6 @@ cost (Cpy c es) = cost es
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
 meet d1 d2 = if cost d1 <= cost d2 then d1 else d2
 
-diff' 
-  :: ListPrf xs
-  -> ListPrf ys
-  -> PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> ES ki codes xs ys
-diff' Nil Nil NP0 NP0 = ES0
-diff' (Cons ixs) Nil (x :* xs) NP0 =
-  case x of
-    NA_I (Fix x) ->
-      case sop x of
-        Tag cx dx -> del _ _ _ cx (diff' _ _ _ _)
-    NA_K k -> undefined
-
-diff :: forall xs ys ki codes. L2 xs ys
-  => PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> ES ki codes xs ys
-diff = diff' (isList :: ListPrf xs) (isList :: ListPrf ys)
 
 
 -- ********* MEMOIZATION **************
@@ -239,6 +222,12 @@ best = undefined
     
 
 extracti
+  :: EST ki codes txs (ty ': tys)
+  -> (() -> r)
+  -> r
+extracti = undefined
+{-
+extracti
   :: L3 txs tys (Tyof codes cy)
   => EST ki codes txs (ty ': tys)
   -> ((Cof ki codes ty cy) -> EST ki codes txs (Append (Tyof codes cy) tys) -> r)
@@ -246,6 +235,9 @@ extracti
 extracti (CC _ c d i _ _) k = undefined
 extracti (NC c d i) k = undefined
 
+-}
+
+-- probably wrong
 extractd
   :: EST ki codes (tx ': txs) tys
   -> ((Cof ki codes tx cx) -> EST ki codes (Append (Tyof codes cx) txs) tys-> r)
@@ -288,13 +280,28 @@ diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
 
 -- Okay lets do diffT on listPrfs instead, which is a bit easier
 
+-- in order to match a constructor of an Atom
+-- we will try all possible constructors, and once we find one that
+-- matches, we tell you which constructor it was,
+-- and a proof that that it's indeed of the correct type
+matchConstructor
+  :: NA ki (Fix ki codes) a
+  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> r)
+  -> r
+matchConstructor (NA_K k) f =  f (ConstrK  k) Nil
+matchConstructor (NA_I l) f = _helpme2
+
+
 diffT'
   :: ListPrf xs 
   -> ListPrf ys
   -> PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
-diffT' = undefined
+diffT' Nil Nil NP0 NP0 = NN ES0
+diffT' (Cons l) Nil (x :* xs) NP0 = undefined
+diffT' Nil  (Cons r) NP0 (y :* ys) = undefined
+diffT' (Cons l) (Cons r) (x :* xs) (y :* ys) = undefined
 
 
 
