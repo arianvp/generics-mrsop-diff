@@ -79,32 +79,6 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
       -> ES ki codes (a ': i) (a ': j)
 
-ins
-  :: ListPrf i
-  -> ListPrf j
-  -> ListPrf ((Tyof codes c))
-  -> Cof ki codes a c
-  -> ES ki codes i (Append (Tyof codes c) j)
-  -> ES ki codes i (a ': j)
-ins x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Ins
-
-del
-  :: ListPrf i
-  -> ListPrf j
-  -> ListPrf (Tyof codes c)
-  -> Cof ki codes a c
-  -> ES ki codes (Append (Tyof codes c) i) j
-  -> ES ki codes (a ': i) j
-del x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Del
-
-cpy
-  :: ListPrf i
-  -> ListPrf j
-  -> ListPrf (Tyof codes c)
-  -> Cof ki codes a c
-  -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
-  -> ES ki codes (a ': i) (a ': j)
-cpy x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Cpy
 
 npCat :: NP p xs -> NP p ys -> NP p (Append xs ys)
 npCat NP0 ays = ays
@@ -299,13 +273,21 @@ diffT'
   -> EST ki codes xs ys
 diffT' NP0 NP0 = NN ES0
 diffT' (x :* xs) NP0 = 
-  matchConstructor x $ \ c xs' -> 
+  matchConstructor x $ \c xs' -> 
     let
       d = diffT' (npCat xs' xs) NP0
     in
       CN c (Del c (getDiff d)) d
 
-diffT' NP0 (y :* ys) = undefined
+diffT' NP0 (y :* ys) =
+  -- TODO  In this branch we actually _need_ IsList
+  -- because  'insCof' requires an IsList constraint to be able to 'split'
+  -- the NP when applying this part of the patch
+  matchConstructor y $ \c ys' ->
+    let
+      i = diffT' NP0 (npCat ys' ys)
+    in
+      NC c (Ins c (getDiff i)) i
 diffT' (x :* xs) (y :* ys) = undefined
 
 
