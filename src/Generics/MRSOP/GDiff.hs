@@ -33,7 +33,7 @@ class IsList (xs :: [k]) where
 
 data ListPrf :: [k] -> * where
   Nil ::  ListPrf '[]
-  Cons :: IsList l => ListPrf l ->  ListPrf (x ': l)
+  Cons :: ListPrf l ->  ListPrf (x ': l)
 
 data Trivial :: k -> * where
   MkTrivial :: Trivial k
@@ -95,6 +95,11 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
       -> ES ki codes (a ': i) (a ': j)
 
+
+-- why the hell does this not work??
+prfCat :: ListPrf xs -> ListPrf ys -> ListPrf (Append xs ys)
+prfCat Nil isys = isys
+prfCat (Cons isxs) isys = Cons (prfCat isxs isys)
 
 npCat' :: ListPrf xs -> ListPrf ys -> NP p  xs -> NP p ys -> NP p (Append xs ys)
 npCat' Nil _ NP0 ays = ays
@@ -244,10 +249,10 @@ best = undefined
 --   as the constructors of NP don't carry the List proof
 matchConstructor
   :: NA ki (Fix ki codes) a
-  -- (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
-  -> (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
+  ->  (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
+  -- (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
-matchConstructor (NA_K k) f =  f (ConstrK  k) NP0
+matchConstructor (NA_K k) f =  f (ConstrK  k) Nil NP0
 matchConstructor (NA_I (Fix rep)) f = undefined {-
   case sop rep of
     -- TODO:
@@ -262,25 +267,27 @@ matchConstructor (NA_I (Fix rep)) f = undefined {-
 
 -}
 diffT'
-  :: PoA ki (Fix ki codes) xs
+  :: ListPrf xs
+  -> ListPrf ys
+  -> PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
-diffT' NP0 NP0 = NN ES0
-diffT' (x :* xs) NP0 = 
+diffT' Nil Nil NP0 NP0 = NN ES0
+diffT' (Cons isxs) Nil (x :* xs) NP0 = 
   -- This one is easy, because Deletes don't require an IsList proof
-  matchConstructor x $ \c xs' -> 
+  matchConstructor x $ \c lxs xs' -> 
     let
-      d = diffT' (npCat xs' xs) NP0
+      d = diffT' _ _ (npCat xs' xs) NP0
     in
       CN c (Del c (getDiff d)) d
 
-diffT' NP0 (y :* ys) =
+diffT' Nil (Cons isys) NP0 (y :* ys) =
   -- TODO  In this branch we actually _need_ IsList
   -- because  'insCof' requires an IsList constraint to be able to 'split'
   -- the NP when applying this part of the patch
-  matchConstructor y $ \c ys' ->
+  matchConstructor y $ \c lys ys' ->
     let
-      i = diffT' NP0 (npCat ys' ys)
+      i = diffT' _ _ NP0 (npCat ys' ys)
     in nc _ _ c _ i
       --NC c (Ins c (getDiff i)) i
-diffT' (x :* xs) (y :* ys) = undefined
+diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) = undefined
