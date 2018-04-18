@@ -106,15 +106,12 @@ cpy
   -> ES ki codes (a ': i) (a ': j)
 cpy x y z = case (reify x, reify y, reify z) of (RList, RList, RList) -> Cpy
 
+npCat :: NP p xs -> NP p ys -> NP p (Append xs ys)
+npCat NP0 ays = ays
+npCat (a :* axs) ays = a :* npCat axs ays
 
-npCat' :: ListPrf xs ->  NP p xs -> NP p ys -> NP p (Append xs ys)
-npCat' Nil  NP0 ays = ays
-npCat' (Cons prf)  (a :* axs) ays = a :* npCat' prf axs ays
-
--- TODO: L1 xs is probably enough
-npCat :: forall p xs ys. (L2 xs ys) => NP p xs -> NP p ys -> NP p (Append xs ys)
-npCat = npCat' (isList :: ListPrf xs)
-   
+-- We need to have some extra proof about the fact that xs and ys
+-- are actually lists. Otherwise  split won't work, hence the L2
 split :: forall xs ys p . (L2 xs ys) => NP p (Append xs ys) -> (NP p xs, NP p ys)
 split poa =
   case isList :: ListPrf xs of
@@ -141,7 +138,7 @@ matchCof :: (Eq1 ki)
   => Cof ki codes a c
   -> NA ki (Fix ki codes) a
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
-matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 Nil
+matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 x
 matchCof (ConstrK k) (NA_K k2) = 
   guard (equal k k2) >> Just NP0
 
@@ -270,13 +267,6 @@ extendd
   -> EST ki codes txs (ty ': tys)
 extendd = undefined
 
-diffT
-  :: forall xs ys ki codes. L2 xs ys 
-  => PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> EST ki codes xs ys
-diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
-
 
 -- Okay lets do diffT on listPrfs instead, which is a bit easier
 
@@ -286,9 +276,10 @@ diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
 -- and a proof that that it's indeed of the correct type
 matchConstructor
   :: NA ki (Fix ki codes) a
-  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> r)
+  -- (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> r)
+  -> (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
-matchConstructor (NA_K k) f =  f (ConstrK  k) Nil
+matchConstructor (NA_K k) f =  f (ConstrK  k) NP0
 matchConstructor (NA_I (Fix rep)) f =
   case sop rep of
     -- TODO:
@@ -297,21 +288,32 @@ matchConstructor (NA_I (Fix rep)) f =
     --
     -- Note that these are very similar. We can probably do something
     -- with that fact though I Don't know yet what
-    Tag c poa -> f (ConstrI c) _
-
+    Tag c poa -> f (ConstrI c) poa
 
 
 diffT'
-  :: ListPrf xs 
-  -> ListPrf ys
-  -> PoA ki (Fix ki codes) xs
+  :: PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
-diffT' Nil Nil NP0 NP0 = NN ES0
-diffT' (Cons l) Nil (x :* xs) NP0 = undefined
-diffT' Nil  (Cons r) NP0 (y :* ys) = undefined
-diffT' (Cons l) (Cons r) (x :* xs) (y :* ys) = undefined
+diffT' NP0 NP0 = NN ES0
+diffT' (x :* xs) NP0 = 
+  matchConstructor x $ \ c xs' -> 
+    let
+      d = diffT' (npCat xs' xs) NP0
+    in
+      CN c (Del c (getDiff d)) d
 
+diffT' NP0 (y :* ys) = undefined
+diffT' (x :* xs) (y :* ys) = undefined
+
+
+{-diffT
+  :: forall xs ys ki codes. L2 xs ys 
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> EST ki codes xs ys
+diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
+-}
 
 
 {-diffT :: PoA ki (Fix ki codes) txs -> PoA ki (Fix ki codes) tys -> EST txs tys 
