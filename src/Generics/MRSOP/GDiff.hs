@@ -352,11 +352,20 @@ diffT' Nil (Cons isys) NP0 (y :* ys) =
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
   matchConstructor x $ \cx isxs' xs' -> matchConstructor y $ \cy isys' ys' ->
     let
-      i = u
-      d = u 
+      i = extendi isxs' isxs cx c
+      d = extendd isys' isys cy c
       c = diffT' (prfCat isxs' isxs) (prfCat isys' isys) (npCat xs' xs) (npCat ys' ys)
     in
       cc isxs isxs' isys isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
+
+extendd
+  :: TestEquality ki
+  => ListPrf (Tyof codes cy)
+  -> ListPrf ys
+  -> Cof ki codes y cy
+  -> EST ki codes xs (Append (Tyof codes cy) ys)
+  -> EST ki codes xs (y ': ys)
+extendd = undefined
 
 extendi
   :: TestEquality ki
@@ -385,19 +394,29 @@ extendi' isxs' isxs cx dt = extracti dt $ \ isys' isys cy dt' ->
   in
     cc isxs isxs' isys  isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
 
+cofToListPrf :: IsList (Tyof codes cy) => Cof ki codes y cy -> ListPrf (Tyof codes cy)
+cofToListPrf _ = isList
+
+
+targetTail ::  ES ki codes xs (y ': ys) -> ListPrf ys
+targetTail (Ins _ d) = isList
+targetTail (Del _ d) = targetTail d
+targetTail (Cpy _ _) = isList
+
 extracti
   :: TestEquality ki
   => EST ki codes xs' (y ': ys)
-  -> (   ListPrf (Tyof codes cy)
-      -> ListPrf tys 
+  -> ( forall cy. ListPrf (Tyof codes cy)
+      -> ListPrf ys 
       -> Cof ki codes y cy
       -> EST ki codes xs' (Append (Tyof codes cy) ys) 
       -> r
      )
   -> r
-extracti = undefined
+extracti (CC _ c d i _ _) k = k (cofToListPrf c) (targetTail d) c i
+extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
 
-u = undefined
+best :: _
 
 bestDiffT
   :: (TestEquality ki) 
@@ -414,4 +433,4 @@ bestDiffT
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
     Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
-    Nothing            -> u
+    Nothing            -> undefined
