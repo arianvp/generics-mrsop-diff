@@ -39,8 +39,9 @@ data Trivial :: k -> * where
   MkTrivial :: Trivial k
 
 -- We can have some kind of forgetful functor that ignores p
-npToListPrf :: forall xs p. IsList xs => NP p xs -> ListPrf xs
-npToListPrf _ = isList :: ListPrf xs
+npToListPrf :: forall xs p. NP p xs -> ListPrf xs
+npToListPrf NP0       = Nil
+npToListPrf (_ :* xs) = Cons (npToListPrf xs)
 
 -- we can go the other way around. not sure if useful
 listPrfToNP :: ListPrf xs -> NP Trivial xs
@@ -249,11 +250,19 @@ best = undefined
 --   as the constructors of NP don't carry the List proof
 matchConstructor
   :: NA ki (Fix ki codes) a
-  ->  (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
+  ->  (forall c. Cof ki codes a c -> ListPrf (Tyof codes c)
+              -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -- (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f =  f (ConstrK  k) Nil NP0
-matchConstructor (NA_I (Fix rep)) f = undefined {-
+matchConstructor (NA_I (Fix rep)) f
+  = case sop rep of
+      Tag c poa -> f (ConstrI c) (npToListPrf poa) poa
+  where
+    -- aux :: PoA ki fam (Lkup n (Lkup k codes)) -> 
+
+{- 
+= undefined 
   case sop rep of
     -- TODO:
     -- Needed: ListPrf (Lkup n (Lkup k codes))
@@ -266,6 +275,13 @@ matchConstructor (NA_I (Fix rep)) f = undefined {-
     Tag c poa -> f (ConstrI c) poa
 
 -}
+
+ins :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+    -> Cof ki codes a c 
+    -> ES ki codes i (Append (Tyof codes c) j)
+    -> ES ki codes i (a ': j)
+ins pi pj pty = undefined
+
 diffT'
   :: ListPrf xs
   -> ListPrf ys
@@ -277,7 +293,7 @@ diffT' (Cons isxs) Nil (x :* xs) NP0 =
   -- This one is easy, because Deletes don't require an IsList proof
   matchConstructor x $ \c lxs xs' -> 
     let
-      d = diffT' _ _ (npCat xs' xs) NP0
+      d = diffT' (prfCat lxs isxs) Nil (npCat xs' xs) NP0
     in
       CN c (Del c (getDiff d)) d
 
@@ -287,7 +303,6 @@ diffT' Nil (Cons isys) NP0 (y :* ys) =
   -- the NP when applying this part of the patch
   matchConstructor y $ \c lys ys' ->
     let
-      i = diffT' _ _ NP0 (npCat ys' ys)
-    in nc _ _ c _ i
-      --NC c (Ins c (getDiff i)) i
+      i = diffT' Nil (prfCat lys isys) NP0 (npCat ys' ys)
+    in nc isys lys c (ins Nil isys lys c (getDiff i)) i
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) = undefined
