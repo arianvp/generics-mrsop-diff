@@ -12,6 +12,7 @@
 
 module Generics.MRSOP.GDiff where
 
+import Data.Type.Equality
 import Control.Monad
 import Data.Proxy
 import Data.Semigroup
@@ -76,6 +77,24 @@ data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]])
   ConstrI :: IsNat n => Constr c (Lkup n codes)  -> Cof ki codes (I n) (CofI n c)
   ConstrK :: ki k                  -> Cof ki codes (K k) CofK
 
+cofWitnessI :: Cof ki codes (I n) (CofI n c) -> Proxy n
+cofWitnessI _ = Proxy
+
+heqCof :: (TestEquality ki) 
+       => Cof ki codes a cx -> Cof ki codes b cy ->  Maybe (a :~: b , cx :~: cy)
+heqCof cx@(ConstrI x) cy@(ConstrI y)
+  = case testEquality (getSNat (cofWitnessI cx)) (getSNat (cofWitnessI cy)) of
+      Nothing   -> Nothing
+      Just Refl -> case heqConstr x y of
+        Nothing   -> Nothing
+        Just Refl -> Just (Refl, Refl)
+heqCof (ConstrK x) (ConstrK y)
+  = case testEquality x y of
+      Just Refl -> Just (Refl , Refl)
+      Nothing   -> Nothing
+heqCof _ _ = Nothing
+
+
 type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) 
     :: [Atom kon] where
   -- we wanted Lkup c . Lkup ix but haskell complains
@@ -95,6 +114,34 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   Cpy :: L3 i j (Tyof codes c) => Cof ki codes a c 
       -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
       -> ES ki codes (a ': i) (a ': j)
+
+-- Smart constructors 
+ins
+  :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+  -> Cof ki codes a c 
+  -> ES ki codes i (Append (Tyof codes c) j)
+  -> ES ki codes i (a ': j)
+ins pi pj pty =
+  case (reify pi, reify pj, reify pty) of
+    (RList,RList,RList) -> Ins
+
+del
+  :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+  -> Cof ki codes a c 
+  -> ES ki codes (Append (Tyof codes c) i) j
+  -> ES ki codes (a ': i) j
+del pi pj pty =
+  case (reify pi, reify pj, reify pty) of
+    (RList,RList,RList) -> Del
+
+cpy
+  :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+  -> Cof ki codes a c 
+  -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
+  -> ES ki codes (a ': i) (a ': j)
+cpy pi pj pty =
+  case (reify pi, reify pj, reify pty) of
+    (RList,RList,RList) -> Cpy
 
 
 -- why the hell does this not work??
@@ -165,7 +212,7 @@ delCof
   -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
 delCof c (x :* xs) = flip npCat xs <$> matchCof c x
 
-
+  
 applyES
   :: Eq1 ki 
   => ES ki codes xs ys
@@ -202,7 +249,8 @@ data EST (ki :: kon -> *)
      -> ES  ki codes (x ': txs) '[]
      -> EST ki codes (Append (Tyof codes c) txs) '[]
      -> EST ki codes (x ': txs) '[]
-  CC :: L4 txs tys (Tyof codes cy) (Tyof codes cx) => Cof ki codes x cx
+  CC :: L4 txs tys (Tyof codes cy) (Tyof codes cx)
+      => Cof ki codes x cx
      -> Cof ki codes y cy
      -> ES ki codes (x ': txs) (y ': tys)
      -> EST ki codes (x ': txs) (Append (Tyof codes cy) tys)
@@ -211,30 +259,48 @@ data EST (ki :: kon -> *)
      -> EST ki codes (x ': txs) (y ': tys)
 
 nc
-  :: ListPrf txs 
+  :: ListPrf tys 
   -> ListPrf (Tyof codes c) 
   -> Cof ki codes y c
   -> ES  ki codes '[] (y ': tys)
   -> EST ki codes '[] (Append (Tyof codes c) tys)
   -> EST ki codes '[] (y ': tys)
-nc = undefined
+nc a b =
+  case (reify a, reify b) of
+    (RList, RList) -> NC
+
+cn
+  :: ListPrf txs 
+  -> ListPrf (Tyof codes c) 
+  -> Cof ki codes x c
+  -> ES  ki codes (x ': txs) '[]
+  -> EST ki codes (Append (Tyof codes c) txs) '[]
+  -> EST ki codes (x ': txs) '[]
+cn a b =  
+  case (reify a, reify b) of
+    (RList, RList) -> CN
+
+cc
+  :: ListPrf txs
+  -> ListPrf (Tyof codes cx)
+  -> ListPrf tys
+  -> ListPrf (Tyof codes cy)
+  -> Cof ki codes x cx
+  -> Cof ki codes y cy
+  -> ES ki codes (x ': txs) (y ': tys)
+  -> EST ki codes (x ': txs) (Append (Tyof codes cy) tys)
+  -> EST ki codes (Append (Tyof codes cx) txs) (y ': tys)
+  -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
+  -> EST ki codes (x ': txs) (y ': tys)
+cc a b c d =
+  case (reify a, reify b, reify c, reify d) of
+    (RList, RList, RList, RList) -> CC
 
 getDiff :: forall ki codes rxs rys. EST ki codes rxs rys -> ES ki codes rxs rys
 getDiff (NN x)  = x
 getDiff (NC _ x _) = x
 getDiff (CN _ x _) = x
 getDiff (CC _ _ x _ _ _) = x
-
-
-best 
-  :: Cof ki codes tx cx 
-  -> Cof ki codes ty cy
-  -> EST ki codes (tx ': txs)                  (Append (Tyof codes cy) tys)
-  -> EST ki codes (Append (Tyof codes cx) txs) (ty ': tys)
-  -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
-  -> ES  ki codes (tx ': txs)                   (ty ': tys)
-best = undefined
-    
 
 
 -- in order to match a constructor of an Atom
@@ -252,57 +318,100 @@ matchConstructor
   :: NA ki (Fix ki codes) a
   ->  (forall c. Cof ki codes a c -> ListPrf (Tyof codes c)
               -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
-  -- (forall c. Cof ki codes a c -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f =  f (ConstrK  k) Nil NP0
-matchConstructor (NA_I (Fix rep)) f
-  = case sop rep of
-      Tag c poa -> f (ConstrI c) (npToListPrf poa) poa
-  where
-    -- aux :: PoA ki fam (Lkup n (Lkup k codes)) -> 
-
-{- 
-= undefined 
+matchConstructor (NA_I (Fix rep)) f =
   case sop rep of
-    -- TODO:
-    -- Needed: ListPrf (Lkup n (Lkup k codes))
-    -- Have:   PoA ki (Fix ki codes) (Lkup n (Lkup k codes))
-    --
-    --  However we do not know that    IsList (Lkup n (Lkup k codes)) so we're stuck
-    --
-    -- Note that these are very similar. We can probably do something
-    -- with that fact though I Don't know yet what
-    Tag c poa -> f (ConstrI c) poa
+    Tag c poa -> f (ConstrI c) (npToListPrf poa) poa
 
--}
-
-ins :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
-    -> Cof ki codes a c 
-    -> ES ki codes i (Append (Tyof codes c) j)
-    -> ES ki codes i (a ': j)
-ins pi pj pty = undefined
 
 diffT'
-  :: ListPrf xs
+  :: (TestEquality ki)
+  => ListPrf xs
   -> ListPrf ys
   -> PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
+
 diffT' Nil Nil NP0 NP0 = NN ES0
+
 diffT' (Cons isxs) Nil (x :* xs) NP0 = 
-  -- This one is easy, because Deletes don't require an IsList proof
-  matchConstructor x $ \c lxs xs' -> 
+  matchConstructor x $ \c isxs' xs' -> 
     let
-      d = diffT' (prfCat lxs isxs) Nil (npCat xs' xs) NP0
+      d = diffT' (prfCat isxs' isxs) Nil (npCat xs' xs) NP0
     in
       CN c (Del c (getDiff d)) d
 
 diffT' Nil (Cons isys) NP0 (y :* ys) =
-  -- TODO  In this branch we actually _need_ IsList
-  -- because  'insCof' requires an IsList constraint to be able to 'split'
-  -- the NP when applying this part of the patch
-  matchConstructor y $ \c lys ys' ->
+  matchConstructor y $ \c isys' ys' ->
     let
-      i = diffT' Nil (prfCat lys isys) NP0 (npCat ys' ys)
-    in nc isys lys c (ins Nil isys lys c (getDiff i)) i
-diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) = undefined
+      i = diffT' Nil (prfCat isys' isys) NP0 (npCat ys' ys)
+    in
+      nc isys isys' c (ins Nil isys isys' c (getDiff i)) i
+
+diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
+  matchConstructor x $ \cx isxs' xs' -> matchConstructor y $ \cy isys' ys' ->
+    let
+      i = u
+      d = u 
+      c = diffT' (prfCat isxs' isxs) (prfCat isys' isys) (npCat xs' xs) (npCat ys' ys)
+    in
+      cc isxs isxs' isys isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
+
+extendi
+  :: TestEquality ki
+  => ListPrf (Tyof codes cx) 
+  -> ListPrf xs 
+  -> Cof ki codes x cx
+  -> EST ki codes (Append (Tyof codes cx) xs) ys
+  -> EST ki codes (x ': xs) ys
+extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs Nil isxs' cx d) dt
+extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs Nil isxs' cx d) dt
+extendi isxs' isxs cx dt@(NC _ _ _) = extendi' isxs' isxs cx dt
+extendi isxs' isxs cx dt@(CC _ _ _ _ _ _) = extendi' isxs' isxs cx dt
+
+extendi'
+  :: TestEquality ki
+  => ListPrf (Tyof codes cx)
+  -> ListPrf xs
+  -> Cof ki codes x cx
+  -> EST ki codes (Append (Tyof codes cx) xs) (y ': ys)
+  -> EST ki codes (x : xs) (y ': ys)
+extendi' isxs' isxs cx dt = extracti dt $ \ isys' isys cy dt' ->
+  let
+    i = extendi isxs' isxs cx dt'
+    d = dt
+    c = dt'
+  in
+    cc isxs isxs' isys  isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
+
+extracti
+  :: TestEquality ki
+  => EST ki codes xs' (y ': ys)
+  -> (   ListPrf (Tyof codes cy)
+      -> ListPrf tys 
+      -> Cof ki codes y cy
+      -> EST ki codes xs' (Append (Tyof codes cy) ys) 
+      -> r
+     )
+  -> r
+extracti = undefined
+
+u = undefined
+
+bestDiffT
+  :: (TestEquality ki) 
+  => Cof ki codes x cx
+  -> Cof ki codes y cy
+  -> ListPrf xs
+  -> ListPrf (Tyof codes cx)
+  -> ListPrf ys
+  -> ListPrf (Tyof codes cy)
+  -> EST ki codes (x ': xs) (Append (Tyof codes cy) ys)
+  -> EST ki codes (Append (Tyof codes cx) xs) (y ': ys)
+  -> EST ki codes (Append (Tyof codes cx) xs) (Append (Tyof codes cy) ys)
+  -> ES ki codes (x ': xs) (y ': ys)
+bestDiffT cx cy isxs isxs' isys isys' i d c =
+  case heqCof cx cy of
+    Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
+    Nothing            -> u
