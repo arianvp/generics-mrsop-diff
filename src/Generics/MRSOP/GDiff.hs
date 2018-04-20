@@ -366,7 +366,34 @@ extendd
   -> Cof ki codes y cy
   -> EST ki codes xs (Append (Tyof codes cy) ys)
   -> EST ki codes xs (y ': ys)
-extendd = undefined
+extendd isys' isys cy dt@(NN d) = nc isys isys' cy (ins isys isys' cy d) dt
+extendd isys' isys cy dt@(NC _ d _) = nc isys isys' cy (ins isys isys' cy d) dt
+extendd isys' isys cy dt@(CN _ _ _) = extendd' isys' isys cy dt
+extendd isys' isys cy dt@(CC _ _ _ _ _ _) = extendd' isys' isys cy dt
+
+extendd'
+  :: TestEquality ki
+  => ListPrf (Tyof codes cy)
+  -> ListPrf ys
+  -> Cof ki codes y cy
+  -> EST ki codes (x ': xs) (Append (Tyof codes cy) ys) 
+  -> EST ki codes (x ': xs) (y ': ys)
+extendd' isys' isys cy dt =
+  extractd dt $ \ isxs' isxs cx dt' -> undefined
+
+
+extractd
+  :: TestEquality ki
+  => EST ki codes (x ': xs) ys'
+  -> ( forall cx. ListPrf (Tyof codes cx)
+      -> ListPrf xs 
+      -> Cof ki codes x cx
+      -> EST ki codes (Append (Tyof codes cx) xs)  ys'
+      -> r
+     )
+  -> r
+extractd (CC c _ d' _ d _) k =  k (cofToListPrf  c) (sourceTail d') c d
+extractd (CN c d' d)       k =  k (cofToListPrf  c) (sourceTail d') c d
 
 extendi
   :: TestEquality ki
@@ -399,6 +426,11 @@ cofToListPrf :: IsList (Tyof codes cy) => Cof ki codes y cy -> ListPrf (Tyof cod
 cofToListPrf _ = isList
 
 
+sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
+sourceTail (Ins _ d) = sourceTail d
+sourceTail (Del _ _) = isList
+sourcetail (Cpy _ _) = isList
+
 targetTail ::  ES ki codes xs (y ': ys) -> ListPrf ys
 targetTail (Ins _ d) = isList
 targetTail (Del _ d) = targetTail d
@@ -414,8 +446,8 @@ extracti
       -> r
      )
   -> r
-extracti (CC _ c d i _ _) k = k (cofToListPrf c) (targetTail d) c i
-extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
+extracti (CC _ c d i _ _) k = k (_ c) (targetTail d) c i
+extracti (NC c d i) k = k (_ c) (targetTail d) c i
 
 
 best :: ES ki codes xs ys -> ES ki codes xs ys -> ES ki codes xs ys
