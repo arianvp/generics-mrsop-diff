@@ -116,6 +116,7 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (a ': i) (a ': j)
 
 -- Smart constructors 
+-- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins
   :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
@@ -416,7 +417,20 @@ extracti
 extracti (CC _ c d i _ _) k = k (cofToListPrf c) (targetTail d) c i
 extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
 
-best :: _
+
+best :: ES ki codes xs ys -> ES ki codes xs ys -> ES ki codes xs ys
+best dx dy = bestSteps (steps dx) dx (steps dy) dy
+
+steps :: ES ki codes xs ys -> Nat
+steps (Ins _ d) = S $ steps d
+steps (Del _ d) = S $ steps d
+steps (Cpy _ d) = S $ steps d
+steps ES0       = Z
+
+bestSteps :: Nat -> d -> Nat -> d -> d
+bestSteps Z x _ _ = x
+bestSteps _ _ Z y = y
+bestSteps (S nx) x (S ny) y = bestSteps nx x ny y
 
 bestDiffT
   :: (TestEquality ki) 
@@ -433,4 +447,8 @@ bestDiffT
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
     Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
-    Nothing            -> undefined
+    Nothing            ->
+      let i' = ins isxs _ _ cx (getDiff i)
+          d' = del isxs _ _ cy (getDiff d)
+      in _help
+      -- _a -- ES ki codes  (x ': xs) (y ': ys)
