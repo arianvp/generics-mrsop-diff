@@ -105,44 +105,44 @@ type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof)
 
 data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   ES0 :: ES ki codes '[] '[]
-  Ins :: L3 i j (Tyof codes c) => Cof ki codes a c 
+  Ins :: L2 j (Tyof codes c) => Cof ki codes a c 
       -> ES ki codes i (Append (Tyof codes c) j)
       -> ES ki codes i (a ': j)
   Del :: Cof ki codes a c
       -> ES ki codes (Append (Tyof codes c) i) j
       -> ES ki codes (a ': i) j
-  Cpy :: L3 i j (Tyof codes c) => Cof ki codes a c 
+  Cpy :: L2 j (Tyof codes c) => Cof ki codes a c 
       -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
       -> ES ki codes (a ': i) (a ': j)
 
 -- Smart constructors 
 -- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins
-  :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+  :: ListPrf j -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
   -> ES ki codes i (Append (Tyof codes c) j)
   -> ES ki codes i (a ': j)
-ins pi pj pty =
-  case (reify pi, reify pj, reify pty) of
-    (RList,RList,RList) -> Ins
+ins pj pty =
+  case (reify pj, reify pty) of
+    (RList,RList) -> Ins
 
 del
-  :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+  :: ListPrf i -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
   -> ES ki codes (Append (Tyof codes c) i) j
   -> ES ki codes (a ': i) j
-del pi pj pty =
-  case (reify pi, reify pj, reify pty) of
-    (RList,RList,RList) -> Del
+del pj pty =
+  case (reify pj, reify pty) of
+    (RList,RList) -> Del
 
 cpy
-  :: ListPrf i -> ListPrf j -> ListPrf (Tyof codes c)
+  :: ListPrf j -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
   -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
   -> ES ki codes (a ': i) (a ': j)
-cpy pi pj pty =
-  case (reify pi, reify pj, reify pty) of
-    (RList,RList,RList) -> Cpy
+cpy pj pty =
+  case (reify pj, reify pty) of
+    (RList,RList) -> Cpy
 
 
 -- why the hell does this not work??
@@ -348,7 +348,7 @@ diffT' Nil (Cons isys) NP0 (y :* ys) =
     let
       i = diffT' Nil (prfCat isys' isys) NP0 (npCat ys' ys)
     in
-      nc isys isys' c (ins Nil isys isys' c (getDiff i)) i
+      nc isys isys' c (ins isys isys' c (getDiff i)) i
 
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
   matchConstructor x $ \cx isxs' xs' -> matchConstructor y $ \cy isys' ys' ->
@@ -375,8 +375,8 @@ extendi
   -> Cof ki codes x cx
   -> EST ki codes (Append (Tyof codes cx) xs) ys
   -> EST ki codes (x ': xs) ys
-extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs Nil isxs' cx d) dt
-extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs Nil isxs' cx d) dt
+extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' cx d) dt
+extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs isxs' cx d) dt
 extendi isxs' isxs cx dt@(NC _ _ _) = extendi' isxs' isxs cx dt
 extendi isxs' isxs cx dt@(CC _ _ _ _ _ _) = extendi' isxs' isxs cx dt
 
@@ -446,9 +446,7 @@ bestDiffT
   -> ES ki codes (x ': xs) (y ': ys)
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
-    Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
+    Just (Refl , Refl) -> cpy isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
     Nothing            ->
-      let i' = ins isxs _ _ cx (getDiff i)
-          d' = del isxs _ _ cy (getDiff d)
-      in _help
+      best (ins isys isys' cy (getDiff i)) (del isxs isxs' cx (getDiff d))
       -- _a -- ES ki codes  (x ': xs) (y ': ys)
