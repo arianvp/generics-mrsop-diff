@@ -108,10 +108,10 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   Ins :: L2 j (Tyof codes c) => Cof ki codes a c 
       -> ES ki codes i (Append (Tyof codes c) j)
       -> ES ki codes i (a ': j)
-  Del :: Cof ki codes a c
+  Del :: L2 i (Tyof codes c) => Cof ki codes a c
       -> ES ki codes (Append (Tyof codes c) i) j
       -> ES ki codes (a ': i) j
-  Cpy :: L2 j (Tyof codes c) => Cof ki codes a c 
+  Cpy :: L3 i j (Tyof codes c) => Cof ki codes a c 
       -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
       -> ES ki codes (a ': i) (a ': j)
 
@@ -131,18 +131,20 @@ del
   -> Cof ki codes a c 
   -> ES ki codes (Append (Tyof codes c) i) j
   -> ES ki codes (a ': i) j
-del pj pty =
-  case (reify pj, reify pty) of
+del pi pty =
+  case (reify pi, reify pty) of
     (RList,RList) -> Del
 
 cpy
-  :: ListPrf j -> ListPrf (Tyof codes c)
+  :: ListPrf i 
+  -> ListPrf j 
+  -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
   -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
   -> ES ki codes (a ': i) (a ': j)
-cpy pj pty =
-  case (reify pj, reify pty) of
-    (RList,RList) -> Cpy
+cpy pi pj pty =
+  case (reify pi, reify pj, reify pty) of
+    (RList,RList,RList) -> Cpy
 
 
 -- why the hell does this not work??
@@ -246,7 +248,7 @@ data EST (ki :: kon -> *)
      -> ES  ki codes '[] (y ': tys)
      -> EST ki codes '[] (Append (Tyof codes c) tys)
      -> EST ki codes '[] (y ': tys)
-  CN :: Cof ki codes x c 
+  CN :: L2 txs (Tyof codes c) => Cof ki codes x c 
      -> ES  ki codes (x ': txs) '[]
      -> EST ki codes (Append (Tyof codes c) txs) '[]
      -> EST ki codes (x ': txs) '[]
@@ -337,11 +339,12 @@ diffT'
 diffT' Nil Nil NP0 NP0 = NN ES0
 
 diffT' (Cons isxs) Nil (x :* xs) NP0 = 
-  matchConstructor x $ \c isxs' xs' -> 
+  matchConstructor x $ \cx isxs' xs' -> 
     let
       d = diffT' (prfCat isxs' isxs) Nil (npCat xs' xs) NP0
     in
-      CN c (Del c (getDiff d)) d
+      cn isxs isxs' cx (del isxs isxs' cx (getDiff d)) d
+      -- TODO(1) use smart constructors! CN c (Del c (getDiff d)) d
 
 diffT' Nil (Cons isys) NP0 (y :* ys) =
   matchConstructor y $ \c isys' ys' ->
@@ -429,7 +432,7 @@ cofToListPrf _ = isList
 sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
 sourceTail (Ins _ d) = sourceTail d
 sourceTail (Del _ _) = isList
-sourcetail (Cpy _ _) = isList
+sourceTail (Cpy _ _) = isList
 
 targetTail ::  ES ki codes xs (y ': ys) -> ListPrf ys
 targetTail (Ins _ d) = isList
@@ -478,7 +481,7 @@ bestDiffT
   -> ES ki codes (x ': xs) (y ': ys)
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
-    Just (Refl , Refl) -> cpy isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
+    Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
     Nothing            ->
       best (ins isys isys' cy (getDiff i)) (del isxs isxs' cx (getDiff d))
       -- _a -- ES ki codes  (x ': xs) (y ': ys)
