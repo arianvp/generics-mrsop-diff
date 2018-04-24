@@ -382,7 +382,13 @@ extendd'
   -> EST ki codes (x ': xs) (Append (Tyof codes cy) ys) 
   -> EST ki codes (x ': xs) (y ': ys)
 extendd' isys' isys cy dt =
-  extractd dt $ \ isxs' isxs cx dt' -> undefined
+  extractd dt $ \ isxs' isxs cx dt' ->
+    let
+      i = dt
+      d = extendd isys' isys cy dt'
+      c = dt'
+    in cc isxs isxs' isys isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
+      
 
 
 extractd
@@ -449,8 +455,8 @@ extracti
       -> r
      )
   -> r
-extracti (CC _ c d i _ _) k = k (_ c) (targetTail d) c i
-extracti (NC c d i) k = k (_ c) (targetTail d) c i
+extracti (CC _ c d i _ _) k = k (cofToListPrf c) (targetTail d) c i
+extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
 
 
 best :: ES ki codes xs ys -> ES ki codes xs ys -> ES ki codes xs ys
