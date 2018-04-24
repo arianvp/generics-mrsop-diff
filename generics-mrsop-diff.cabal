@@ -21,7 +21,9 @@ library
   exposed-modules: 
     Generics.MRSOP.Diff
     Generics.MRSOP.GDiff
-  
+ 
+  other-modules:
+    Generics.MRSOP.GDiff.Util
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 
     MultiParamTypeClasses,

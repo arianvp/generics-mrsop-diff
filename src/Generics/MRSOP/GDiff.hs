@@ -18,60 +18,13 @@ import Data.Proxy
 import Data.Semigroup
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
+import Generics.MRSOP.GDiff.Util
 
 data SinglCof
   = CofI Nat Nat -- type index and constructor index within the type
   | CofK
 
 
-type family Append txs tys where
-  Append '[] tys = tys
-  Append (tx ': txs) tys = tx ': (Append txs tys)
-
-
-class IsList (xs :: [k]) where
-  isList :: ListPrf xs
-
-data ListPrf :: [k] -> * where
-  Nil ::  ListPrf '[]
-  Cons :: ListPrf l ->  ListPrf (x ': l)
-
-data Trivial :: k -> * where
-  MkTrivial :: Trivial k
-
--- We can have some kind of forgetful functor that ignores p
-npToListPrf :: forall xs p. NP p xs -> ListPrf xs
-npToListPrf NP0       = Nil
-npToListPrf (_ :* xs) = Cons (npToListPrf xs)
-
--- we can go the other way around. not sure if useful
-listPrfToNP :: ListPrf xs -> NP Trivial xs
-listPrfToNP Nil = NP0
-listPrfToNP (Cons xs) = MkTrivial :* listPrfToNP xs
-
-
-
-
-type L1 xs = (IsList xs) 
-type L2 xs ys = (IsList xs, IsList ys) 
-type L3 xs ys zs = (IsList xs, IsList ys, IsList zs) 
-type L4 xs ys zs as = (IsList xs, IsList ys, IsList zs, IsList as) 
-
-instance IsList '[] where
-  isList = Nil
-
-instance IsList xs => IsList (x ': xs) where
-  isList = Cons isList
-
-
-data RList :: [k] -> * where
-  RList :: IsList ts => RList ts
-
-reify :: ListPrf ts -> RList ts
-reify Nil = RList
-reify (Cons x) = case reify x of RList -> RList
-
-  
 data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) 
          (a :: Atom kon) (c :: SinglCof) where
   ConstrI :: IsNat n => Constr c (Lkup n codes)  -> Cof ki codes (I n) (CofI n c)
@@ -118,7 +71,8 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
 -- Smart constructors 
 -- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins
-  :: ListPrf j -> ListPrf (Tyof codes c)
+  :: ListPrf j 
+  -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
   -> ES ki codes i (Append (Tyof codes c) j)
   -> ES ki codes i (a ': j)
@@ -147,7 +101,6 @@ cpy pi pj pty =
     (RList,RList,RList) -> Cpy
 
 
--- why the hell does this not work??
 prfCat :: ListPrf xs -> ListPrf ys -> ListPrf (Append xs ys)
 prfCat Nil isys = isys
 prfCat (Cons isxs) isys = Cons (prfCat isxs isys)
