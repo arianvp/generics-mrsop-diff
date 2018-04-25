@@ -281,6 +281,38 @@ matchConstructor (NA_I (Fix rep)) f =
     Tag c poa -> f (ConstrI c) (npToListPrf poa) poa
 
 
+-- | Given two deep representations, we get the diff.
+-- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
+-- TODO: ask victor
+diff
+  :: (IsNat ix1, IsNat ix2, TestEquality ki)
+  => Fix ki codes ix1
+  -> Fix ki codes ix2
+  -> EST ki codes '[ 'I ix1 ] '[ 'I ix2 ]
+
+diff x y = 
+  let
+    x' = NA_I x
+    y' = NA_I y
+  in diffA x' y'
+
+
+diffA :: TestEquality ki => NA ki (Fix ki codes) x -> NA ki (Fix ki codes) y -> EST ki codes '[x] '[y]
+diffA a b = diffPoA (a :* NP0) (b :* NP0)
+
+diffPoA :: TestEquality ki => PoA ki (Fix ki codes) '[x] -> PoA ki (Fix ki codes) '[y] -> EST ki codes '[x] '[y]
+
+diffPoA = diffT
+
+diffT 
+  :: forall xs ys ki codes.
+    (TestEquality ki, L2 xs ys) 
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> EST ki codes xs ys
+diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
+
+
 diffT'
   :: (TestEquality ki)
   => ListPrf xs
