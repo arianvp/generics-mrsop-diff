@@ -12,11 +12,14 @@
 
 module Generics.MRSOP.GDiff where
 
+import GHC.Exts hiding (IsList)
+
 import Data.Type.Equality
 import Control.Monad
 import Data.Proxy
 import Data.Semigroup
 import Generics.MRSOP.Base
+import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.Util
 import Generics.MRSOP.GDiff.Util
 
@@ -476,3 +479,27 @@ bestDiffT cx cy isxs isxs' isys isys' i d c =
     Nothing            ->
       best (ins isys isys' cy (getDiff i)) (del isxs isxs' cx (getDiff d))
       -- _a -- ES ki codes  (x ': xs) (y ': ys)
+
+-- * Showing Constructors as 'Cof'
+
+class Show1 (f :: k -> *) where
+  show1 :: forall k . f k -> String
+
+type family HasDatatypeInfoCof ki fam codes (c :: SinglCof) :: Constraint where
+  HasDatatypeInfoCof ki fam codes (CofI n c) = HasDatatypeInfo ki fam codes n
+  HasDatatypeInfoCof ki fam codes CofK       = Show1 ki
+
+cofShowI :: forall ki fam codes ix c
+          . (Family ki fam codes , HasDatatypeInfo ki fam codes ix)
+         => Cof ki codes (I ix) (CofI ix c)
+         -> String
+cofShowI (ConstrI ctr)
+  = let di = datatypeInfo (Proxy :: Proxy fam) (Proxy :: Proxy ix)
+     in constructorName (constrInfoLkup ctr di)
+
+cofShow :: forall ki fam codes a c
+         . (Family ki fam codes , HasDatatypeInfoCof ki fam codes c)
+        => Cof ki codes a c -> String
+cofShow cx@(ConstrI c) = cofShowI cx
+cofShow (ConstrK k)    = "K " ++ show1 k
+
