@@ -62,13 +62,13 @@ type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof)
 data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   ES0 :: ES ki codes '[] '[]
   Ins :: L2 j (Tyof codes c) => Cof ki codes a c 
-      -> ES ki codes i (Append (Tyof codes c) j)
+      -> ES ki codes i (Tyof codes c :++: j)
       -> ES ki codes i (a ': j)
   Del :: L2 i (Tyof codes c) => Cof ki codes a c
-      -> ES ki codes (Append (Tyof codes c) i) j
+      -> ES ki codes (Tyof codes c :++: i) j
       -> ES ki codes (a ': i) j
   Cpy :: L3 i j (Tyof codes c) => Cof ki codes a c 
-      -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
+      -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
       -> ES ki codes (a ': i) (a ': j)
 
 -- Smart constructors 
@@ -77,7 +77,7 @@ ins
   :: ListPrf j 
   -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
-  -> ES ki codes i (Append (Tyof codes c) j)
+  -> ES ki codes i (Tyof codes c :++: j)
   -> ES ki codes i (a ': j)
 ins pj pty =
   case (reify pj, reify pty) of
@@ -86,7 +86,7 @@ ins pj pty =
 del
   :: ListPrf i -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
-  -> ES ki codes (Append (Tyof codes c) i) j
+  -> ES ki codes (Tyof codes c :++: i) j
   -> ES ki codes (a ': i) j
 del pi pty =
   case (reify pi, reify pty) of
@@ -97,29 +97,16 @@ cpy
   -> ListPrf j 
   -> ListPrf (Tyof codes c)
   -> Cof ki codes a c 
-  -> ES ki codes (Append (Tyof codes c) i) (Append (Tyof codes c) j)
+  -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
   -> ES ki codes (a ': i) (a ': j)
 cpy pi pj pty =
   case (reify pi, reify pj, reify pty) of
     (RList,RList,RList) -> Cpy
 
-
-prfCat :: ListPrf xs -> ListPrf ys -> ListPrf (Append xs ys)
-prfCat Nil isys = isys
-prfCat (Cons isxs) isys = Cons (prfCat isxs isys)
-
-npCat' :: ListPrf xs -> ListPrf ys -> NP p  xs -> NP p ys -> NP p (Append xs ys)
-npCat' Nil _ NP0 ays = ays
-npCat' (Cons l) r (a :* axs) ays = a :* npCat' l r axs ays
-
-npCat :: NP p xs -> NP p ys -> NP p (Append xs ys)
-npCat NP0 ays = ays
-npCat (a :* axs) ays = a :* npCat axs ays
-
 -- We need to have some extra proof about the fact that xs and ys
 -- are actually lists. Otherwise  split won't work, hence the L2
 -- We need to decide whether xs is empty or not
-split :: ListPrf xs -> NP p (Append xs ys) -> (NP p xs, NP p ys)
+split :: ListPrf xs -> NP p (xs :++: ys) -> (NP p xs, NP p ys)
 split Nil poa = (NP0, poa)
 split (Cons p) (x :* rs) = 
   let
@@ -135,11 +122,6 @@ injCof
 injCof (ConstrI c) xs = NA_I (Fix $ inj c xs)
 injCof (ConstrK k) xs = NA_K k
 
--- TODO(arianvp): This typeclass probably exsists in hackage somwhere already. Also, it should _not_ live here :)
-class Eq1 (f :: k -> *) where
-  equal :: forall k . f k -> f k -> Bool
-
-
 matchCof
   :: (Eq1 ki) 
   => Cof ki codes a c
@@ -147,7 +129,7 @@ matchCof
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
 matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 x
 matchCof (ConstrK k) (NA_K k2) = 
-  guard (equal k k2) >> Just NP0
+  guard (eq1 k k2) >> Just NP0
 
 
 -- we need to give Haskell a bit of a hint that Tyof codes c reduces to an IsList
@@ -155,11 +137,11 @@ matchCof (ConstrK k) (NA_K k2) =
 insCof
   :: forall ki codes a c xs. (IsList xs, IsList (Tyof codes c))
   => Cof ki codes a c 
-  -> PoA ki (Fix ki codes) (Append (Tyof codes c) xs) 
+  -> PoA ki (Fix ki codes) (Tyof codes c :++: xs) 
   -> PoA ki (Fix ki codes) (a ': xs)
 insCof c xs =
   let 
-    (args , rest) = split (isList :: ListPrf (Tyof codes c)) xs
+    (args , rest) = split (listPrf :: ListPrf (Tyof codes c)) xs
   in
     injCof c args :* rest
 
@@ -168,8 +150,8 @@ delCof
   :: Eq1 ki
   => Cof ki codes a c
   -> PoA ki (Fix ki codes) (a ': xs)
-  -> Maybe (PoA ki (Fix ki codes) (Append (Tyof codes c) xs))
-delCof c (x :* xs) = flip npCat xs <$> matchCof c x
+  -> Maybe (PoA ki (Fix ki codes) (Tyof codes c :++: xs))
+delCof c (x :* xs) = flip appendNP xs <$> matchCof c x
 
   
 applyES
@@ -202,19 +184,19 @@ data EST (ki :: kon -> *)
      -> EST ki codes '[] '[]
   NC :: L2 tys (Tyof codes c) => Cof ki codes y c
      -> ES  ki codes '[] (y ': tys)
-     -> EST ki codes '[] (Append (Tyof codes c) tys)
+     -> EST ki codes '[] (Tyof codes c :++: tys)
      -> EST ki codes '[] (y ': tys)
   CN :: L2 txs (Tyof codes c) => Cof ki codes x c 
      -> ES  ki codes (x ': txs) '[]
-     -> EST ki codes (Append (Tyof codes c) txs) '[]
+     -> EST ki codes (Tyof codes c :++: txs) '[]
      -> EST ki codes (x ': txs) '[]
   CC :: L4 txs tys (Tyof codes cy) (Tyof codes cx)
       => Cof ki codes x cx
      -> Cof ki codes y cy
      -> ES ki codes (x ': txs) (y ': tys)
-     -> EST ki codes (x ': txs) (Append (Tyof codes cy) tys)
-     -> EST ki codes (Append (Tyof codes cx) txs) (y ': tys)
-     -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
+     -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
+     -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
+     -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
      -> EST ki codes (x ': txs) (y ': tys)
 
 nc
@@ -222,7 +204,7 @@ nc
   -> ListPrf (Tyof codes c) 
   -> Cof ki codes y c
   -> ES  ki codes '[] (y ': tys)
-  -> EST ki codes '[] (Append (Tyof codes c) tys)
+  -> EST ki codes '[] (Tyof codes c :++: tys)
   -> EST ki codes '[] (y ': tys)
 nc a b =
   case (reify a, reify b) of
@@ -233,7 +215,7 @@ cn
   -> ListPrf (Tyof codes c) 
   -> Cof ki codes x c
   -> ES  ki codes (x ': txs) '[]
-  -> EST ki codes (Append (Tyof codes c) txs) '[]
+  -> EST ki codes (Tyof codes c :++: txs) '[]
   -> EST ki codes (x ': txs) '[]
 cn a b =  
   case (reify a, reify b) of
@@ -247,9 +229,9 @@ cc
   -> Cof ki codes x cx
   -> Cof ki codes y cy
   -> ES ki codes (x ': txs) (y ': tys)
-  -> EST ki codes (x ': txs) (Append (Tyof codes cy) tys)
-  -> EST ki codes (Append (Tyof codes cx) txs) (y ': tys)
-  -> EST ki codes (Append (Tyof codes cx) txs) (Append (Tyof codes cy) tys)
+  -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
+  -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
+  -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
   -> EST ki codes (x ': txs) (y ': tys)
 cc a b c d =
   case (reify a, reify b, reify c, reify d) of
@@ -281,7 +263,7 @@ matchConstructor
 matchConstructor (NA_K k) f =  f (ConstrK  k) Nil NP0
 matchConstructor (NA_I (Fix rep)) f =
   case sop rep of
-    Tag c poa -> f (ConstrI c) (npToListPrf poa) poa
+    Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
 
 
 -- | Given two deep representations, we get the diff.
@@ -313,7 +295,7 @@ diffT
   => PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
-diffT = diffT' (isList :: ListPrf xs) (isList :: ListPrf ys)
+diffT = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys)
 
 
 diffT'
@@ -329,7 +311,7 @@ diffT' Nil Nil NP0 NP0 = NN ES0
 diffT' (Cons isxs) Nil (x :* xs) NP0 = 
   matchConstructor x $ \cx isxs' xs' -> 
     let
-      d = diffT' (prfCat isxs' isxs) Nil (npCat xs' xs) NP0
+      d = diffT' (appendIsListLemma isxs' isxs) Nil (appendNP xs' xs) NP0
     in
       cn isxs isxs' cx (del isxs isxs' cx (getDiff d)) d
       -- TODO(1) use smart constructors! CN c (Del c (getDiff d)) d
@@ -337,7 +319,7 @@ diffT' (Cons isxs) Nil (x :* xs) NP0 =
 diffT' Nil (Cons isys) NP0 (y :* ys) =
   matchConstructor y $ \c isys' ys' ->
     let
-      i = diffT' Nil (prfCat isys' isys) NP0 (npCat ys' ys)
+      i = diffT' Nil (appendIsListLemma isys' isys) NP0 (appendNP ys' ys)
     in
       nc isys isys' c (ins isys isys' c (getDiff i)) i
 
@@ -346,7 +328,10 @@ diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
     let
       i = extendi isxs' isxs cx c
       d = extendd isys' isys cy c
-      c = diffT' (prfCat isxs' isxs) (prfCat isys' isys) (npCat xs' xs) (npCat ys' ys)
+      c = diffT' (appendIsListLemma isxs' isxs)
+                 (appendIsListLemma isys' isys)
+                 (appendNP xs' xs)
+                 (appendNP ys' ys)
     in
       cc isxs isxs' isys isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
 
@@ -355,7 +340,7 @@ extendd
   => ListPrf (Tyof codes cy)
   -> ListPrf ys
   -> Cof ki codes y cy
-  -> EST ki codes xs (Append (Tyof codes cy) ys)
+  -> EST ki codes xs (Tyof codes cy :++: ys)
   -> EST ki codes xs (y ': ys)
 extendd isys' isys cy dt@(NN d) = nc isys isys' cy (ins isys isys' cy d) dt
 extendd isys' isys cy dt@(NC _ d _) = nc isys isys' cy (ins isys isys' cy d) dt
@@ -367,7 +352,7 @@ extendd'
   => ListPrf (Tyof codes cy)
   -> ListPrf ys
   -> Cof ki codes y cy
-  -> EST ki codes (x ': xs) (Append (Tyof codes cy) ys) 
+  -> EST ki codes (x ': xs) (Tyof codes cy :++: ys) 
   -> EST ki codes (x ': xs) (y ': ys)
 extendd' isys' isys cy dt =
   extractd dt $ \ isxs' isxs cx dt' ->
@@ -385,7 +370,7 @@ extractd
   -> ( forall cx. ListPrf (Tyof codes cx)
       -> ListPrf xs 
       -> Cof ki codes x cx
-      -> EST ki codes (Append (Tyof codes cx) xs)  ys'
+      -> EST ki codes (Tyof codes cx :++: xs)  ys'
       -> r
      )
   -> r
@@ -397,7 +382,7 @@ extendi
   => ListPrf (Tyof codes cx) 
   -> ListPrf xs 
   -> Cof ki codes x cx
-  -> EST ki codes (Append (Tyof codes cx) xs) ys
+  -> EST ki codes (Tyof codes cx :++: xs) ys
   -> EST ki codes (x ': xs) ys
 extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' cx d) dt
 extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs isxs' cx d) dt
@@ -409,7 +394,7 @@ extendi'
   => ListPrf (Tyof codes cx)
   -> ListPrf xs
   -> Cof ki codes x cx
-  -> EST ki codes (Append (Tyof codes cx) xs) (y ': ys)
+  -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
   -> EST ki codes (x : xs) (y ': ys)
 extendi' isxs' isxs cx dt = extracti dt $ \ isys' isys cy dt' ->
   let
@@ -420,18 +405,18 @@ extendi' isxs' isxs cx dt = extracti dt $ \ isys' isys cy dt' ->
     cc isxs isxs' isys  isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
 
 cofToListPrf :: IsList (Tyof codes cy) => Cof ki codes y cy -> ListPrf (Tyof codes cy)
-cofToListPrf _ = isList
+cofToListPrf _ = listPrf
 
 
 sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
 sourceTail (Ins _ d) = sourceTail d
-sourceTail (Del _ _) = isList
-sourceTail (Cpy _ _) = isList
+sourceTail (Del _ _) = listPrf
+sourceTail (Cpy _ _) = listPrf
 
 targetTail ::  ES ki codes xs (y ': ys) -> ListPrf ys
-targetTail (Ins _ d) = isList
+targetTail (Ins _ d) = listPrf
 targetTail (Del _ d) = targetTail d
-targetTail (Cpy _ _) = isList
+targetTail (Cpy _ _) = listPrf
 
 extracti
   :: TestEquality ki
@@ -439,7 +424,7 @@ extracti
   -> ( forall cy. ListPrf (Tyof codes cy)
       -> ListPrf ys 
       -> Cof ki codes y cy
-      -> EST ki codes xs' (Append (Tyof codes cy) ys) 
+      -> EST ki codes xs' (Tyof codes cy :++: ys) 
       -> r
      )
   -> r
@@ -469,9 +454,9 @@ bestDiffT
   -> ListPrf (Tyof codes cx)
   -> ListPrf ys
   -> ListPrf (Tyof codes cy)
-  -> EST ki codes (x ': xs) (Append (Tyof codes cy) ys)
-  -> EST ki codes (Append (Tyof codes cx) xs) (y ': ys)
-  -> EST ki codes (Append (Tyof codes cx) xs) (Append (Tyof codes cy) ys)
+  -> EST ki codes (x ': xs) (Tyof codes cy :++: ys)
+  -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
+  -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
   -> ES ki codes (x ': xs) (y ': ys)
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
@@ -481,9 +466,6 @@ bestDiffT cx cy isxs isxs' isys isys' i d c =
       -- _a -- ES ki codes  (x ': xs) (y ': ys)
 
 -- * Showing Constructors as 'Cof'
-
-class Show1 (f :: k -> *) where
-  show1 :: forall k . f k -> String
 
 type family HasDatatypeInfoCof ki fam codes (c :: SinglCof) :: Constraint where
   HasDatatypeInfoCof ki fam codes (CofI n c) = HasDatatypeInfo ki fam codes n
@@ -502,4 +484,3 @@ cofShow :: forall ki fam codes a c
         => Cof ki codes a c -> String
 cofShow cx@(ConstrI c) = cofShowI cx
 cofShow (ConstrK k)    = "K " ++ show1 k
-
