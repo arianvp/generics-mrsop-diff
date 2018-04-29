@@ -30,8 +30,8 @@ data SinglCof
 
 data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) 
          (a :: Atom kon) (c :: SinglCof) where
-  ConstrI :: IsNat n => Constr c (Lkup n codes)  -> Cof ki codes (I n) (CofI n c)
-  ConstrK :: ki k                  -> Cof ki codes (K k) CofK
+  ConstrI :: IsNat n => Constr (Lkup n codes) c -> Cof ki codes (I n) (CofI n c)
+  ConstrK :: ki k                               -> Cof ki codes (K k) CofK
 
 cofWitnessI :: Cof ki codes (I n) (CofI n c) -> Proxy n
 cofWitnessI _ = Proxy
@@ -41,7 +41,7 @@ heqCof :: (TestEquality ki)
 heqCof cx@(ConstrI x) cy@(ConstrI y)
   = case testEquality (getSNat (cofWitnessI cx)) (getSNat (cofWitnessI cy)) of
       Nothing   -> Nothing
-      Just Refl -> case heqConstr x y of
+      Just Refl -> case testEquality x y of
         Nothing   -> Nothing
         Just Refl -> Just (Refl, Refl)
 heqCof (ConstrK x) (ConstrK y)
