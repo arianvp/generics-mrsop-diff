@@ -14,11 +14,11 @@ data S (at :: Atom kon -> *)
        (al :: [Atom kon] -> [Atom kon] -> *)
        (sum  :: [[Atom kon]]) :: * where
   Scp :: S at al s
-  Scns :: Constr n sum 
+  Scns :: Constr sum n 
        -> NP at (Lkup n sum) 
        -> S at al s
-  Schg :: Constr n1 sum
-       -> Constr n2 sum
+  Schg :: Constr sum n1
+       -> Constr sum n2
        -- TODO  n1 `neq` ne2
        -> al (Lkup n1 sum) (Lkup n2 sum) -> S at al sum
 
@@ -61,6 +61,6 @@ data Almu :: Nat -> Nat -> * where
   Spn :: S (At Almu1) (Al (At Almu1)) sum -> Almu n n
 
   -- ins : ∀ {ν₁ ν₂} (C : Constr' φ ν₂) → InsCtx ν₁ (typeOf' φ ν₂ C) → Alμ ν₁ ν₂
-  Ins :: Constr n2 sum ->  InsCtx n1  (Lkup n2 sum) -> Almu n1 n2
+  Ins :: Constr sum n2 ->  InsCtx n1  (Lkup n2 sum) -> Almu n1 n2
 
-  Del :: Constr n1 sum -> DelCtx n2 (Lkup n1 sum) -> Almu n1 n2
+  Del :: Constr sum n1 -> DelCtx n2 (Lkup n1 sum) -> Almu n1 n2
