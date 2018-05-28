@@ -71,6 +71,18 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
       -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
       -> ES ki codes (a ': i) (a ': j)
 
+-- When Showing, we do not know what the family that we're showing is,
+-- as edit scripts are not parameterised over the family.
+-- hence, we can not get the datatype info
+showCof :: Show1 ki => Cof ki codes a c -> String
+showCof (ConstrK k) = show1 k
+showCof (ConstrI c) = show c
+
+instance Show1 ki => Show (ES ki codes xs ys) where
+  show ES0 = "ES0"
+  show (Ins c d) = "Ins " ++ showCof c ++ " $ " ++ show d
+  show (Del c d) = "Del " ++ showCof c ++ " $ " ++ show d
+  show (Cpy c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 -- Smart constructors 
 -- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins

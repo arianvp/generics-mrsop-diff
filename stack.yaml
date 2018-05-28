@@ -1,4 +1,5 @@
 resolver: lts-11.5
 extra-deps:
   - ../generics-mrsop
+  - language-lua-0.10.0
 
