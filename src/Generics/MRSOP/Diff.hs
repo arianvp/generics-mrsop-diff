@@ -8,8 +8,24 @@ import Generics.MRSOP.Base
 import Generics.MRSOP.Base (match)
 import Generics.MRSOP.Util
 
--- 
+data Almu :: Nat -> * where
 
+data At :: Atom kon -> * where
+  Set :: NA at ki fam -> NA at ki fam -> At (K at)
+  Fix :: Almu n -> At (I n)
+
+data Al :: [Atom kon] -> [Atom kon] -> * where
+  A0 :: Al '[] '[]
+  AD :: NA At ki fam -> Al pi1 pi2 -> Al (a ': pi1)  pi2
+  AI :: NA At ki fam -> Al pi1 pi2 -> Al pi1         (a ': pi2)
+  AX :: At a         -> Al pi1 pi2 -> Al pi1         pi2
+
+data S (sum :: [[Atom kon]]) :: * where
+  SCns :: Constr sum n -> NP At (Lkup n sum) -> S sum
+  SChg :: Constr sum n1 -> Constr sum n2 -> Al (Lkup n1 sum) (Lkup n2 sum) -> S sum
+
+
+{-
 data S (at :: Atom kon -> *) 
        (al :: [Atom kon] -> [Atom kon] -> *)
        (sum  :: [[Atom kon]]) :: * where
@@ -64,3 +80,5 @@ data Almu :: Nat -> Nat -> * where
   Ins :: Constr sum n2 ->  InsCtx n1  (Lkup n2 sum) -> Almu n1 n2
 
   Del :: Constr sum n1 -> DelCtx n2 (Lkup n1 sum) -> Almu n1 n2
+
+  -}

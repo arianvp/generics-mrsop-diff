@@ -19,7 +19,7 @@ cabal-version:       >=1.10
 library
   -- Modules exported by the library.
   exposed-modules: 
-    -- Generics.MRSOP.Diff
+    Generics.MRSOP.Diff
     Generics.MRSOP.GDiff
  
   other-modules:
