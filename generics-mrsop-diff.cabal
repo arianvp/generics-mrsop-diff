@@ -24,7 +24,8 @@ library
  
   other-modules:
     Generics.MRSOP.GDiff.Util
---    Examples.Lua
+    Examples.Lua
+    Examples.Lua.Diffs
     Examples.Expr
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 
@@ -46,7 +47,8 @@ library
   -- Other library packages from which modules are imported.
   build-depends:       base,
                        generics-mrsop,
-                       language-lua
+                       language-lua,
+                       text
   
   -- Directories containing source files.
   hs-source-dirs:      src

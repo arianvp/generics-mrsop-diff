@@ -9,27 +9,23 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Examples.Lua where
-import Language.Lua.Syntax
-
-import Data.Text (Text)
+module Examples.Lua.Diffs where
 import Data.Type.Equality
 
 import Generics.MRSOP.TH
+import Generics.MRSOP.Opaque
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
 import Generics.MRSOP.GDiff
+import Language.Lua
+import Examples.Lua
 
-data LuaKon = LuaText
-data LuaSingl (kon :: LuaKon) :: * where
-  SLuaText :: Text -> LuaSingl LuaText
 
-deriving instance Show (LuaSingl k)
-deriving instance Eq (LuaSingl k)
-instance Show1 LuaSingl where show1 = show
-instance Eq1 LuaSingl where eq1 = (==)
+quicksort = do
+  Right y <- parseFile "./lua/quicksort.lua"
+  pure y
 
-instance TestEquality LuaSingl where
-  testEquality (SLuaText _) (SLuaText _) = Just Refl
 
-deriveFamilyWith ''LuaSingl [t| Stat |]
+quicksort' = fmap (deep @FamStat) quicksort
+
+
