@@ -29,3 +29,6 @@ quicksort = do
 quicksort' = fmap (deep @FamStat) quicksort
 
 
+
+
+

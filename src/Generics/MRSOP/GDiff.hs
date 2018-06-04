@@ -30,7 +30,7 @@ data SinglCof
 
 data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) 
          (a :: Atom kon) (c :: SinglCof) where
-  ConstrI :: IsNat n => Constr (Lkup n codes) c -> Cof ki codes (I n) (CofI n c)
+  ConstrI :: (IsNat c, IsNat n) => Constr (Lkup n codes) c -> Cof ki codes (I n) (CofI n c)
   ConstrK :: ki k                               -> Cof ki codes (K k) CofK
 
 cofWitnessI :: Cof ki codes (I n) (CofI n c) -> Proxy n

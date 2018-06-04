@@ -27,6 +27,7 @@ library
     Examples.Lua
     Examples.Lua.Diffs
     Examples.Expr
+    Examples.TwoThreetree
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 
     MultiParamTypeClasses,
