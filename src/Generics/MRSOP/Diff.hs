@@ -16,7 +16,8 @@ data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
 
  
 data Ctx (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> [Atom kon] -> * where
-  CtxHere :: Almu ki codes i j -> PoA ki (Fix ki codes) prod -> Ctx ki codes i (I j ': prod)
+  CtxHere  :: Almu ki codes i j      -> PoA ki (Fix ki codes) prod -> Ctx ki codes i (I j ': prod)
+  CtxThere :: NA (Fix ki codes) ki a -> Ctx ki codes i prod        -> Ctx ki codes i (a ': prod)
   
 data Spine (sum :: [[Atom kon]]) :: * where
 
