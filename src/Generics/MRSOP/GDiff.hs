@@ -478,7 +478,7 @@ bestDiffT cx cy isxs isxs' isys isys' i d c =
       -- _a -- ES ki codes  (x ': xs) (y ': ys)
 
 -- * Showing Constructors as 'Cof'
-
+{-
 type family HasDatatypeInfoCof ki fam codes (c :: SinglCof) :: Constraint where
   HasDatatypeInfoCof ki fam codes (CofI n c) = HasDatatypeInfo ki fam codes n
   HasDatatypeInfoCof ki fam codes CofK       = Show1 ki
@@ -496,3 +496,5 @@ cofShow :: forall ki fam codes a c
         => Cof ki codes a c -> String
 cofShow cx@(ConstrI c) = cofShowI cx
 cofShow (ConstrK k)    = "K " ++ show1 k
+
+-}
