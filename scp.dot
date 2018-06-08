@@ -1,0 +1,10 @@
+graph {
+  node [shape=plaintext]
+  n1[label=<<table>
+    <tr>
+      <td bgcolor="blue">
+        Two
+      </td>
+    </tr>
+  </table>>]
+}
