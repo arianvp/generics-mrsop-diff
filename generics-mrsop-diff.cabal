@@ -21,6 +21,7 @@ library
   exposed-modules: 
     Generics.MRSOP.Diff
     Generics.MRSOP.GDiff
+    Generics.MRSOP.GraphViz
  
   other-modules:
     Generics.MRSOP.GDiff.Util
@@ -49,6 +50,7 @@ library
   build-depends:       base,
                        generics-mrsop,
                        language-lua,
+                       dotgen,
                        text
   
   -- Directories containing source files.
