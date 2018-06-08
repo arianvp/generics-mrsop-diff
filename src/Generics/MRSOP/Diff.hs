@@ -25,13 +25,12 @@ data Spine (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) (sum :: [[ At
        -> Al ki codes (Lkup n1 sum) (Lkup n2 sum)
        -> Spine ki fam codes sum
 
-npToAl :: NP At xs -> Al xs xs
-npToAl NP0  = A0
-npToAl (px :* pxs) = AX px (npToAl pxs)
+npToAl :: NP (At ki codes) xs -> Al ki codes xs xs
+npToAl NP0  = A0 NP0 NP0
+npToAl (px :* pxs) =  AX NP0 NP0 px (npToAl pxs)
 
-
-sCns :: Constr sum n -> NP At (Lkup n sum) -> S sum
-sCns c x = SChg c c (npToAl x)
+sCns :: Constr sum n -> NP (At ki codes) (Lkup n sum) -> Spine ki fam codes sum
+sCns c x = Schg c c (npToAl x)
 
 
 data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
@@ -47,7 +46,6 @@ data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
 --  Trivial patch on constants is 
 data TrivialK (ki :: kon -> *) :: kon -> * where
   Trivial :: ki kon -> ki kon -> TrivialK ki kon
-  
   
 data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki codes (K kon)
