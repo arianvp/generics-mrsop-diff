@@ -22,6 +22,9 @@ library
     Generics.MRSOP.Diff
     Generics.MRSOP.GDiff
     Generics.MRSOP.GraphViz
+    Generics.MRSOP.GraphViz.Deep
+    Generics.MRSOP.GraphViz.Diff
+    Generics.MRSOP.GraphViz.Zipper
  
   other-modules:
     Generics.MRSOP.GDiff.Util
@@ -51,6 +54,7 @@ library
                        generics-mrsop,
                        language-lua,
                        dotgen,
+                       graphviz,
                        text
   
   -- Directories containing source files.
