@@ -76,8 +76,7 @@ visualizeCtxs ctxs =
   case ctxs of
     Z.Nil -> []
     Z.Cons c cs -> 
-      [freshNode [toLabel "TODO: visualize contexts"]]
-      -- visualizeCtx c : visualizeCtxs cs
+      visualizeCtx c : visualizeCtxs cs
 
 visualizeLoc ::
      forall ki fam codes ix. (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
