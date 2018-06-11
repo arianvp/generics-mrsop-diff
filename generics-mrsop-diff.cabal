@@ -16,6 +16,10 @@ build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
+executable diff-graphviz
+  main-is:  diff-graphviz/Main.hs
+  build-depends: base, generics-mrsop-diff, generics-mrsop
+
 library
   -- Modules exported by the library.
   exposed-modules: 
@@ -55,6 +59,7 @@ library
                        language-lua,
                        dotgen,
                        graphviz,
+                       mtl,
                        text
   
   -- Directories containing source files.

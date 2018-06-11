@@ -1,4 +1,39 @@
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Generics.MRSOP.GraphViz.Diff where
+
+import Control.Monad
+import Data.Proxy
+import Generics.MRSOP.Base
+import Generics.MRSOP.Diff
+import Generics.MRSOP.Opaque
+import Generics.MRSOP.TH
+import Generics.MRSOP.Util
+import Generics.MRSOP.GraphViz
+import Generics.MRSOP.GraphViz.Zipper
+import Control.Monad.State
+import Data.GraphViz.Attributes
+import Data.GraphViz.Types.Monadic
+
+visualizeAlmu ::
+     forall ki fam codes ix. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
+  => Almu ki fam codes ix
+  -> DotSM NodeId
+visualizeAlmu (Peel dels inss spine) = do
+  dels' <- sequence (visualizeCtxs dels)
+  inss' <- sequence (visualizeCtxs inss)
+  undefined
+
 
 {-
 visualizeSpine ::
