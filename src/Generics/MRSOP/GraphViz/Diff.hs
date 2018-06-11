@@ -30,8 +30,6 @@ visualizeAlmu ::
   => Almu ki fam codes ix
   -> DotSM NodeId
 visualizeAlmu (Peel dels inss spine) = do
-  dels' <- sequence (visualizeCtxs dels)
-  inss' <- sequence (visualizeCtxs inss)
   undefined
 
 

@@ -29,28 +29,26 @@ import Control.Monad.State
 import Data.GraphViz.Attributes
 import Data.GraphViz.Types.Monadic
 
+
 visualizeNPHole ::
-     (IsNat ix, Show1 ki, sum ~ Lkup ix codes, prod ~ Lkup n sum)
-  => Constr sum n
-  -> NPHole ki fam ix prod
-  -> [DotSM NodeId]
-visualizeNPHole c (H poa) =
-  freshNode [toLabel "*"] :
-  elimNP (elimNA (\k -> freshNode [toLabel (show k)]) undefined) poa
-visualizeNPHole c (T a h) =
-  let elimK k = freshNode [toLabel (show k)]
-      -- we don't visualize recursion for now, clutters tree
-      elimI i =  freshNode [toLabel "..."]
-  in
-    elimNA elimK elimI  a : visualizeNPHole c h
+     (Show1 ki) => NPHole ki fam ix xs -> [DotSM NodeId]
+visualizeNPHole (H poa) =
+  let visualizeK k = freshNode [toLabel (show1 k)]
+      visualizeI i = freshNode [toLabel "..."]
+   in freshNode [toLabel "*"] : elimNP (elimNA visualizeK visualizeI) poa
+visualizeNPHole (T a h) =
+  let visualizeK k = freshNode [toLabel (show1 k)]
+      visualizeI i = freshNode [toLabel "..."]
+   in elimNA visualizeK visualizeI a : visualizeNPHole h
 
 (--->) :: NodeId -> NodeId -> DotSM ()
 (--->) a b = lift $ a --> b
 
+-- TODO return the entrypoint and exit point
 visualizeCtx ::
      forall ki fam sum codes x xs ix.
-     (Show1 ki, IsNat ix, sum ~ Lkup ix codes, HasDatatypeInfo ki fam codes)
-  => Ctx ki fam sum ix
+     (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
+  => Ctx ki fam (Lkup ix codes) ix
   -> DotSM NodeId
 visualizeCtx (Ctx c h) =
   let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (Proxy :: Proxy ix))
@@ -61,22 +59,22 @@ visualizeCtx (Ctx c h) =
                  (constructorName constrInfo ++
                   " :: " ++ showDatatypeName (datatypeName info))
              ]
-         fields <- sequence $ visualizeNPHole c h
+         fields <- sequence $  visualizeNPHole h
          traverse (constr --->) fields
          pure constr
 
-    
-
+visualizeCtxs :: Ctxs ki fam codes ix iy -> DotSM NodeId
+visualizeCtxs = undefined
+{-
 visualizeCtxs ::
      forall ki fam codes ix iy.
-     (IsNat ix , IsNat iy, Show1 ki, HasDatatypeInfo ki fam codes)
+     (IsNat ix, IsNat iy, Show1 ki, HasDatatypeInfo ki fam codes)
   => Ctxs ki fam codes ix iy
   -> [DotSM NodeId]
 visualizeCtxs ctxs =
   case ctxs of
     Z.Nil -> []
-    Z.Cons c cs -> 
-      visualizeCtx c : visualizeCtxs cs
+    Z.Cons c cs -> visualizeCtx c : visualizeCtxs cs
 
 visualizeLoc ::
      forall ki fam codes ix. (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
@@ -85,3 +83,5 @@ visualizeLoc ::
 visualizeLoc (Loc (El ty) ctxs) = do
   nodeIds <- sequence $ visualizeCtxs ctxs
   undefined
+
+-}

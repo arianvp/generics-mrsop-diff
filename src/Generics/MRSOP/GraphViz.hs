@@ -10,11 +10,27 @@ import Generics.MRSOP.Util
 
 import Control.Monad.State
 import Data.GraphViz.Attributes
+import Data.GraphViz.Attributes.Complete (PortName(..))
 import Data.GraphViz.Types.Monadic
+import Data.Text.Lazy (pack)
+
+
 
 type NodeId = Int
 
 type DotSM = StateT NodeId (DotM NodeId)
+
+-- | Cause we don't construct Tables in the DotSM monad,
+-- we need to preallocate names beforehand
+preallocatePortName :: DotSM PortName
+preallocatePortName = (PN . pack . show) <$> preallocateNodeId
+
+-- | preallocate a NodeId.  We'd prefer if you use `freshNode` instead
+preallocateNodeId :: DotSM NodeId
+preallocateNodeId = do
+  x <- get
+  modify (+ 1)
+  pure x
 
 -- | generates a fresh node. So that we don't need to keep track of names
 freshNode :: Attributes -> DotSM NodeId
