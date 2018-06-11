@@ -47,7 +47,6 @@ visualizeNPHole c (T a h) =
 (--->) :: NodeId -> NodeId -> DotSM ()
 (--->) a b = lift $ a --> b
 
--- TODO should both return the entrypoint and the hole
 visualizeCtx ::
      forall ki fam sum codes x xs ix.
      (Show1 ki, IsNat ix, sum ~ Lkup ix codes, HasDatatypeInfo ki fam codes)
@@ -56,8 +55,6 @@ visualizeCtx ::
 visualizeCtx (Ctx c h) =
   let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (Proxy :: Proxy ix))
       constrInfo = constrInfoLkup c info
-   -- TODO there is still a bug here, we recreate constr for each step of
-   -- recursion, whilst we should only create it once
    in do constr <-
            freshNode
              [ toLabel
