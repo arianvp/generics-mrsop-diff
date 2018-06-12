@@ -14,7 +14,6 @@
 module Generics.MRSOP.GraphViz.Deep where
 
 import Control.Monad
-import Data.Proxy
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff
 import Generics.MRSOP.GraphViz
@@ -53,10 +52,9 @@ data AtomDot
 
 visualizeNA ::
      (Show1 ki, HasDatatypeInfo ki fam codes)
-  => Proxy fam
-  -> NA ki (Fix ki codes) a
+  => NA ki (Fix ki codes) a
   -> DotSM AtomDot
-visualizeNA Proxy x =
+visualizeNA x =
   case x of
     NA_I i -> Recurse <$> visualizeFix i
     NA_K k -> pure . Konstant . show1 $ k
@@ -75,7 +73,13 @@ npToTable dataName constrName xs = do
         HTable
           Nothing
           []
-          [Cells [LabelCell [ColSpan (fromIntegral $ length cells)] (Text [Str (pack dataName)])], Cells cells]
+          [ Cells
+              [ LabelCell
+                  [ColSpan (fromIntegral $ length cells)]
+                  (Text [Str (pack dataName)])
+              ]
+          , Cells cells
+          ]
   lift $ node self [shape PlainText, toLabel table]
   pure self
 
@@ -86,7 +90,7 @@ npToCells ::
   -> PoA ki (Fix ki codes) xs
   -> DotSM [Cell]
 npToCells constrName self xs = do
-  fields <- elimNPM (visualizeNA (Proxy :: Proxy fam)) xs
+  fields <- elimNPM visualizeNA xs
   fields' <- traverse toCell fields
   pure (LabelCell [] (Text [Str (pack constrName)]) : fields')
   where
