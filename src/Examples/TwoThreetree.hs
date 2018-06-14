@@ -78,6 +78,7 @@ t4' = deep @FamTreeInt t4
 
 
 
+{-
 p12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p12 =
   Peel
@@ -114,3 +115,5 @@ p13 =
           (Peel Zipper.Nil Zipper.Nil (Schg (CS CZ) (CS (CS CZ))
             undefined)) :*
         NP0))
+
+-}

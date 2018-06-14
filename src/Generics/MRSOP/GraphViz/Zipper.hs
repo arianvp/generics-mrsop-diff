@@ -27,61 +27,71 @@ import qualified Generics.MRSOP.Zipper as Z
 
 import Control.Monad.State
 import Data.GraphViz.Attributes
-import Data.GraphViz.Types.Monadic
+import Data.GraphViz.Attributes.Complete
+  ( Attribute(TailPort)
+  , PortPos(LabelledPort)
+  )
+import Data.GraphViz.Attributes.HTML
+import Data.GraphViz.Types.Monadic hiding (Str)
+import Data.Proxy
+import Data.Text.Lazy (pack)
+
+npHoleToCells :: (Show1 ki) => String -> NodeId -> NPHole ki fam ix xs -> [Cell]
+npHoleToCells constrName self h = do
+  let recToCell rec = LabelCell [] (Text [Str (pack "...")])
+      kToCell k = LabelCell [] (Text [Str (pack (show1 k))])
+  case h of
+    H poa -> elimNP (elimNA kToCell recToCell) poa
+    T na h' -> npHoleToCells constrName self h'
+
+npHoleToTable ::
+     (Show1 ki) =>
+     Constr sum n -> (Constr sum n -> String) -> NPHole ki fam ix (Lkup n sum) -> DotSM NodeId
+npHoleToTable c h = undefined
+  {-
+  self <- preallocateNodeId
+  let cells = npHoleToCells constrName self h
+      table =
+        HTable
+          Nothing
+          []
+          [ Cells
+              [ LabelCell
+                  [ColSpan (fromIntegral $ length cells)]
+                  (Text [Str (pack dataName)])
+              ]
+          , Cells cells
+          ]
+  lift $ node self [shape PlainText, toLabel table]
+  pure self
+  -}
 
 
-visualizeNPHole ::
-     (Show1 ki) => NPHole ki fam ix xs -> [DotSM NodeId]
-visualizeNPHole (H poa) =
-  let visualizeK k = freshNode [toLabel (show1 k)]
-      visualizeI i = freshNode [toLabel "..."]
-   in freshNode [toLabel "*"] : elimNP (elimNA visualizeK visualizeI) poa
-visualizeNPHole (T a h) =
-  let visualizeK k = freshNode [toLabel (show1 k)]
-      visualizeI i = freshNode [toLabel "..."]
-   in elimNA visualizeK visualizeI a : visualizeNPHole h
 
-(--->) :: NodeId -> NodeId -> DotSM ()
-(--->) a b = lift $ a --> b
-
--- TODO return the entrypoint and exit point
-visualizeCtx ::
-     forall ki fam sum codes x xs ix.
-     (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
-  => Ctx ki fam (Lkup ix codes) ix
-  -> DotSM NodeId
-visualizeCtx (Ctx c h) =
-  let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (Proxy :: Proxy ix))
-      constrInfo = constrInfoLkup c info
-   in do constr <-
-           freshNode
-             [ toLabel
-                 (constructorName constrInfo ++
-                  " :: " ++ showDatatypeName (datatypeName info))
-             ]
-         fields <- sequence $  visualizeNPHole h
-         traverse (constr --->) fields
-         pure constr
-
-visualizeCtxs :: Ctxs ki fam codes ix iy -> DotSM NodeId
-visualizeCtxs = undefined
-{-
 visualizeCtxs ::
-     forall ki fam codes ix iy.
-     (IsNat ix, IsNat iy, Show1 ki, HasDatatypeInfo ki fam codes)
-  => Ctxs ki fam codes ix iy
-  -> [DotSM NodeId]
-visualizeCtxs ctxs =
-  case ctxs of
-    Z.Nil -> []
-    Z.Cons c cs -> visualizeCtx c : visualizeCtxs cs
-
-visualizeLoc ::
-     forall ki fam codes ix. (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
-  => Loc ki fam codes ix
+     forall ki fam sum codes x xs ix iy.
+     (Show1 ki, IsNat ix,  IsNat iy, HasDatatypeInfo ki fam codes)
+  => Proxy ix
+  -> Proxy iy
+  -> NodeId
+  -> Ctxs ki fam codes ix iy
   -> DotSM NodeId
-visualizeLoc (Loc (El ty) ctxs) = do
-  nodeIds <- sequence $ visualizeCtxs ctxs
-  undefined
+visualizeCtxs px py from ctxs =
+  case ctxs of
+    Z.Nil -> pure from
+    Z.Cons (Ctx c h) ctxs' -> do
+      undefined
+      -- _ px py ctxs'
+      -- visualizeCtxs px py undefined ctxs'
+      {-
+      npHoleToTable c _ h
+      visualizeCtxs from ctxs'
+      -}
+      {-let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (Proxy :: Proxy ix))
+          constrInfo = constrInfoLkup c info
+          constrName = constructorName constrInfo
+          dataName = showDatatypeName (datatypeName info)
+      t <- npHoleToTable dataName constrName h
+      lift $ from --> t
+      visualizeCtxs t ctxs'-}
 
--}

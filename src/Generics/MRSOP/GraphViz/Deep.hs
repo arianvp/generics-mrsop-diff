@@ -21,7 +21,9 @@ import Generics.MRSOP.Opaque
 import Generics.MRSOP.TH
 import Generics.MRSOP.Util
 
+
 import Control.Monad.State
+import Data.Proxy
 import Data.GraphViz.Attributes
 import Data.GraphViz.Attributes.Complete
   ( Attribute(TailPort)
