@@ -59,9 +59,6 @@ visualizeSpine p spn =
         -- Red Green box with constructor
         --
 
-helper2 ::
-     forall ix ki fam codes xs. (IsNat ix, HasDatatypeInfo ki fam codes)
-  => At ki fam codes
 helper ::
      forall ix ki fam codes n1 n2 p1 p2.
      (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
