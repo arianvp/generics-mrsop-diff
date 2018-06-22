@@ -99,6 +99,7 @@ p12 =
         AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
         NP0))
 
+{-
 p13 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p13 =
   Peel
@@ -115,5 +116,8 @@ p13 =
              (Proxy :: Proxy Z)
              Zipper.Nil
              Zipper.Nil
-             (Schg (CS CZ) (CS (CS CZ)) undefined)) :*
+             (Schg (CS CZ) (CS (CS CZ)) (AX _ _ _ _))) :*
         NP0))
+
+
+-}

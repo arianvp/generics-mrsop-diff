@@ -33,7 +33,7 @@ visualizeAlmu ::
      forall ix ki fam codes. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
   => Almu ki fam codes ix
   -> DotSM NodeId
-visualizeAlmu (Peel piy dels inss spine) = do
+visualizeAlmu  (Peel piy dels inss spine) = do
   dels' <- freshNode [toLabel "TODO: Ctxs"]
   inss' <- freshNode [toLabel "TODO: Ctxs"]
   lift $ dels' --> inss'
@@ -54,12 +54,19 @@ visualizeSpine ::
 visualizeSpine p spn =
   case spn of
     Scp -> freshNode [toLabel "Scp"] -- lets do a blue one that says copy
-    Schg c1 c2 al -> helper p c1 c2 al
-      -- visualizeAl _ c1 c2 al
-        -- Red Green box with constructor
-        --
+    Schg c1 c2 al -> visualizeAl p c1 c2 al
 
-helper ::
+visualizeAt ::
+     forall ix ki fam codes a. (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
+  => Proxy ix
+  -> At ki fam codes a
+  -> DotSM NodeId
+visualizeAt p at =
+  case at of
+    AtSet k -> freshNode [toLabel "K"]
+    AtFix i -> visualizeAlmu  i
+
+visualizeAl ::
      forall ix ki fam codes n1 n2 p1 p2.
      (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
   => Proxy ix
@@ -67,14 +74,15 @@ helper ::
   -> Constr (Lkup ix codes) n2
   -> Al ki fam codes p1 p2
   -> DotSM NodeId
-helper p c1 c2 al =
+visualizeAl p c1 c2 al =
   let info = datatypeInfo (Proxy :: Proxy fam) (getSNat p)
       dataName = showDatatypeName (datatypeName info)
       constrInfo1 = constrInfoLkup c1 info
       constrName1 = constructorName constrInfo1
       constrInfo2 = constrInfoLkup c2 info
       constrName2 = constructorName constrInfo2
-   in case al of
+   in do
+    case al of
         A0 poa1 poa2 -> do
           a1 <- preallocateNodeId
           a2 <- preallocateNodeId
@@ -82,9 +90,9 @@ helper p c1 c2 al =
           cells2 <- npToCells constrName2 a2 poa2
           pure a2
         AX poa1 poa2 at al' -> do
-          _ at
+          visualizeAt (Proxy :: Proxy ix) at
           a1 <- preallocateNodeId
           a2 <- preallocateNodeId
           cells1 <- npToCells constrName1 a1 poa1
           cells2 <- npToCells constrName2 a2 poa2
-          helper p c1 c2 al'
+          visualizeAl p c1 c2 al'

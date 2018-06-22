@@ -56,4 +56,4 @@ data TrivialK (ki :: kon -> *) :: kon -> * where
 
 data At (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki fam codes (K kon)
-  AtFix :: Almu ki fam codes ix -> At ki fam codes (I ix)
+  AtFix :: IsNat ix => Almu ki fam codes ix -> At ki fam codes (I ix)

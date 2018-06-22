@@ -33,6 +33,7 @@ library
   other-modules:
     Generics.MRSOP.GDiff.Util
     Examples.Lua
+    Examples.C
     Examples.Lua.Diffs
     Examples.Expr
     Examples.TwoThreetree
@@ -57,6 +58,7 @@ library
   build-depends:       base,
                        generics-mrsop,
                        language-lua,
+                       language-c,
                        dotgen,
                        graphviz,
                        mtl,
