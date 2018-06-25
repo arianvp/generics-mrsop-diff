@@ -154,7 +154,47 @@ p13' =
                    NP0
                    NP0
                    (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
-                 A0 NP0 (NA_I (deep @FamTreeInt Leaf) :* NP0)))) :*
+                 A0 NP0 (NA_I (deep Leaf) :* NP0)))) :*
         NP0))
 
-
+p23 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p23 =
+  Peel
+    (Proxy :: Proxy Z)
+    Zipper.Nil
+    Zipper.Nil
+    (sCns
+       (CS (CS CZ))
+       (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
+        (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) :*
+        (AtFix
+           (Peel
+              (Proxy :: Proxy Z)
+              Zipper.Nil
+              Zipper.Nil
+              (sCns
+                 (CS (CS CZ))
+                 (AtSet (Trivial (STreeInt 5) (STreeInt 2)) :*
+                  AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+                  AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+                  AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+                  NP0)))) :*
+        (AtFix
+           (Peel
+              (Proxy :: Proxy Z)
+              Zipper.Nil
+              Zipper.Nil
+              (Schg
+                 (CS CZ)
+                 (CS (CS CZ))
+                 (AX NP0 NP0 (AtSet (Trivial (STreeInt 1) (STreeInt 1))) $
+                  AX
+                    NP0
+                    (NA_I (deep Leaf) :* NP0)
+                    (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                  AX
+                    NP0
+                    NP0
+                    (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                  A0 NP0 NP0)))) :*
+        NP0))
