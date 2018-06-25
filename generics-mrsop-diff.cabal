@@ -59,7 +59,6 @@ library
                        generics-mrsop,
                        language-lua,
                        language-c,
-                       dotgen,
                        graphviz,
                        mtl,
                        text
