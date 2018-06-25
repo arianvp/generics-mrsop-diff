@@ -17,10 +17,17 @@ import Data.Proxy
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff
 import Generics.MRSOP.GraphViz.Deep
+import Generics.MRSOP.GraphViz.Diff
+import Generics.MRSOP.GraphViz
 import Generics.MRSOP.Opaque
 import Generics.MRSOP.TH
 import Generics.MRSOP.Util
+import Data.GraphViz.Types.Monadic
+import Data.GraphViz.Printing
 import qualified Generics.MRSOP.Zipper as Zipper
+import Data.Text.Lazy (Text)
+import qualified Data.Text.Lazy as Text
+import qualified Data.Text.Lazy.IO as IO
 
 data Tree a
   = Leaf
@@ -73,6 +80,14 @@ t3' = deep @FamTreeInt t3
 
 -- t3Vis = writeFile "t3.dot" (showDot (visualizeFix t3'))
 t4' = deep @FamTreeInt t4
+
+
+-- quick tool for visualizing this hting
+vis :: String -> Almu TreeSingl FamTreeInt CodesTreeInt Z -> IO ()
+vis name =
+  IO.writeFile (name ++ ".dot") .
+  renderDot .
+  toDot . digraph (Str (Text.pack name)) . runDotSM 0 . visualizeAlmu
 
 -- t4Vis = writeFile "t4.dot" (showDot (visualizeFix t4'))
 p12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z

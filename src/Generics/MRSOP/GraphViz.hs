@@ -20,6 +20,9 @@ type NodeId = Int
 
 type DotSM = StateT NodeId (DotM NodeId)
 
+runDotSM :: NodeId -> DotSM a -> DotM NodeId a
+runDotSM m i = evalStateT i m
+
 -- | Cause we don't construct Tables in the DotSM monad,
 -- we need to preallocate names beforehand
 preallocatePortName :: DotSM PortName
