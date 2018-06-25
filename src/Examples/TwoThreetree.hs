@@ -99,9 +99,35 @@ p12 =
         AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
         NP0))
 
-{-
+-- we can delete subtree and insert with subtree
 p13 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p13 =
+  let (Fix (Rep (There (Here two)))) =
+        deep @FamTreeInt (Two (3 :: Int) Leaf Leaf)
+      (Fix (Rep (There (There (Here three))))) =
+        deep @FamTreeInt (Three (3 :: Int) Leaf Leaf Leaf)
+   in Peel
+        (Proxy :: Proxy Z)
+        Zipper.Nil
+        Zipper.Nil
+        (sCns
+           (CS (CS CZ))
+           (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
+            AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+            AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+            AtFix
+              (Peel
+                 (Proxy :: Proxy Z)
+                 Zipper.Nil
+                 Zipper.Nil
+                 (Schg (CS CZ) (CS (CS CZ)) (A0 two three))) :*
+            NP0))
+
+-- however, we can be more 'precise' as well
+-- we only pinpoint the part that matters, the other leafs are just copied.
+-- that is, we're going to change Two to Three, and add a field
+p13' :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p13' =
   Peel
     (Proxy :: Proxy Z)
     Zipper.Nil
@@ -116,8 +142,19 @@ p13 =
              (Proxy :: Proxy Z)
              Zipper.Nil
              Zipper.Nil
-             (Schg (CS CZ) (CS (CS CZ)) (AX _ _ _ _))) :*
+             (Schg
+                (CS CZ)
+                (CS (CS CZ))
+                (AX NP0 NP0 (AtSet (Trivial (STreeInt 3) (STreeInt 3))) $
+                 AX
+                   NP0
+                   NP0
+                   (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                 AX
+                   NP0
+                   NP0
+                   (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                 A0 NP0 (NA_I (deep @FamTreeInt Leaf) :* NP0)))) :*
         NP0))
 
 
--}
