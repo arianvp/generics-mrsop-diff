@@ -15,8 +15,7 @@ import Generics.MRSOP.Zipper
 data Almu (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) :: Nat -> * where
   Peel
     :: (IsNat ix, IsNat iy)
-    => Proxy iy 
-    -> Ctxs ki fam codes ix iy
+    => Ctxs ki fam codes ix iy
     -> Ctxs ki fam codes iy ix
     -> Spine ki fam codes (Lkup ix codes)  -- TODO: is this ix or iy?
     -> Almu ki fam codes ix

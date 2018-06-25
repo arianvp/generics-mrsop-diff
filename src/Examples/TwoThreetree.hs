@@ -78,25 +78,25 @@ t4' = deep @FamTreeInt t4
 p12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p12 =
   Peel
-    (Proxy :: Proxy Z)
+    
     Zipper.Nil
     Zipper.Nil
     (sCns
        (CS (CS CZ))
        (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-        AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
         AtFix
           (Peel
-             (Proxy :: Proxy Z)
+             
              Zipper.Nil
              Zipper.Nil
              (sCns
                 (CS CZ)
                 (AtSet (Trivial (STreeInt 2) (STreeInt 5)) :*
-                 AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
-                 AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+                 AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+                 AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
                  NP0))) :*
-        AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
         NP0))
 
 -- we can delete subtree and insert with subtree
@@ -107,17 +107,17 @@ p13 =
       (Fix (Rep (There (There (Here three))))) =
         deep @FamTreeInt (Three (3 :: Int) Leaf Leaf Leaf)
    in Peel
-        (Proxy :: Proxy Z)
+        
         Zipper.Nil
         Zipper.Nil
         (sCns
            (CS (CS CZ))
            (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-            AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
-            AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+            AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+            AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
             AtFix
               (Peel
-                 (Proxy :: Proxy Z)
+                 
                  Zipper.Nil
                  Zipper.Nil
                  (Schg (CS CZ) (CS (CS CZ)) (A0 two three))) :*
@@ -129,17 +129,17 @@ p13 =
 p13' :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p13' =
   Peel
-    (Proxy :: Proxy Z)
+    
     Zipper.Nil
     Zipper.Nil
     (sCns
        (CS (CS CZ))
        (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-        AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
-        AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
         AtFix
           (Peel
-             (Proxy :: Proxy Z)
+             
              Zipper.Nil
              Zipper.Nil
              (Schg
@@ -149,39 +149,39 @@ p13' =
                  AX
                    NP0
                    NP0
-                   (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                   (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
                  AX
                    NP0
                    NP0
-                   (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                   (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
                  A0 NP0 (NA_I (deep Leaf) :* NP0)))) :*
         NP0))
 
 p23 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p23 =
   Peel
-    (Proxy :: Proxy Z)
+    
     Zipper.Nil
     Zipper.Nil
     (sCns
        (CS (CS CZ))
        (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-        (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) :*
+        (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) :*
         (AtFix
            (Peel
-              (Proxy :: Proxy Z)
+              
               Zipper.Nil
               Zipper.Nil
               (sCns
                  (CS (CS CZ))
                  (AtSet (Trivial (STreeInt 5) (STreeInt 2)) :*
-                  AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
-                  AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
-                  AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp) :*
+                  AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+                  AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+                  AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
                   NP0)))) :*
         (AtFix
            (Peel
-              (Proxy :: Proxy Z)
+              
               Zipper.Nil
               Zipper.Nil
               (Schg
@@ -191,10 +191,10 @@ p23 =
                   AX
                     NP0
                     (NA_I (deep Leaf) :* NP0)
-                    (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                    (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
                   AX
                     NP0
                     NP0
-                    (AtFix (Peel (Proxy :: Proxy Z) Zipper.Nil Zipper.Nil Scp)) $
+                    (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
                   A0 NP0 NP0)))) :*
         NP0))

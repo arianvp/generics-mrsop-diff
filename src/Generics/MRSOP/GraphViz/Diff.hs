@@ -33,7 +33,7 @@ visualizeAlmu ::
      forall ix ki fam codes. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
   => Almu ki fam codes ix
   -> DotSM NodeId
-visualizeAlmu  (Peel piy dels inss spine) = do
+visualizeAlmu  (Peel dels inss spine) = do
   dels' <- freshNode [toLabel "TODO: Ctxs"]
   inss' <- freshNode [toLabel "TODO: Ctxs"]
   lift $ dels' --> inss'
