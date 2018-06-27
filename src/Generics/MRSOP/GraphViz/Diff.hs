@@ -48,15 +48,17 @@ visualizeAlmu (Peel dels inss spine) = do
   case (dels', inss') of
     (EmptyCtxs, EmptyCtxs) -> pure 0
     (EmptyCtxs, HeadLast ih il) -> do
-      -- lift $ spine' --> ih
-      pure ih
+      -- makeEdgeNP spine' ih 
+      -- TODO we might wanna return a portId here
+      -- so that we can actually point to the zipper nicely
+      pure (fst ih)
     (HeadLast dh dl, EmptyCtxs) -> do
-      -- lift $ spine' --> dh
-      pure dh
+      -- makeEdgeNP spine' dh
+      pure (fst dh)
     (HeadLast dh dl, HeadLast ih il) -> do
-      lift $ dl --> ih
-      -- lift $ il --> spine'
-      pure dh
+      makeEdgePP dl ih
+      --  makeEdgePN il spine'
+      pure (fst dh)
 
 visualizeSpine ::
      (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)

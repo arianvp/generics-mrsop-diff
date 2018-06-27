@@ -30,8 +30,8 @@ import Control.Monad.State
 import Data.GraphViz.Attributes
 import Data.GraphViz.Attributes.Complete
   ( Attribute(HeadPort, TailPort)
-  , PortPos(LabelledPort)
   , PortName
+  , PortPos(LabelledPort)
   )
 import Data.GraphViz.Attributes.HTML
 import Data.GraphViz.Types.Monadic hiding (Str)
@@ -46,7 +46,8 @@ npHoleToCells constrName self port h =
       recToCell rec = strLabel [] " "
       kToCell k = strLabel [] (show1 k)
    in case h of
-        H poa -> strLabel [Port port] "*" : elimNP (elimNA kToCell recToCell) poa
+        H poa ->
+          strLabel [Port port] "*" : elimNP (elimNA kToCell recToCell) poa
         T na h' ->
           elimNA kToCell recToCell na : npHoleToCells constrName self port h'
 
@@ -70,7 +71,7 @@ npHoleToTable ::
   => Constr sum n
   -> DatatypeInfo sum
   -> NPHole ki fam ix (Lkup n sum)
-  -> DotSM NodeId
+  -> DotSM (NodeId, PortName)
 npHoleToTable c info h = do
   let constrInfo = constrInfoLkup c info
       constrName = constructorName constrInfo
@@ -88,9 +89,9 @@ npHoleToTable c info h = do
                   (Text [Str (pack dataName)])
               ]
           , -}
-          [Cells (LabelCell [] (Text [Str (pack constrName)]): cells)]
+          [Cells (LabelCell [] (Text [Str (pack constrName)]) : cells)]
   lift $ node self [shape PlainText, toLabel table]
-  pure self
+  pure (self, port)
 
 getCtxsIx :: Ctxs ki fam codes iy ix -> Proxy ix
 getCtxsIx _ = Proxy
@@ -106,14 +107,14 @@ getCtxsIx _ = Proxy
 --                 |
 --                 v
 --     +-----+---+---+---+---+
---     | Kek | 1 | * | 1 |   |    <= this NodeId is returned, and its the callers responsibility to draw the arrow from it
+--     | Kek | 1 | * | 1 |   |  
 --     +-----+---+---+---+---+
 -- A forgetful mapping from a stack of contexts to a stack of NodeIds
 visualizeCtxs' ::
      forall ki fam sum codes x xs ix iy.
      (Show1 ki, IsNat ix, IsNat iy, HasDatatypeInfo ki fam codes)
   => Ctxs ki fam codes ix iy
-  -> DotSM [NodeId]
+  -> DotSM [(NodeId, PortName)]
 visualizeCtxs' ctxs =
   case ctxs of
     Z.Nil -> pure []
@@ -134,17 +135,32 @@ visualizeCtxs ::
   -> DotSM VisCtxs
 visualizeCtxs ctxs = do
   nids <- visualizeCtxs' ctxs
-  xs <- zipWithM (\a b -> lift (a --> b) >> pure b) nids (tail nids)
+  xs <- zipWithM (\a b -> makeEdgePP a b >> pure b) nids (tail nids)
   pure $
     case xs of
       [] -> EmptyCtxs
       [a] -> HeadLast a a
       xs -> HeadLast (head xs) (last xs)
 
+-- helpers for edges
+-- TODO: move them to other module?
+makeEdgePN (n1, p1) n2 =
+  lift $ edge n1 n2 [TailPort (LabelledPort p1 Nothing)]
+
+makeEdgeNP n1 (n2, p2) =
+  lift $ edge n1 n2 [HeadPort (LabelledPort p2 Nothing)]
+
+makeEdgePP (n1, p1) (n2, p2) =
+  lift $
+  edge
+    n1
+    n2
+    [TailPort (LabelledPort p1 Nothing), HeadPort (LabelledPort p2 Nothing)]
+
 data VisCtxs
   = EmptyCtxs -- ^ The zipper was empty
-  | HeadLast NodeId -- ^ The zipper contained at least two elements
-             NodeId
+  | HeadLast (NodeId, PortName) -- ^ The zipper contained at least two elements
+             (NodeId, PortName)
 
 visualizeLoc ::
      forall ki fam sum codes x xs ix iy.
