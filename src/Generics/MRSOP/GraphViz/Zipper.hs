@@ -44,11 +44,12 @@ npHoleToCells constrName self h = do
     H poa -> elimNP (elimNA kToCell recToCell) poa
     T na h' -> npHoleToCells constrName self h'
 
-npHoleToTable :: (Show1 ki)
-              => Constr sum n
-              -> DatatypeInfo sum
-              -> NPHole ki fam ix (Lkup n sum)
-              -> DotSM NodeId
+npHoleToTable ::
+     (Show1 ki)
+  => Constr sum n
+  -> DatatypeInfo sum
+  -> NPHole ki fam ix (Lkup n sum)
+  -> DotSM NodeId
 npHoleToTable c info h = do
   let constrInfo = constrInfoLkup c info
       constrName = constructorName constrInfo
@@ -74,7 +75,7 @@ getCtxsIx _ = Proxy
 
 visualizeCtxs ::
      forall ki fam sum codes x xs ix iy.
-     (Show1 ki, IsNat ix,  IsNat iy, HasDatatypeInfo ki fam codes)
+     (Show1 ki, IsNat ix, IsNat iy, HasDatatypeInfo ki fam codes)
   => Proxy ix
   -> Proxy iy
   -> NodeId
@@ -88,4 +89,3 @@ visualizeCtxs px py from ctxs =
           info = datatypeInfo (Proxy :: Proxy fam) (getSNat pix1)
       nid <- npHoleToTable c info h
       visualizeCtxs px pix1 nid ctxs'
-
