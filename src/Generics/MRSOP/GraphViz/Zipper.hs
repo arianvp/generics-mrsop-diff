@@ -29,8 +29,9 @@ import qualified Generics.MRSOP.Zipper as Z
 import Control.Monad.State
 import Data.GraphViz.Attributes
 import Data.GraphViz.Attributes.Complete
-  ( Attribute(TailPort)
+  ( Attribute(HeadPort, TailPort)
   , PortPos(LabelledPort)
+  , PortName
   )
 import Data.GraphViz.Attributes.HTML
 import Data.GraphViz.Types.Monadic hiding (Str)
@@ -38,15 +39,16 @@ import Data.Proxy
 import Data.Text.Lazy (pack)
 
 -- T 1 $ H [2,3]   => |1|*|2|3|
-npHoleToCells :: (Show1 ki) => String -> NodeId -> NPHole ki fam ix xs -> [Cell]
-npHoleToCells constrName self h =
-  let strLabel x = LabelCell [] (Text [Str (pack x)])
-      recToCell rec = strLabel " "
-      kToCell k = strLabel (show1 k)
+npHoleToCells ::
+     (Show1 ki) => String -> NodeId -> PortName -> NPHole ki fam ix xs -> [Cell]
+npHoleToCells constrName self port h =
+  let strLabel p x = LabelCell p (Text [Str (pack x)])
+      recToCell rec = strLabel [] " "
+      kToCell k = strLabel [] (show1 k)
    in case h of
-        H poa -> strLabel "*" : elimNP (elimNA kToCell recToCell) poa
+        H poa -> strLabel [Port port] "*" : elimNP (elimNA kToCell recToCell) poa
         T na h' ->
-          elimNA kToCell recToCell na : npHoleToCells constrName self h'
+          elimNA kToCell recToCell na : npHoleToCells constrName self port h'
 
 --  
 --  data Foo = Lol Int Int Int Foo
@@ -74,7 +76,8 @@ npHoleToTable c info h = do
       constrName = constructorName constrInfo
       dataName = showDatatypeName (datatypeName info)
   self <- preallocateNodeId
-  let cells = npHoleToCells constrName self h
+  port <- preallocatePortName
+  let cells = npHoleToCells constrName self port h
       table =
         HTable
           Nothing
