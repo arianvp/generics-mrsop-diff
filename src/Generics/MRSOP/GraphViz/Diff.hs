@@ -114,7 +114,7 @@ visualizeAl' p sourceTable targetTable al =
           sourceTable
           targetTable
           [HeadPort (LabelledPort s Nothing), TailPort (LabelledPort d Nothing)]
-      pure $ mempty {source = _ s, target = _ d} <> v
+      pure $ mempty {source = undefined s, target = undefined d} <> v
 
 visualizeAl ::
      forall ix ki fam codes n1 n2 p1 p2.

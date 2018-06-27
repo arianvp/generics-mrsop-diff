@@ -76,16 +76,13 @@ getCtxsIx _ = Proxy
 visualizeCtxs ::
      forall ki fam sum codes x xs ix iy.
      (Show1 ki, IsNat ix, IsNat iy, HasDatatypeInfo ki fam codes)
-  => Proxy ix
-  -> Proxy iy
-  -> NodeId
+  => NodeId
   -> Ctxs ki fam codes ix iy
   -> DotSM NodeId
-visualizeCtxs px py from ctxs =
+visualizeCtxs from ctxs =
   case ctxs of
     Z.Nil -> pure from
     Z.Cons (Ctx c h) ctxs' -> do
-      let pix1 = getCtxsIx ctxs'
-          info = datatypeInfo (Proxy :: Proxy fam) (getSNat pix1)
+      let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (getCtxsIx ctxs'))
       nid <- npHoleToTable c info h
-      visualizeCtxs px pix1 nid ctxs'
+      visualizeCtxs nid ctxs'
