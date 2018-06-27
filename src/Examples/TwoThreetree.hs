@@ -13,21 +13,21 @@ module Examples.TwoThreetree where
 
 import Data.Type.Equality
 
-import Data.Proxy
-import Generics.MRSOP.Base
-import Generics.MRSOP.Diff
-import Generics.MRSOP.GraphViz.Deep
-import Generics.MRSOP.GraphViz.Diff
-import Generics.MRSOP.GraphViz
-import Generics.MRSOP.Opaque
-import Generics.MRSOP.TH
-import Generics.MRSOP.Util
-import Data.GraphViz.Types.Monadic
 import Data.GraphViz.Printing
-import qualified Generics.MRSOP.Zipper as Zipper
+import Data.GraphViz.Types.Monadic
+import Data.Proxy
 import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import qualified Data.Text.Lazy.IO as IO
+import Generics.MRSOP.Base
+import Generics.MRSOP.Diff
+import Generics.MRSOP.GraphViz
+import Generics.MRSOP.GraphViz.Deep
+import Generics.MRSOP.GraphViz.Diff
+import Generics.MRSOP.Opaque
+import Generics.MRSOP.TH
+import Generics.MRSOP.Util hiding (Cons, Nil)
+import Generics.MRSOP.Zipper
 
 data Tree a
   = Leaf
@@ -46,7 +46,8 @@ data TreeKon =
 data TreeSingl (kon :: TreeKon) :: * where
   STreeInt :: Int -> TreeSingl TreeInt
 
-deriving instance Show (TreeSingl k)
+instance Show (TreeSingl k) where
+  show (STreeInt x) = show x
 
 deriving instance Eq (TreeSingl k)
 
@@ -81,7 +82,6 @@ t3' = deep @FamTreeInt t3
 -- t3Vis = writeFile "t3.dot" (showDot (visualizeFix t3'))
 t4' = deep @FamTreeInt t4
 
-
 -- quick tool for visualizing this hting
 vis :: String -> Almu TreeSingl FamTreeInt CodesTreeInt Z -> IO ()
 vis name =
@@ -90,30 +90,63 @@ vis name =
   toDot . digraph (Str (Text.pack name)) . runDotSM 0 . visualizeAlmu
 
 -- t4Vis = writeFile "t4.dot" (showDot (visualizeFix t4'))
-p12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
-p12 =
-  Peel
-    
-    Zipper.Nil
-    Zipper.Nil
-    (sCns
-       (CS (CS CZ))
-       (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-        AtFix
-          (Peel
-             
-             Zipper.Nil
-             Zipper.Nil
-             (sCns
-                (CS CZ)
-                (AtSet (Trivial (STreeInt 2) (STreeInt 5)) :*
-                 AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-                 AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-                 NP0))) :*
-        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-        NP0))
+tLong :: Tree Int -> Tree Int
+tLong x = Three 1 Leaf (Two 2 Leaf x) Leaf
 
+t1l = tLong t1
+
+t2l = tLong t2
+
+t1l' = deep @FamTreeInt t1l
+
+t2l' = deep @FamTreeInt t2l
+
+-- the zipper representation of the tLong function
+pLong ::
+     Spine TreeSingl FamTreeInt CodesTreeInt (Lkup Z CodesTreeInt)
+  -> Almu TreeSingl FamTreeInt CodesTreeInt Z
+pLong =
+  Peel
+    (Cons
+       (Ctx
+          (CS (CS CZ))
+          (T (NA_K (STreeInt 1)) $
+           T (NA_I (into Leaf)) $ H (NA_I (into Leaf) :* NP0)))
+       (Cons
+          (Ctx
+             (CS CZ)
+             (T (NA_K (STreeInt 2)) $
+              H (NA_I (into Leaf) :* NP0)))
+          Nil))
+    Nil
+
+-- don't zip at all
+now ::
+     Spine TreeSingl FamTreeInt CodesTreeInt (Lkup Z CodesTreeInt)
+  -> Almu TreeSingl FamTreeInt CodesTreeInt Z
+now = Peel Nil Nil
+
+p12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p12 = now p12'
+
+plong12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+plong12 = pLong p12'
+
+p12' :: Spine TreeSingl FamTreeInt CodesTreeInt (Lkup Z CodesTreeInt)
+p12' =
+  (sCns
+     (CS (CS CZ))
+     (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :* AtFix (now Scp) :*
+      AtFix
+        (now
+           (sCns
+              (CS CZ)
+              (AtSet (Trivial (STreeInt 2) (STreeInt 5)) :* AtFix (now Scp) :*
+               AtFix (now Scp) :*
+               NP0))) :*
+      AtFix (now Scp) :*
+      NP0))
+  
 -- we can delete subtree and insert with subtree
 p13 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p13 =
@@ -122,20 +155,13 @@ p13 =
       (Fix (Rep (There (There (Here three))))) =
         deep @FamTreeInt (Three (3 :: Int) Leaf Leaf Leaf)
    in Peel
-        
-        Zipper.Nil
-        Zipper.Nil
+        Nil
+        Nil
         (sCns
            (CS (CS CZ))
-           (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-            AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-            AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-            AtFix
-              (Peel
-                 
-                 Zipper.Nil
-                 Zipper.Nil
-                 (Schg (CS CZ) (CS (CS CZ)) (A0 two three))) :*
+           (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :* AtFix (now Scp) :*
+            AtFix (now Scp) :*
+            AtFix (now (Schg (CS CZ) (CS (CS CZ)) (A0 two three))) :*
             NP0))
 
 -- however, we can be more 'precise' as well
@@ -144,72 +170,50 @@ p13 =
 p13' :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p13' =
   Peel
-    
-    Zipper.Nil
-    Zipper.Nil
+    Nil
+    Nil
     (sCns
        (CS (CS CZ))
-       (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-        AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+       (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :* AtFix (now Scp) :*
+        AtFix (now Scp) :*
         AtFix
           (Peel
-             
-             Zipper.Nil
-             Zipper.Nil
+             Nil
+             Nil
              (Schg
                 (CS CZ)
                 (CS (CS CZ))
                 (AX NP0 NP0 (AtSet (Trivial (STreeInt 3) (STreeInt 3))) $
-                 AX
-                   NP0
-                   NP0
-                   (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
-                 AX
-                   NP0
-                   NP0
-                   (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
-                 A0 NP0 (NA_I (deep Leaf) :* NP0)))) :*
+                 AX NP0 NP0 (AtFix (now Scp)) $
+                 AX NP0 NP0 (AtFix (now Scp)) $ A0 NP0 (NA_I (deep Leaf) :* NP0)))) :*
         NP0))
 
 p23 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
 p23 =
   Peel
-    
-    Zipper.Nil
-    Zipper.Nil
+    Nil
+    Nil
     (sCns
        (CS (CS CZ))
-       (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :*
-        (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) :*
+       (AtSet (Trivial (STreeInt 1) (STreeInt 1)) :* (AtFix (now Scp)) :*
         (AtFix
            (Peel
-              
-              Zipper.Nil
-              Zipper.Nil
+              Nil
+              Nil
               (sCns
                  (CS (CS CZ))
-                 (AtSet (Trivial (STreeInt 5) (STreeInt 2)) :*
-                  AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-                  AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
-                  AtFix (Peel  Zipper.Nil Zipper.Nil Scp) :*
+                 (AtSet (Trivial (STreeInt 5) (STreeInt 2)) :* AtFix (now Scp) :*
+                  AtFix (now Scp) :*
+                  AtFix (now Scp) :*
                   NP0)))) :*
         (AtFix
            (Peel
-              
-              Zipper.Nil
-              Zipper.Nil
+              Nil
+              Nil
               (Schg
                  (CS CZ)
                  (CS (CS CZ))
                  (AX NP0 NP0 (AtSet (Trivial (STreeInt 1) (STreeInt 1))) $
-                  AX
-                    NP0
-                    (NA_I (deep Leaf) :* NP0)
-                    (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
-                  AX
-                    NP0
-                    NP0
-                    (AtFix (Peel  Zipper.Nil Zipper.Nil Scp)) $
-                  A0 NP0 NP0)))) :*
+                  AX NP0 (NA_I (deep Leaf) :* NP0) (AtFix (now Scp)) $
+                  AX NP0 NP0 (AtFix (now Scp)) $ A0 NP0 NP0)))) :*
         NP0))

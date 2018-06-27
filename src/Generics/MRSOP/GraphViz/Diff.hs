@@ -41,14 +41,22 @@ visualizeAlmu ::
      forall ix ki fam codes. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
   => Almu ki fam codes ix
   -> DotSM NodeId
-visualizeAlmu (Peel dels inss spine)
-  -- dels' <- freshNode [toLabel "TODO: Ctxs"]
-  -- inss' <- freshNode [toLabel "TODO: Ctxs"]
-  -- lift $ dels' --> inss'
- = do
-  spine' <- visualizeSpine (Proxy :: Proxy ix) spine
-  -- lift $ inss' --> spine'
-  pure spine'
+visualizeAlmu (Peel dels inss spine) = do
+  dels' <- visualizeCtxs dels
+  inss' <- visualizeCtxs inss
+  -- spine' <- visualizeSpine (Proxy :: Proxy ix) spine
+  case (dels', inss') of
+    (EmptyCtxs, EmptyCtxs) -> pure 0
+    (EmptyCtxs, HeadLast ih il) -> do
+      -- lift $ spine' --> ih
+      pure ih
+    (HeadLast dh dl, EmptyCtxs) -> do
+      -- lift $ spine' --> dh
+      pure dh
+    (HeadLast dh dl, HeadLast ih il) -> do
+      lift $ dl --> ih
+      -- lift $ il --> spine'
+      pure dh
 
 visualizeSpine ::
      (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
