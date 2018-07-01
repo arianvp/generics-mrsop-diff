@@ -44,20 +44,20 @@ visualizeAlmu ::
 visualizeAlmu (Peel dels inss spine) = do
   dels' <- visualizeCtxs dels
   inss' <- visualizeCtxs inss
-  -- spine' <- visualizeSpine (Proxy :: Proxy ix) spine
+  spine' <- visualizeSpine (Proxy :: Proxy ix) spine
   case (dels', inss') of
     (EmptyCtxs, EmptyCtxs) -> pure 0
     (EmptyCtxs, HeadLast ih il) -> do
-      -- makeEdgeNP spine' ih 
+      makeEdgeNP spine' ih 
       -- TODO we might wanna return a portId here
       -- so that we can actually point to the zipper nicely
       pure (fst ih)
     (HeadLast dh dl, EmptyCtxs) -> do
-      -- makeEdgeNP spine' dh
+      makeEdgeNP spine' dh
       pure (fst dh)
     (HeadLast dh dl, HeadLast ih il) -> do
       makeEdgePP dl ih
-      --  makeEdgePN il spine'
+      makeEdgePN il spine'
       pure (fst dh)
 
 visualizeSpine ::
@@ -124,7 +124,7 @@ visualizeAl' p sourceTable targetTable al =
           sourceTable
           targetTable
           [HeadPort (LabelledPort s Nothing), TailPort (LabelledPort d Nothing)]
-      pure $ mempty {source = undefined s, target = undefined d} <> v
+      pure $ mempty {source = [] , target = [] } <> v
 
 visualizeAl ::
      forall ix ki fam codes n1 n2 p1 p2.
