@@ -27,6 +27,7 @@ import Data.GraphViz.Types.Monadic hiding (Str)
 import Data.Monoid
 import Data.Proxy
 import Data.Text.Lazy (pack)
+import Debug.Trace
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff
 import Generics.MRSOP.GraphViz
@@ -45,11 +46,13 @@ visualizeAlmu (Peel dels inss spine) = do
   dels' <- visualizeCtxs dels
   inss' <- visualizeCtxs inss
   spine' <- visualizeSpine (Proxy :: Proxy ix) spine
-  case (dels', inss') of
+  case (dels', inss')
     -- Easy case
+        of
     (EmptyCtxs, EmptyCtxs) -> pure spine'
-    (EmptyCtxs, HeadLast ih il) -> do
+    (EmptyCtxs, HeadLast ih il)
       -- Edge from il to spine'
+     -> do
       makeEdgePN il spine'
       -- TODO we might wanna return a portId here
       -- so that we can actually point to the zipper nicely
@@ -104,37 +107,28 @@ visualizeAl' ::
   -> DotSM VisAl
 visualizeAl' p sourceTable targetTable al =
   case al of
-    A0 inss dels -> do
+    A0 inss dels ->
       pure $
-        mempty
-          { source
-              -- TODO do insertion here
-              -- by doing an elimNPM and calling visualizeDeep 
-             =
-              elimNP
-                (const
-                   (LabelCell [BGColor (toColor Green)] (Text [Str (pack " ")])))
-                inss <>
-              -- NOTE: we ignore deletions
-              elimNP
-                (const
-                   (LabelCell [BGColor (toColor Red)] (Text [Str (pack " ")])))
-                dels
-          }
-    AX inss dels at al'
-        -- TODO:
-        --  * forntPart: add inss and dels  to tail of list like A0 case
-        --  * recursively visualize at
-        --  * add two cells, with arrow inbetween
-        --  * draw arrow from last cell to visualizaiton of at
-        --  * continue recursively on the tail.
-        --  * concatenate the results
-     -> do
-      let frontPart =
-            mempty
-              { source
+      mempty
+        { source
                   -- TODO do insertion here
                   -- by doing an elimNPM and calling visualizeDeep 
+           =
+            elimNP
+              (const
+                 (LabelCell [BGColor (toColor Green)] (Text [Str (pack " ")])))
+              inss <>
+                  -- NOTE: we ignore deletions
+            elimNP
+              (const (LabelCell [BGColor (toColor Red)] (Text [Str (pack " ")])))
+              dels
+        }
+    AX inss dels at al' -> do
+      let front =
+            mempty
+              { source
+                      -- TODO do insertion here
+                      -- by doing an elimNPM and calling visualizeDeep 
                  =
                   elimNP
                     (const
@@ -142,7 +136,7 @@ visualizeAl' p sourceTable targetTable al =
                           [BGColor (toColor Green)]
                           (Text [Str (pack " ")])))
                     inss <>
-                  -- NOTE: we ignore deletions
+                      -- NOTE: we ignore deletions
                   elimNP
                     (const
                        (LabelCell
@@ -150,33 +144,24 @@ visualizeAl' p sourceTable targetTable al =
                           (Text [Str (pack " ")])))
                     dels
               }
-      s <- preallocatePortName
-      d <- preallocatePortName
-      let midPart =
+      at' <- visualizeAt p at
+      midSource <- preallocatePortName
+      midTarget <- preallocatePortName
+      lift $ edge targetTable at' [TailPort (LabelledPort midTarget Nothing)]
+      let mid =
             mempty
-              { source =
-                  elimNP
-                    (const
-                       (LabelCell
-                          [Port s, BGColor (toColor Green)]
-                          (Text [Str (pack " ")])))
-                    inss <>
-                  elimNP
-                    (const
-                       (LabelCell
-                          [Port d , BGColor (toColor Red)]
-                          (Text [Str (pack " ")])))
-                    dels
+              { source = [LabelCell [Port midSource] (Text [Str (pack " ")])]
+              , target = [LabelCell [Port midTarget] (Text [Str (pack " ")])]
               }
+      tail <- visualizeAl' p sourceTable targetTable al'
       lift $
         edge
           sourceTable
           targetTable
-          [HeadPort (LabelledPort s Nothing), TailPort (LabelledPort d Nothing)]
-      at' <- visualizeAt p at
-      lift $ edge targetTable at' [HeadPort (LabelledPort d Nothing)]
-      tail <- visualizeAl' p sourceTable targetTable al'
-      pure $ frontPart <> midPart <> tail
+          [ TailPort (LabelledPort midSource Nothing)
+          , HeadPort (LabelledPort midTarget Nothing)
+          ]
+      pure $ front <> mid <> tail
 
 visualizeAl ::
      forall ix ki fam codes n1 n2 p1 p2.
@@ -193,12 +178,20 @@ visualizeAl p c1 c2 al = do
       constrName1 = constructorName constrInfo1
       constrInfo2 = constrInfoLkup c2 info
       constrName2 = constructorName constrInfo2
-      mkTable i cells =
+      mkTable i name cells =
         lift $
-        node i [shape PlainText, toLabel $ HTable Nothing [] [Cells cells]]
+        node
+          i
+          [ shape PlainText
+          , toLabel $
+            HTable
+              Nothing
+              []
+              [Cells (LabelCell [] (Text [Str (pack name)]) : cells)]
+          ]
   sourceTable <- preallocateNodeId
   destTable <- preallocateNodeId
   visAl <- visualizeAl' p sourceTable destTable al
-  mkTable sourceTable (source visAl)
-  mkTable destTable (target visAl)
+  mkTable sourceTable constrName1 (source visAl)
+  mkTable destTable constrName2 (target visAl)
   pure sourceTable
