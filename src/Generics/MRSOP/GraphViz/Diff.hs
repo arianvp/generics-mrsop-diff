@@ -46,14 +46,16 @@ visualizeAlmu (Peel dels inss spine) = do
   inss' <- visualizeCtxs inss
   spine' <- visualizeSpine (Proxy :: Proxy ix) spine
   case (dels', inss') of
-    (EmptyCtxs, EmptyCtxs) -> pure 0
+    -- Easy case
+    (EmptyCtxs, EmptyCtxs) -> pure spine'
     (EmptyCtxs, HeadLast ih il) -> do
-      makeEdgeNP spine' ih 
+      -- Edge from il to spine'
+      makeEdgePN il spine'
       -- TODO we might wanna return a portId here
       -- so that we can actually point to the zipper nicely
       pure (fst ih)
     (HeadLast dh dl, EmptyCtxs) -> do
-      makeEdgeNP spine' dh
+      makeEdgePN dl spine'
       pure (fst dh)
     (HeadLast dh dl, HeadLast ih il) -> do
       makeEdgePP dl ih
@@ -79,7 +81,7 @@ visualizeAt ::
   -> DotSM NodeId
 visualizeAt p at =
   case at of
-    AtSet k -> freshNode [toLabel "K"]
+    AtSet k -> freshNode [toLabel "K->K"]
     AtFix i -> visualizeAlmu i
 
 -- Some state that we keep track off for visualization
@@ -105,26 +107,76 @@ visualizeAl' p sourceTable targetTable al =
     A0 inss dels -> do
       pure $
         mempty
-          { source =
+          { source
+              -- TODO do insertion here
+              -- by doing an elimNPM and calling visualizeDeep 
+             =
               elimNP
                 (const
                    (LabelCell [BGColor (toColor Green)] (Text [Str (pack " ")])))
                 inss <>
+              -- NOTE: we ignore deletions
               elimNP
                 (const
                    (LabelCell [BGColor (toColor Red)] (Text [Str (pack " ")])))
                 dels
           }
-    AX inss dels at al' -> do
+    AX inss dels at al'
+        -- TODO:
+        --  * forntPart: add inss and dels  to tail of list like A0 case
+        --  * recursively visualize at
+        --  * add two cells, with arrow inbetween
+        --  * draw arrow from last cell to visualizaiton of at
+        --  * continue recursively on the tail.
+        --  * concatenate the results
+     -> do
+      let frontPart =
+            mempty
+              { source
+                  -- TODO do insertion here
+                  -- by doing an elimNPM and calling visualizeDeep 
+                 =
+                  elimNP
+                    (const
+                       (LabelCell
+                          [BGColor (toColor Green)]
+                          (Text [Str (pack " ")])))
+                    inss <>
+                  -- NOTE: we ignore deletions
+                  elimNP
+                    (const
+                       (LabelCell
+                          [BGColor (toColor Red)]
+                          (Text [Str (pack " ")])))
+                    dels
+              }
       s <- preallocatePortName
       d <- preallocatePortName
-      v <- visualizeAl' p sourceTable targetTable al'
+      let midPart =
+            mempty
+              { source =
+                  elimNP
+                    (const
+                       (LabelCell
+                          [Port s, BGColor (toColor Green)]
+                          (Text [Str (pack " ")])))
+                    inss <>
+                  elimNP
+                    (const
+                       (LabelCell
+                          [Port d , BGColor (toColor Red)]
+                          (Text [Str (pack " ")])))
+                    dels
+              }
       lift $
         edge
           sourceTable
           targetTable
           [HeadPort (LabelledPort s Nothing), TailPort (LabelledPort d Nothing)]
-      pure $ mempty {source = [] , target = [] } <> v
+      at' <- visualizeAt p at
+      lift $ edge targetTable at' [HeadPort (LabelledPort d Nothing)]
+      tail <- visualizeAl' p sourceTable targetTable al'
+      pure $ frontPart <> midPart <> tail
 
 visualizeAl ::
      forall ix ki fam codes n1 n2 p1 p2.
@@ -141,21 +193,12 @@ visualizeAl p c1 c2 al = do
       constrName1 = constructorName constrInfo1
       constrInfo2 = constrInfoLkup c2 info
       constrName2 = constructorName constrInfo2
-  undefined
-      -- To recurse, we need to know the previous cell
-      -- we're gonna make two tables
-      -- After each cell, one can decide to do a certain amount of insertions or deletions
-   {-case al of
-           A0 poa1 poa2 -> do
-             a1 <- preallocateNodeId
-             a2 <- preallocateNodeId
-             cells1 <- npToCells constrName1 a1 poa1
-             cells2 <- npToCells constrName2 a2 poa2
-             pure a2
-           AX poa1 poa2 at al' -> do
-             visualizeAt (Proxy :: Proxy ix) at
-             a1 <- preallocateNodeId
-             a2 <- preallocateNodeId
-             cells1 <- npToCells constrName1 a1 poa1
-             cells2 <- npToCells constrName2 a2 poa2
-             visualizeAl p c1 c2 al'-}
+      mkTable i cells =
+        lift $
+        node i [shape PlainText, toLabel $ HTable Nothing [] [Cells cells]]
+  sourceTable <- preallocateNodeId
+  destTable <- preallocateNodeId
+  visAl <- visualizeAl' p sourceTable destTable al
+  mkTable sourceTable (source visAl)
+  mkTable destTable (target visAl)
+  pure sourceTable
