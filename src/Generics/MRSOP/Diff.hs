@@ -1,15 +1,19 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.Diff where
 
+import Control.Applicative
+import Control.Monad (guard)
 import Data.Proxy
+import Data.Type.Equality ((:~:)(Refl), testEquality)
 import Generics.MRSOP.Base
 import Generics.MRSOP.Base (match)
 import Generics.MRSOP.Util
-import Generics.MRSOP.Zipper
+import Generics.MRSOP.Zipper.Deep
 
 -- TODO make ctx not use Fam, but Fix
 data Almu (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) :: Nat -> * where
@@ -17,7 +21,7 @@ data Almu (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) :: Nat -> * wh
     :: (IsNat ix, IsNat iy)
     => Ctxs ki fam codes ix iy
     -> Ctxs ki fam codes iy ix
-    -> Spine ki fam codes (Lkup ix codes)  -- TODO: is this ix or iy?
+    -> Spine ki fam codes (Lkup ix codes) -- TODO: is this ix or iy?
     -> Almu ki fam codes ix
 
 data Spine (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) (sum :: [[Atom kon]]) :: * where
@@ -56,3 +60,58 @@ data TrivialK (ki :: kon -> *) :: kon -> * where
 data At (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki fam codes (K kon)
   AtFix :: IsNat ix => Almu ki fam codes ix -> At ki fam codes (I ix)
+
+applyAt ::
+     Eq1 ki
+  => At ki fam codes a
+  -> NA ki (Fix ki codes) a
+  -> Maybe (NA ki (Fix ki codes) a)
+applyAt (AtSet (Trivial k1 k2)) (NA_K k3) = do
+  guard $ eq1 k1 k3
+  pure $ NA_K k2
+applyAt (AtFix almu) (NA_I f) = NA_I <$> applyAlmu almu f
+
+-- TODO not sure yet if this is correct, however it seems correct :)
+-- I simply followed the types.
+applyAl ::
+     Eq1 ki
+  => Al ki fam codes xs ys
+  -> PoA ki (Fix ki codes) xs
+  -> Maybe (PoA ki (Fix ki codes) ys)
+applyAl (A0 NP0 inss) NP0 = Just inss
+applyAl (A0 (_ :* dels) inss) (x :* xs) = applyAl (A0 dels inss) xs
+applyAl (AX (_ :* dels) inss at al') (x :* xs) =
+  applyAl (AX dels inss at al') xs
+applyAl (AX NP0 NP0 at al') (x :* xs) = (:*) <$> applyAt at x <*> applyAl al' xs
+applyAl (AX NP0 (i :* inss) at al') xs =
+  (i :*) <$> applyAl (AX NP0 inss at al') xs
+
+applySpine ::
+     Eq1 ki
+  => Spine ki fam codes sum
+  -> Rep ki (Fix ki codes) sum
+  -> Maybe (Rep ki (Fix ki codes) sum)
+applySpine spn r =
+  case spn of
+    Scp -> pure r
+    Schg c1 c2 al ->
+      case sop r of
+        Tag c3 poa -> do
+          x <- testEquality c1 c3
+          case x of
+            Refl -> inj c2 <$> applyAl al poa
+
+
+-- | Applies a diff
+-- Instead of returning  Nothing here, perhaps we want something better
+-- like actually telling why it failed in the future.
+--
+-- we need the Family constraint in order to use the zippers, which are shallow.
+-- However, we might want to use deep zippers instead, such that we do not
+-- need to pass around the Family constraint everywhere
+applyAlmu ::
+  Eq1 ki => Almu ki fam codes ix
+  -> Fix ki codes ix
+  -> Maybe (Fix ki codes ix)
+applyAlmu (Peel dels inss spn) f@(Fix x) = do
+  Fix <$> applySpine spn x

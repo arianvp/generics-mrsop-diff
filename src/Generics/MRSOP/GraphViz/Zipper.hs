@@ -23,8 +23,8 @@ import Generics.MRSOP.GraphViz
 import Generics.MRSOP.Opaque
 import Generics.MRSOP.TH
 import Generics.MRSOP.Util
-import Generics.MRSOP.Zipper
-import qualified Generics.MRSOP.Zipper as Z
+import Generics.MRSOP.Zipper.Deep
+import qualified Generics.MRSOP.Zipper.Deep as Z
 
 import Control.Monad.State
 import Data.GraphViz.Attributes
@@ -40,7 +40,7 @@ import Data.Text.Lazy (pack)
 
 -- T 1 $ H [2,3]   => |1|*|2|3|
 npHoleToCells ::
-     (Show1 ki) => String -> NodeId -> PortName -> NPHole ki fam ix xs -> [Cell]
+     (Show1 ki) => String -> NodeId -> PortName -> NPHole ki fam codes ix xs -> [Cell]
 npHoleToCells constrName self port h =
   let strLabel p x = LabelCell p (Text [Str (pack x)])
       recToCell rec = strLabel [] " "
@@ -70,7 +70,7 @@ npHoleToTable ::
      (Show1 ki)
   => Constr sum n
   -> DatatypeInfo sum
-  -> NPHole ki fam ix (Lkup n sum)
+  -> NPHole ki fam codes ix (Lkup n sum)
   -> DotSM (NodeId, PortName)
 npHoleToTable c info h = do
   let constrInfo = constrInfoLkup c info
@@ -162,9 +162,12 @@ data VisCtxs
   | HeadLast (NodeId, PortName) -- ^ The zipper contained at least two elements
              (NodeId, PortName)
 
+{-
 visualizeLoc ::
      forall ki fam sum codes x xs ix iy.
      (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
   => Loc ki fam codes ix
   -> DotSM VisCtxs
 visualizeLoc (Loc e ctxs) = visualizeCtxs ctxs
+
+-}

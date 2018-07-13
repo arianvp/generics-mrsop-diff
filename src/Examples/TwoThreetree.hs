@@ -27,7 +27,7 @@ import Generics.MRSOP.GraphViz.Diff
 import Generics.MRSOP.Opaque
 import Generics.MRSOP.TH
 import Generics.MRSOP.Util hiding (Cons, Nil)
-import Generics.MRSOP.Zipper
+import Generics.MRSOP.Zipper.Deep
 
 data Tree a
   = Leaf
@@ -111,12 +111,12 @@ pLong =
        (Ctx
           (CS (CS CZ))
           (T (NA_K (STreeInt 1)) $
-           T (NA_I (into Leaf)) $ H (NA_I (into Leaf) :* NP0)))
+           T (NA_I (deep Leaf)) $ H (NA_I (deep Leaf) :* NP0)))
        (Cons
           (Ctx
              (CS CZ)
              (T (NA_K (STreeInt 2)) $
-              H (NA_I (into Leaf) :* NP0)))
+              H (NA_I (deep Leaf) :* NP0)))
           Nil))
     Nil
 
