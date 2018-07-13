@@ -20,7 +20,7 @@ data Almu (ki :: kon -> *) (fam :: [*]) (codes :: [[[Atom kon]]]) :: Nat -> * wh
   Peel
     :: (IsNat ix, IsNat iy)
     => Ctxs ki fam codes ix iy
-    -> Ctxs ki fam codes iy ix
+    -> Ctxs ki fam codes ix iy
     -> Spine ki fam codes (Lkup ix codes) -- TODO: is this ix or iy?
     -> Almu ki fam codes ix
 
@@ -105,13 +105,14 @@ applySpine spn r =
 -- | Applies a diff
 -- Instead of returning  Nothing here, perhaps we want something better
 -- like actually telling why it failed in the future.
---
--- we need the Family constraint in order to use the zippers, which are shallow.
--- However, we might want to use deep zippers instead, such that we do not
--- need to pass around the Family constraint everywhere
 applyAlmu ::
-  Eq1 ki => Almu ki fam codes ix
+     Eq1 ki
+  => Almu ki fam codes ix
   -> Fix ki codes ix
   -> Maybe (Fix ki codes ix)
 applyAlmu (Peel dels inss spn) f@(Fix x) = do
-  Fix <$> applySpine spn x
+  y <- removeCtxs dels f
+  let (Fix x') = fillCtxs y inss
+  Fix <$> applySpine spn x'
+  
+
