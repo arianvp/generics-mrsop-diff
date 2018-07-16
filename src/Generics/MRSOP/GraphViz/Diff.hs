@@ -40,11 +40,11 @@ import Generics.MRSOP.Zipper
 
 visualizeAlmu ::
      forall ix ki fam codes. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
-  => Almu ki fam codes ix
+  => Almu ki codes ix
   -> DotSM NodeId
 visualizeAlmu (Peel dels inss spine) = do
-  dels' <- visualizeCtxs dels
-  inss' <- visualizeCtxs inss
+  dels' <- visualizeCtxs Red dels
+  inss' <- visualizeCtxs Green inss
   spine' <- visualizeSpine (Proxy :: Proxy ix) spine
   case (dels', inss')
     -- Easy case
@@ -68,7 +68,7 @@ visualizeAlmu (Peel dels inss spine) = do
 visualizeSpine ::
      (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
   => Proxy ix
-  -> Spine ki fam codes (Lkup ix codes)
+  -> Spine ki codes (Lkup ix codes)
   -> DotSM NodeId
 visualizeSpine p spn =
   case spn of
@@ -80,11 +80,23 @@ visualizeAt ::
      forall ix ki fam codes a.
      (IsNat ix, Show1 ki, HasDatatypeInfo ki fam codes)
   => Proxy ix
-  -> At ki fam codes a
+  -> At ki codes a
   -> DotSM NodeId
 visualizeAt p at =
   case at of
-    AtSet k -> freshNode [toLabel "K->K"]
+    AtSet (Trivial kdel kins) ->
+      let table x = HTable Nothing [] [Cells x]
+       in freshNode
+            [ shape PlainText
+            , toLabel . table $
+              [ LabelCell
+                  [BGColor (toColor Red)]
+                  (Text [Str . pack . show1 $ kdel])
+              , LabelCell
+                  [BGColor (toColor Green)]
+                  (Text [Str . pack . show1 $ kins])
+              ]
+            ]
     AtFix i -> visualizeAlmu i
 
 -- Some state that we keep track off for visualization
@@ -103,7 +115,7 @@ visualizeAl' ::
   => Proxy ix
   -> NodeId
   -> NodeId
-  -> Al ki fam codes p1 p2
+  -> Al ki codes p1 p2
   -> DotSM VisAl
 visualizeAl' p sourceTable targetTable al =
   case al of
@@ -169,7 +181,7 @@ visualizeAl ::
   => Proxy ix
   -> Constr (Lkup ix codes) n1
   -> Constr (Lkup ix codes) n2
-  -> Al ki fam codes p1 p2
+  -> Al ki codes p1 p2
   -> DotSM NodeId
 visualizeAl p c1 c2 al = do
   let info = datatypeInfo (Proxy :: Proxy fam) (getSNat p)

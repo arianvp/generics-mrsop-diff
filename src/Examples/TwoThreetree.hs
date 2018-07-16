@@ -83,7 +83,7 @@ t3' = deep @FamTreeInt t3
 t4' = deep @FamTreeInt t4
 
 -- quick tool for visualizing this hting
-vis :: String -> Almu TreeSingl FamTreeInt CodesTreeInt Z -> IO ()
+vis :: String -> Almu TreeSingl CodesTreeInt Z -> IO ()
 vis name =
   IO.writeFile (name ++ ".dot") .
   renderDot .
@@ -103,8 +103,8 @@ t2l' = deep @FamTreeInt t2l
 
 -- the zipper representation of the tLong function
 pLong ::
-     Spine TreeSingl FamTreeInt CodesTreeInt (Lkup Z CodesTreeInt)
-  -> Almu TreeSingl FamTreeInt CodesTreeInt Z
+     Spine TreeSingl CodesTreeInt (Lkup Z CodesTreeInt)
+  -> Almu TreeSingl CodesTreeInt Z
 pLong =
   Peel
     (Cons
@@ -122,17 +122,17 @@ pLong =
 
 -- don't zip at all
 now ::
-     Spine TreeSingl FamTreeInt CodesTreeInt (Lkup Z CodesTreeInt)
-  -> Almu TreeSingl FamTreeInt CodesTreeInt Z
+     Spine TreeSingl CodesTreeInt (Lkup Z CodesTreeInt)
+  -> Almu TreeSingl CodesTreeInt Z
 now = Peel Nil Nil
 
-p12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p12 :: Almu TreeSingl CodesTreeInt Z
 p12 = now p12'
 
-plong12 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+plong12 :: Almu TreeSingl CodesTreeInt Z
 plong12 = pLong p12'
 
-p12' :: Spine TreeSingl FamTreeInt CodesTreeInt (Lkup Z CodesTreeInt)
+p12' :: Spine TreeSingl CodesTreeInt (Lkup Z CodesTreeInt)
 p12' =
   (sCns
      (CS (CS CZ))
@@ -148,7 +148,7 @@ p12' =
       NP0))
   
 -- we can delete subtree and insert with subtree
-p13 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p13 :: Almu TreeSingl CodesTreeInt Z
 p13 =
   let (Fix (Rep (There (Here two)))) =
         deep @FamTreeInt (Two (3 :: Int) Leaf Leaf)
@@ -167,7 +167,7 @@ p13 =
 -- however, we can be more 'precise' as well
 -- we only pinpoint the part that matters, the other leafs are just copied.
 -- that is, we're going to change Two to Three, and add a field
-p13' :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p13' :: Almu TreeSingl CodesTreeInt Z
 p13' =
   Peel
     Nil
@@ -188,7 +188,7 @@ p13' =
                  AX NP0 NP0 (AtFix (now Scp)) $ A0 NP0 (NA_I (deep Leaf) :* NP0)))) :*
         NP0))
 
-p23 :: Almu TreeSingl FamTreeInt CodesTreeInt Z
+p23 :: Almu TreeSingl CodesTreeInt Z
 p23 =
   Peel
     Nil

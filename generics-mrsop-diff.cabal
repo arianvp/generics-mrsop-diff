@@ -19,19 +19,21 @@ cabal-version:       >=1.10
 executable diff-graphviz
   main-is:  diff-graphviz/Main.hs
   build-depends: base, generics-mrsop-diff, generics-mrsop
+  default-language: Haskell2010
 
 library
   -- Modules exported by the library.
   exposed-modules: 
     Generics.MRSOP.Diff
+    Generics.MRSOP.Diff.Enumerate
     Generics.MRSOP.GDiff
+    Generics.MRSOP.GDiff.Util
     Generics.MRSOP.GraphViz
     Generics.MRSOP.GraphViz.Deep
     Generics.MRSOP.GraphViz.Diff
     Generics.MRSOP.GraphViz.Zipper
  
   other-modules:
-    Generics.MRSOP.GDiff.Util
     Examples.Lua
     Examples.C
     Examples.Lua.Diffs

@@ -32,6 +32,7 @@ import Data.GraphViz.Attributes.Complete
   ( Attribute(HeadPort, TailPort)
   , PortName
   , PortPos(LabelledPort)
+  , toColor
   )
 import Data.GraphViz.Attributes.HTML
 import Data.GraphViz.Types.Monadic hiding (Str)
@@ -40,7 +41,7 @@ import Data.Text.Lazy (pack)
 
 -- T 1 $ H [2,3]   => |1|*|2|3|
 npHoleToCells ::
-     (Show1 ki) => String -> NodeId -> PortName -> NPHole ki fam codes ix xs -> [Cell]
+     (Show1 ki) => String -> NodeId -> PortName -> NPHole ki codes ix xs -> [Cell]
 npHoleToCells constrName self port h =
   let strLabel p x = LabelCell p (Text [Str (pack x)])
       recToCell rec = strLabel [] " "
@@ -68,11 +69,12 @@ npHoleToCells constrName self port h =
 -- A forgetful mapping from Ctx to NodeId
 npHoleToTable ::
      (Show1 ki)
-  => Constr sum n
+  => X11Color
+  -> Constr sum n
   -> DatatypeInfo sum
-  -> NPHole ki fam codes ix (Lkup n sum)
+  -> NPHole ki codes ix (Lkup n sum)
   -> DotSM (NodeId, PortName)
-npHoleToTable c info h = do
+npHoleToTable color c info h = do
   let constrInfo = constrInfoLkup c info
       constrName = constructorName constrInfo
       dataName = showDatatypeName (datatypeName info)
@@ -82,7 +84,7 @@ npHoleToTable c info h = do
       table =
         HTable
           Nothing
-          []
+          [BGColor (toColor color)]
             {-Cells
               [ LabelCell
                   [ColSpan (fromIntegral $ length cells)]
@@ -93,8 +95,6 @@ npHoleToTable c info h = do
   lift $ node self [shape PlainText, toLabel table]
   pure (self, port)
 
-getCtxsIx :: Ctxs ki fam codes iy ix -> Proxy ix
-getCtxsIx _ = Proxy
 
 -- A stack of Ctxs
 --              
@@ -113,28 +113,31 @@ getCtxsIx _ = Proxy
 visualizeCtxs' ::
      forall ki fam sum codes x xs ix iy.
      (Show1 ki, IsNat ix, IsNat iy, HasDatatypeInfo ki fam codes)
-  => Ctxs ki fam codes ix iy
+  => X11Color
+  -> Ctxs ki codes ix iy
   -> DotSM [(NodeId, PortName)]
-visualizeCtxs' ctxs =
+visualizeCtxs' color ctxs =
   case ctxs of
     Z.Nil -> pure []
     Z.Cons (Ctx c h) ctxs' ->
       (:) <$>
       npHoleToTable
+        color
         c
         (datatypeInfo (Proxy :: Proxy fam) (getSNat (getCtxsIx ctxs')))
         h <*>
-      visualizeCtxs' ctxs'
+      visualizeCtxs' color ctxs'
 
 -- Takes a ctxs, visualizes each ctx. tacks arrows in between,
 -- and returns all the node ids
 visualizeCtxs ::
      forall ki fam sum codes x xs ix iy.
      (Show1 ki, IsNat ix, IsNat iy, HasDatatypeInfo ki fam codes)
-  => Ctxs ki fam codes ix iy
+  => X11Color
+  -> Ctxs ki codes ix iy
   -> DotSM VisCtxs
-visualizeCtxs ctxs = do
-  nids <- visualizeCtxs' ctxs
+visualizeCtxs c ctxs = do
+  nids <- visualizeCtxs' c ctxs
   xs <- zipWithM (\a b -> makeEdgePP a b >> pure b) nids (tail nids)
   pure $
     case xs of
@@ -162,12 +165,3 @@ data VisCtxs
   | HeadLast (NodeId, PortName) -- ^ The zipper contained at least two elements
              (NodeId, PortName)
 
-{-
-visualizeLoc ::
-     forall ki fam sum codes x xs ix iy.
-     (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
-  => Loc ki fam codes ix
-  -> DotSM VisCtxs
-visualizeLoc (Loc e ctxs) = visualizeCtxs ctxs
-
--}
