@@ -14,6 +14,13 @@ import Generics.MRSOP.Diff
 import Generics.MRSOP.Util hiding (Cons, Nil)
 import Generics.MRSOP.Zipper.Deep
 
+-- |
+-- Given something of type 'iy'
+--
+-- and we delete at the root the  Context  'iy -> ix'
+-- and then insert at the new root  a Context 'iy -> ix'
+-- We get back and 'iy'
+--
 data Loc (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> * where
   Loc
     :: IsNat ix
@@ -25,6 +32,7 @@ data Loc (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> * where
 
 -- | Enumerate arbitrary insertions and deletions such that we 
 -- can turn Fix a into Fix a.  
+-- TODO: Decide with Victor how to enumerate Ctxs
 diffCtxs ::
      (Eq1 ki, IsNat ix, MonadPlus m)
   => Fix ki codes ix
@@ -44,7 +52,31 @@ diffSpine s1 s2 =
   if eq1 s1 s2
     then pure Scp
     else case (sop s1, sop s2) of
-           (Tag c1 p1, Tag c2 p2) -> pure $ Schg c1 c2 _
+           (Tag c1 p1, Tag c2 p2) -> do
+             al <- diffAl p1 p2
+             pure $ Schg c1 c2 al
+
+diffAt ::
+     (Eq1 ki, MonadPlus m)
+  => NA ki (Fix ki codes) a
+  -> NA ki (Fix ki codes) a
+  -> m (At ki codes a)
+diffAt (NA_K k1) (NA_K k2) = pure . AtSet $ Trivial k1 k2
+diffAt (NA_I i1) (NA_I i2) = AtFix <$> diffAlmu i1 i2
+
+diffAl ::
+     (TestEquality ki, Eq1 ki, MonadPlus m)
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> m (Al ki codes xs ys)
+diffAl NP0 NP0 = pure $ A0 NP0 NP0
+diffAl NP0 bs = _
+diffAl as NP0 = undefined
+diffAl (a :* as) (b :* bs) =
+  case testEquality a b of
+    Just Refl -> undefined
+    Nothing -> undefined
+    
 
 diffAlmu ::
      (Eq1 ki, IsNat ix, MonadPlus m)
