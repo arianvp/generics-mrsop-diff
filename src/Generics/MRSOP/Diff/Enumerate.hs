@@ -65,17 +65,14 @@ diffAt (NA_K k1) (NA_K k2) = pure . AtSet $ Trivial k1 k2
 diffAt (NA_I i1) (NA_I i2) = AtFix <$> diffAlmu i1 i2
 
 diffAl ::
-     (TestEquality ki, Eq1 ki, MonadPlus m)
+     (Eq1 ki, MonadPlus m)
   => PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> m (Al ki codes xs ys)
 diffAl NP0 NP0 = pure $ A0 NP0 NP0
-diffAl NP0 bs = _
+diffAl NP0 bs = undefined
 diffAl as NP0 = undefined
-diffAl (a :* as) (b :* bs) =
-  case testEquality a b of
-    Just Refl -> undefined
-    Nothing -> undefined
+diffAl (a :* as) (b :* bs) = undefined
     
 
 diffAlmu ::
