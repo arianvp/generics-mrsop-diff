@@ -115,9 +115,22 @@ cpy pi pj pty =
   case (reify pi, reify pj, reify pty) of
     (RList,RList,RList) -> Cpy
 
--- We need to have some extra proof about the fact that xs and ys
--- are actually lists. Otherwise  split won't work, hence the L2
--- We need to decide whether xs is empty or not
+
+-- In Agda this would be:
+-- ++⁻ : {A : Set}
+--       {P : A -> Set}
+--       (xs : List A)
+--       {ys : List A} 
+--     → All P (xs ++ ys) → All P xs × All P ys
+-- ++⁻ []       p          = [] , p
+-- ++⁻ (x ∷ xs) (px ∷ pxs) = Prod.map (px ∷_) id (++⁻ _ pxs)
+--
+--   Note in particular, that xs is not an implicit argument,
+--   and that we explicitly pattern match on it.
+--
+--   In haskell, types and values are separated, but we can 
+--   carry around the Singleton LstPrf in order to
+--   discover on the type-level the list, by pattern matching
 split :: ListPrf xs -> NP p (xs :++: ys) -> (NP p xs, NP p ys)
 split Nil poa = (NP0, poa)
 split (Cons p) (x :* rs) = 
