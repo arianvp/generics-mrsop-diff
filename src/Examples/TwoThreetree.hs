@@ -8,11 +8,16 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Examples.TwoThreetree where
 
 import Data.Type.Equality
 
+import Data.Monoid (Sum(..))
+import Data.Functor.Const
 import Data.GraphViz.Printing
 import Data.GraphViz.Types.Monadic
 import Data.Proxy
@@ -61,6 +66,67 @@ instance TestEquality TreeSingl where
   testEquality (STreeInt _) (STreeInt _) = Just Refl
 
 deriveFamilyWith ''TreeSingl [t|Tree Int|]
+
+instance Show k => Show1 (Const k) where
+  show1 (Const x) = "(Const " ++ show x ++ ")"
+
+{-
+syn :: f (Ann f a) -> Ann f a
+syn = cata alg where
+  alg xs = Ann (f (mapRep getAttr xs))  xs
+-}
+
+-- But this isn't my final form yet
+-- | synthesizes attributes ala Attribute Grammars
+-- Actually useful because we support mutual recursive datatypes, which
+-- previous literature struggled with
+--
+--  Each place is annotated by some attribute  phi iy
+synthesize ::
+     forall ki phi codes ix.
+     (forall iy. Rep ki phi (Lkup iy codes) -> phi iy)
+  -> Fix ki codes ix
+  -> AnnFix ki codes phi ix
+synthesize f = cata alg
+  where
+    alg ::
+         forall iy.
+         Rep ki (AnnFix ki codes phi) (Lkup iy codes)
+      -> AnnFix ki codes phi iy
+    alg xs =
+      AnnFix (f (mapRep getAnn xs)) xs
+
+sizeGeneric' :: forall ki codes ix. Fix ki codes ix -> AnnFix ki codes (Const (Sum Int)) ix
+sizeGeneric' = synthesize alg
+  where
+    alg :: forall iy. Rep ki (Const (Sum Int)) (Lkup iy codes) -> Const (Sum Int) iy
+    alg (Rep xs) =
+      Const 1 `mappend`
+      elimNS (mconcat . elimNP (elimNA (const mempty) (Const . getConst))) xs
+
+-- | Count the number of nodes
+sizeGeneric :: forall ki codes ix. Fix ki codes ix -> Const (Sum Int) ix
+sizeGeneric = cata alg
+  where
+    alg :: forall iy. Rep ki (Const (Sum Int)) (Lkup iy codes) -> Const (Sum Int) iy
+    alg (Rep xs) =
+      Const 1 `mappend`
+      elimNS (mconcat . elimNP (elimNA (const mempty) (Const . getConst))) xs
+
+
+-- | Returns the number of leaves in a tree
+countLeavesGeneric :: forall ki codes ix. Fix ki codes ix -> Const (Sum Int) ix
+countLeavesGeneric = cata alg
+  where
+    alg :: Rep ki (Const (Sum Int)) (Lkup iy codes) -> Const (Sum Int) iy
+    alg (Rep xs) = elimNS alg2 xs
+
+    alg2 :: PoA ki (Const (Sum Int)) xs -> Const (Sum Int) iy
+    alg2 NP0 = Const 1
+    alg2 xs =
+      mconcat $ elimNP (elimNA (const mempty) (Const . getConst)) xs
+
+
 
 t1, t2, t3, t4 :: Tree Int
 t1 = Three 1 Leaf (Two 2 Leaf Leaf) (Two 3 Leaf Leaf)

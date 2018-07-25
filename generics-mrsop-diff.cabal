@@ -24,8 +24,9 @@ executable diff-graphviz
 library
   -- Modules exported by the library.
   exposed-modules: 
-    Generics.MRSOP.Diff.Annotate
     Generics.MRSOP.Diff
+    Generics.MRSOP.Diff.Annotate
+    Generics.MRSOP.Diff.Annotate.Translate
     Generics.MRSOP.Diff.Enumerate
     Generics.MRSOP.GDiff
     Generics.MRSOP.GDiff.Util
@@ -35,10 +36,10 @@ library
     Generics.MRSOP.GraphViz.Zipper
  
   other-modules:
-    Examples.Lua
     Examples.C
-    Examples.Lua.Diffs
     Examples.Expr
+    Examples.Lua
+    Examples.Lua.Diffs
     Examples.TwoThreetree
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 

@@ -13,22 +13,40 @@
 -- by zipping a 'GDiff' patch with a Fix
 module Generics.MRSOP.Diff.Annotate where
 
+import Data.Coerce
+import Data.Functor.Const
 import Generics.MRSOP.Base
 import Generics.MRSOP.GDiff
 import Generics.MRSOP.Util
 
 import Data.Maybe (fromJust)
 
-data Ann
-  = Modify
-  | Copy
+-- | Annotations for each family in the datatype
+-- we ignore ix, as they're the same everywhere
+data Ann = Modify | Copy
+
 
 injCofAnn ::
      Cof ki codes a c
-  -> ann
-  -> PoA ki (AnnFix ki codes ann) (Tyof codes c)
-  -> NA ki (AnnFix ki codes ann) a
-injCofAnn (ConstrI c) ann xs = NA_I (AnnFix ann $ inj c xs)
+  -> Const ann ix
+  -> PoA ki (AnnFix ki codes (Const ann)) (Tyof codes c)
+  -> NA ki (AnnFix ki codes (Const ann)) a
+injCofAnn (ConstrI c) ann xs =
+    -- And here we are stuck
+    --
+    -- We have an ann :: Const ann ix
+    --
+    -- but we need to produce an   _ :: Const ann n
+    -- 
+    -- However, we know that Const discards the second argument,
+    -- so they are actually equal!
+    --
+    -- We can use coerce as  Const is coercible
+    --
+    NA_I (AnnFix (coerce ann) $ inj c xs)
+
+    where
+      constToConst = Const . getConst
 injCofAnn (ConstrK k) ann xs = NA_K k
 
 -- lemma needed for inserting an annotation at the place of 
@@ -37,10 +55,10 @@ injCofAnn (ConstrK k) ann xs = NA_K k
 -- we'll see.
 insCofAnn ::
      Cof ki codes a c
-  -> ann
+  -> Const ann ix
   -> ListPrf (Tyof codes c)
-  -> PoA ki (AnnFix ki codes ann) (Tyof codes c :++: as)
-  -> PoA ki (AnnFix ki codes ann) (a ': as)
+  -> PoA ki (AnnFix ki codes (Const ann)) (Tyof codes c :++: as)
+  -> PoA ki (AnnFix ki codes (Const ann)) (a ': as)
 insCofAnn c ann prf xs =
   let (xs0, xs1) = split prf xs
    in injCofAnn c ann xs0 :* xs1
@@ -65,29 +83,28 @@ annSrc ::
      Eq1 ki
   => PoA ki (Fix ki codes) xs
   -> ES ki codes xs ys
-  -> PoA ki (AnnFix ki codes Ann) xs
+  -> PoA ki (AnnFix ki codes (Const Ann)) xs
 annSrc xs ES0 = NP0
 annSrc xs (Ins c es) = annSrc xs es
 annSrc (x :* xs) (Del c es)
  =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c Modify listPrf (annSrc (appendNP poa xs) es)
+   in insCofAnn c (Const Modify) listPrf (annSrc (appendNP poa xs) es)
 annSrc (x :* xs) (Cpy c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c Copy listPrf (annSrc (appendNP poa xs) es)
+   in insCofAnn c (Const Copy) listPrf (annSrc (appendNP poa xs) es)
 
 annDest ::
      Eq1 ki
   => PoA ki (Fix ki codes) ys
   -> ES ki codes xs ys
-  -> PoA ki (AnnFix ki codes Ann) ys
+  -> PoA ki (AnnFix ki codes (Const Ann)) ys
 annDest xs ES0 = NP0
 annDest xs (Del c es) = annDest xs es
 annDest (x :* xs) (Ins c es)
  =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c Modify listPrf (annDest (appendNP poa xs) es)
+   in insCofAnn c (Const Modify) listPrf (annDest (appendNP poa xs) es)
 annDest (x :* xs) (Cpy c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c Copy listPrf (annDest (appendNP poa xs) es)
-
+   in insCofAnn c (Const Copy) listPrf (annDest (appendNP poa xs) es)
