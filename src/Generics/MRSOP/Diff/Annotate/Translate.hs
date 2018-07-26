@@ -1,20 +1,27 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.Diff.Annotate.Translate where
 
+import Control.Arrow
 import Data.Function
 import Data.Functor.Const
 import Data.Functor.Product
-import Data.Monoid (Sum(getSum), (<>))
+import Data.Maybe (fromJust)
+import Data.Monoid
+  ( First(First, getFirst)
+  , Last(Last, getLast)
+  , Sum(Sum, getSum)
+  , (<>)
+  )
 import Data.Type.Equality
-import Generics.MRSOP.AG (monoidAlgebra)
+import Generics.MRSOP.AG (monoidAlgebra, synthesizeAnn)
 import Generics.MRSOP.Base
-import Generics.MRSOP.Diff
 import Generics.MRSOP.Diff.Annotate
+import Generics.MRSOP.Diff2
 import Generics.MRSOP.Util hiding (Cons, Nil)
-import Generics.MRSOP.Zipper.Deep
 
 -- | If a given subtree has no more copies, we can only resort
 --   to Schg to produce a patch; We call this the stiff patch.
@@ -29,10 +36,13 @@ stiff ::
   => Fix ki codes ix
   -> Fix ki codes ix
   -> Almu ki codes ix
-stiff (Fix x) (Fix y) = Peel Nil Nil (stiffS x y)
+stiff (Fix x) (Fix y) = Spn (stiffS x y)
 
-stiffS :: TestEquality ki =>
-     Rep ki (Fix ki codes) xs -> Rep ki (Fix ki codes) xs -> Spine ki codes xs
+stiffS ::
+     TestEquality ki
+  => Rep ki (Fix ki codes) xs
+  -> Rep ki (Fix ki codes) xs
+  -> Spine ki codes xs
 stiffS x y =
   case (sop x, sop y) of
     (Tag c1 poa1, Tag c2 poa2) ->
@@ -75,134 +85,91 @@ stiffAl (x :* xs) (y :* ys) =
 extractAnn :: NA ki (AnnFix ki codes phi) ('I ix) -> phi ix
 extractAnn (NA_I (AnnFix ann _)) = ann
 
+-- | Little helper
+forgetAnn' = mapNA id forgetAnn
+
+-- TODO / NOTE: fromJust because we know copiesAlgebra always Annotates leaves with a First.
+-- it's the First Semigroup, not the First Monoid. But haskell doesn't distinguish between
+-- the two. We could add our own datatype later.
 diffAl ::
-     TestEquality ki
-  => PoA ki (AnnFix ki codes (Const Ann)) xs
-  -> PoA ki (AnnFix ki codes (Const Ann)) ys
+     (Eq1 ki, TestEquality ki)
+  => PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
   -> Al ki codes xs ys
 diffAl NP0 NP0 = A0 NP0 NP0
-diffAl NP0 ys = undefined
-diffAl xs NP0 = undefined
+diffAl NP0 (y :* ys) =
+  case diffAl NP0 ys of
+    A0 dels inss -> A0 dels (forgetAnn' y :* inss)
+    AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
+diffAl (x :* xs) NP0 =
+  case diffAl xs NP0 of
+    A0 dels inss -> A0 (forgetAnn' x :* dels) inss
+    AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
 diffAl (x :* xs) (y :* ys) =
-  let al = diffAl xs ys
-   in case (x, y) of
-        (NA_K k1, NA_K k2) ->
-          case testEquality k1 k2 of
-            Just Refl -> AX NP0 NP0 (diffAt x y) al
-            Nothing ->
-              case al of
-                A0 dels inss ->
-                  A0
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                AX dels inss at al ->
-                  AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al
-        (NA_K k1, NA_I i2) ->
-          case getConst . extractAnn $ y of
-            Modify ->
-              case al of
-                A0 dels inss -> 
-                  undefined
-                  {- A0
-                    dels
-                    -- TODO: Victor Victor! Here we're stuck in a scary way too!
-                    (mapNA id forgetAnn y :* inss)
-                    -}
-                AX dels inss at al -> undefined
-                  {-AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al-}
-            Copy -> 
-              case al of
-                A0 dels inss -> undefined
-                  {-A0
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss) -}
-                AX dels inss at al -> undefined
-                  {-AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al-}
-        (NA_I i1, NA_K k2) ->
-          case getConst . extractAnn $ x of
-            Modify ->
-              case al of
-                A0 dels inss -> undefined
-                  {-A0
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss) -}
-                AX dels inss at al -> undefined
-                  {-AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al-}
-            Copy ->
-              case al of
-                A0 dels inss -> undefined
-                  {-A0
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss) -}
-                AX dels inss at al -> undefined
-                  {-AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al-}
-        (NA_I i1, NA_I i2) ->
-          -- TODO the trick here is to  testEquality x y 
-          case (getConst . extractAnn $ x, getConst . extractAnn $ y) of
-            (Modify, _) -> 
-              case al of
-                A0 dels inss -> undefined
-                  {-A0
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss) -}
-                AX dels inss at al -> undefined
-                  {-AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al-}
-            (Copy, Modify) -> 
-              case al of
-                A0 dels inss -> undefined
-                  {-A0
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss) -}
-                AX dels inss at al -> undefined
-                  {-AX
-                    (mapNA id forgetAnn x :* dels)
-                    (mapNA id forgetAnn y :* inss)
-                    at
-                    al-}
+  case (x, y, testEquality x y) of
+    (NA_K k1, NA_K k2, Just Refl) -> AX NP0 NP0 (diffAt x y) (diffAl xs ys)
+    (NA_K k1, NA_K k2, Nothing) ->
+      case diffAl xs ys of
+        A0 dels inss -> A0 (forgetAnn' x :* dels) (forgetAnn' y :* inss)
+        AX dels inss at al ->
+          AX (forgetAnn' x :* dels) (forgetAnn' y :* inss) at al
+    (NA_K k1, NA_I i2, Nothing) ->
+      case fromJust . getAnn' . extractAnn $ y of
+        Modify ->
+          case diffAl (x :* xs) ys of
+            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
+            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
+        Copy ->
+          case diffAl xs (y :* ys) of
+            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
+            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
+    (NA_I i1, NA_K k2, Nothing) ->
+      case fromJust . getAnn' . extractAnn $ x of
+        Modify ->
+          case diffAl xs (y :* ys) of
+            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
+            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
+        Copy ->
+          case diffAl (x :* xs) ys of
+            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
+            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
+    (NA_I i1, NA_I i2, Just Refl) ->
+      case ( fromJust . getAnn' . extractAnn $ x
+           , fromJust . getAnn' . extractAnn $ y) of
+        (Modify, _) ->
+          case diffAl xs (y :* ys) of
+            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
+            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
+        (Copy, Modify) ->
+          case diffAl (x :* xs) ys of
+            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
+            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
+        (Copy, Copy) -> AX NP0 NP0 (diffAt x y) (diffAl xs ys)
+    (NA_I i1, NA_I i2, Nothing) ->
+      case ( fromJust . getAnn' . extractAnn $ x
+           , fromJust . getAnn' . extractAnn $ y) of
+        (Copy, Copy) -> error "HELP HELP. I don't know if this ever occurs"
+        (Modify, _) ->
+          case diffAl xs (y :* ys) of
+            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
+            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
+        (Copy, Modify) ->
+          case diffAl (x :* xs) ys of
+            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
+            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
 
-            -- TODO: Victor! Victor! Here we are in Trouble!
-            -- we can't continue because i1 and i2
-            -- point to different parts in the family!
-            -- i2 :: AnnFix ki codes (Const Ann) iy
-            -- i1 :: AnnFix ki codes (Const Ann) ix
-            --
-            -- In the agda code this wasn't a problem, due
-            -- to the assumption that the datatype is regular...
-            (Copy, Copy) -> undefined -- AX NP0 NP0 (diffAt x y) al
 diffAt ::
-     NA ki (AnnFix ki codes (Const Ann)) a
-  -> NA ki (AnnFix ki codes (Const Ann)) a
+     (Eq1 ki, TestEquality ki)
+  => NA ki (AnnFix ki codes (Const (Sum Int, First Ann))) a
+  -> NA ki (AnnFix ki codes (Const (Sum Int, First Ann))) a
   -> At ki codes a
-diffAt = undefined
+diffAt (NA_K x) (NA_K y) = AtSet (Trivial x y)
+diffAt (NA_I x) (NA_I y) = AtFix $ diffAlmu x y
 
 diffSpine ::
      (TestEquality ki, Eq1 ki)
-  => Rep ki (AnnFix ki codes (Const Ann)) xs
-  -> Rep ki (AnnFix ki codes (Const Ann)) xs
+  => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> Spine ki codes xs
 diffSpine s1 s2 =
   if (eq1 `on` mapRep forgetAnn) s1 s2
@@ -214,41 +181,73 @@ diffSpine s1 s2 =
                  sCns c1 (mapNP (\(a :*: b) -> diffAt a b) (zipNP p1 p2))
                Nothing -> Schg c1 c2 (diffAl p1 p2)
 
+{-
+copiesAlgebra (Const Copy) = (Const 1 <>) . monoidAlgebra
+copiesAlgebra _ = monoidAlgebra
+-}
+-- annotates the tree with how many copies are underneath each node
+-- (inclusive with self)
+-- copies Copy = 1 + copies children
+-- copies Modify = copies children
+copiesAlgebra ::
+     Const Ann iy
+  -> Rep ki (Const (Sum Int, First Ann)) xs
+  -> Const (Sum Int, First Ann) iy
+copiesAlgebra (Const Copy) = (Const (1, First $ Just Copy) <>) . monoidAlgebra
+copiesAlgebra (Const Modify) =
+  (Const (mempty, First $ Just $ Modify) <>) . monoidAlgebra
 
-countCopies :: AnnFix ki codes (Const Ann) ix -> Int
-countCopies = getSum . getConst . annCata copiesAlgebra
-  where
-    copiesAlgebra (Const Copy) = (Const 1 <>) . monoidAlgebra
-    copiesAlgebra _ = monoidAlgebra
+countCopies ::
+     AnnFix ki codes (Const Ann) ix
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
+countCopies = synthesizeAnn copiesAlgebra
+
+data CtxInsDel  = CtxIns | CtxDel
+
+diffCtx :: CtxInsDel 
+        -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
+        -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+        -> Ctx ki codes ix xs
+diffCtx cid x xs =
+  -- poa -> [Int] -> Int  (by Max)
+  --  go :: Int -> PoA -> Ctx   -- given the max, get a context that points into the PoA
+  undefined
+
+diffIns ::
+     AnnFix ki codes (Const (Sum Int, First Ann)) ix
+  -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
+  -> Almu ki codes ix
+diffIns  x rep =
+  case sop rep of
+    Tag c xs -> Ins c (diffCtx CtxIns x xs)
+
 
 diffDel ::
-     Rep ki (AnnFix ki codes (Const Ann)) (Lkup ix codes)
-  -> AnnFix ki codes (Const Ann) ix
+     Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Almu ki codes ix
-diffDel r x = undefined
+diffDel rep x =
+  case sop rep of
+    Tag c xs -> Del c (diffCtx CtxDel x xs)
+
+getAnn' :: (Const (Sum Int, First Ann) ix) -> Maybe Ann
+getAnn' (Const (_, First x)) = x
+
+hasCopies :: AnnFix ki codes (Const (Sum Int, First Ann)) ix -> Bool
+hasCopies (AnnFix (Const (Sum x, _)) _) = x > 0
 
 -- | Takes two annotated trees, and produces a patch
---
---  TODO: Because we have the two zippers ,we need to
---  be a bit smarter than diff-del, diff-ins
---
---  I'm not fully understanding the Agda code, and
---  how we would reproduce it here.
 diffAlmu ::
-     (IsNat ix, TestEquality ki)
-  => AnnFix ki codes (Const Ann) ix
-  -> AnnFix ki codes (Const Ann) ix
+     (Eq1 ki, IsNat ix, TestEquality ki)
+  => AnnFix ki codes (Const (Sum Int, First Ann)) ix
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Almu ki codes ix
-diffAlmu fx@(AnnFix (Const Modify) x) fy@(AnnFix (Const Modify) y) =
-  if countCopies fx > 0
-    then diffDel x fy
-    else (stiff `on` Fix . mapRep forgetAnn) x y
-diffAlmu fx@(AnnFix (Const Modify) x) (AnnFix (Const Copy) y) =
-  if countCopies fx > 0
-    then undefined
-    else (stiff `on` Fix . mapRep forgetAnn) x y
-diffAlmu (AnnFix (Const Copy) x) fy@(AnnFix (Const Modify) y) =
-  if countCopies fy > 0
-    then undefined
-    else (stiff `on` Fix . mapRep forgetAnn) x y
-diffAlmu (AnnFix (Const Copy) x) (AnnFix (Const Copy) y) = undefined
+diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
+  case (fromJust $ getAnn' $ ann1, fromJust $ getAnn' $ ann2) of
+    (Copy, Copy) -> Spn (diffSpine rep1 rep2)
+    (Copy, Modify) -> diffIns x rep2
+    (Modify, Copy) -> diffDel rep1 y
+    (Modify, Modify) ->
+      if hasCopies x
+        then diffDel rep1 y
+        else stiff (forgetAnn x) (forgetAnn y)

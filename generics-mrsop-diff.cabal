@@ -25,6 +25,7 @@ library
   -- Modules exported by the library.
   exposed-modules: 
     Generics.MRSOP.Diff
+    Generics.MRSOP.Diff2
     Generics.MRSOP.Diff.Annotate
     Generics.MRSOP.Diff.Annotate.Translate
     Generics.MRSOP.Diff.Enumerate
