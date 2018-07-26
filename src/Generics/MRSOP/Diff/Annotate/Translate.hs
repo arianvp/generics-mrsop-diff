@@ -1,11 +1,13 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.Diff.Annotate.Translate where
 
 import Control.Arrow
+import Data.Foldable (fold)
 import Data.Function
 import Data.Functor.Const
 import Data.Functor.Product
@@ -14,14 +16,16 @@ import Data.Monoid
   ( First(First, getFirst)
   , Last(Last, getLast)
   , Sum(Sum, getSum)
-  , (<>)
   )
+import Data.Semigroup (Max(Max, getMax))
+import Data.Semigroup (Max(Max, getMax), (<>))
 import Data.Type.Equality
-import Generics.MRSOP.AG (monoidAlgebra, synthesizeAnn)
+import Generics.MRSOP.AG (mapAnn, monoidAlgebra, synthesizeAnn)
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff.Annotate
 import Generics.MRSOP.Diff2
 import Generics.MRSOP.Util hiding (Cons, Nil)
+import Unsafe.Coerce (unsafeCoerce)
 
 -- | If a given subtree has no more copies, we can only resort
 --   to Schg to produce a patch; We call this the stiff patch.
@@ -202,28 +206,58 @@ countCopies ::
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
 countCopies = synthesizeAnn copiesAlgebra
 
-data CtxInsDel  = CtxIns | CtxDel
+data CtxInsDel
+  = CtxIns
+  | CtxDel
 
-diffCtx :: CtxInsDel 
-        -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-        -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
-        -> Ctx ki codes ix xs
-diffCtx cid x xs =
-  -- poa -> [Int] -> Int  (by Max)
-  --  go :: Int -> PoA -> Ctx   -- given the max, get a context that points into the PoA
-  undefined
+diffCtx ::
+     forall ki ix codes xs. (Eq1 ki, TestEquality ki, IsNat ix)
+  => CtxInsDel
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
+  -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  -> Ctx ki codes ix xs
+diffCtx cid x xs
+  -- NOTE / WARNING:  that we _know_ that there will be a maximum. we just
+  -- cant guarentee it because haskell
+  -- TODO we want to return the index, not the max
+ =
+  let max =
+        fromJust .
+        fmap getMax .
+        getConst .
+        fold .
+        elimNP
+          (elimNA mempty (Const . Just . Max . getSum . fst . getConst . getAnn)) $
+        xs
+      drop' ::
+           Int
+        -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
+        -> Ctx ki codes ix ys
+      drop' n NP0 = error "We should've found it"
+      drop' 0 (y :* ys) =
+        case (testEquality (NA_I x) y, y) of
+          (Just Refl, NA_I y) ->
+            H $
+            case cid of
+              CtxIns -> diffAlmu x y
+              CtxDel -> diffAlmu y x
+          (Nothing, _) ->
+            error "We know that the index points to a recursive position"
+      drop' n (y :* ys) = T (forgetAnn' y) (drop' (n - 1) ys)
+   in drop' 5 xs
 
 diffIns ::
-     AnnFix ki codes (Const (Sum Int, First Ann)) ix
+     (Eq1 ki, TestEquality ki, IsNat ix)
+  => AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
   -> Almu ki codes ix
-diffIns  x rep =
+diffIns x rep =
   case sop rep of
     Tag c xs -> Ins c (diffCtx CtxIns x xs)
 
-
 diffDel ::
-     Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
+     (Eq1 ki, TestEquality ki, IsNat ix)
+  => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Almu ki codes ix
 diffDel rep x =

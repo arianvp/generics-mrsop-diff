@@ -15,8 +15,8 @@ import Generics.MRSOP.Base (match)
 import Generics.MRSOP.Util
 
 data Ctx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
-  Here :: Almu ki codes ix -> Ctx ki codes ix ('I ix ': xs)
-  There
+  H :: Almu ki codes ix -> Ctx ki codes ix ('I ix ': xs)
+  T
     :: NA ki (Fix ki codes) a -> Ctx ki codes ix xs -> Ctx ki codes ix (a ': xs)
 
 data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> * where
