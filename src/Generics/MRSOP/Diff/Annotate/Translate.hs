@@ -24,18 +24,52 @@ import Generics.MRSOP.Zipper.Deep
 --
 --   One option would be to fall back to the diff algorithm that enumerates
 --   all possibilities and choose the one with the least cost.
-stiff :: IsNat ix => Fix ki codes ix -> Fix ki codes ix -> Almu ki codes ix
+stiff ::
+     (TestEquality ki, IsNat ix)
+  => Fix ki codes ix
+  -> Fix ki codes ix
+  -> Almu ki codes ix
 stiff (Fix x) (Fix y) = Peel Nil Nil (stiffS x y)
 
-stiffAt :: NA ki (Fix ki codes) a -> NA ki (Fix ki codes) a -> At ki codes a
+stiffS :: TestEquality ki =>
+     Rep ki (Fix ki codes) xs -> Rep ki (Fix ki codes) xs -> Spine ki codes xs
+stiffS x y =
+  case (sop x, sop y) of
+    (Tag c1 poa1, Tag c2 poa2) ->
+      case testEquality c1 c2 of
+        (Just Refl) ->
+          sCns c1 (mapNP (\(a :*: b) -> stiffAt a b) (zipNP poa1 poa2))
+        Nothing -> Schg c1 c2 $ stiffAl poa1 poa2
+
+stiffAt ::
+     TestEquality ki
+  => NA ki (Fix ki codes) a
+  -> NA ki (Fix ki codes) a
+  -> At ki codes a
 stiffAt (NA_K k1) (NA_K k2) = AtSet (Trivial k1 k2)
 stiffAt (NA_I i1) (NA_I i2) = AtFix $ stiff i1 i2
 
--- | stiffAl is a bit trickier to implement, because
--- we have normal form alignments
 stiffAl ::
-     PoA ki (Fix ki codes) xs -> PoA ki (Fix ki codes) ys -> Al ki codes xs ys
-stiffAl a b = undefined -- TODO
+     TestEquality ki
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> Al ki codes xs ys
+stiffAl NP0 NP0 = A0 NP0 NP0
+stiffAl (x :* xs) NP0 =
+  case stiffAl xs NP0 of
+    A0 dels inss -> A0 (x :* dels) inss
+    AX dels inss at al -> AX (x :* dels) inss at al
+stiffAl NP0 (y :* ys) =
+  case stiffAl NP0 ys of
+    A0 dels inss -> A0 dels (y :* inss)
+    AX dels inss at al -> AX dels (y :* inss) at al
+stiffAl (x :* xs) (y :* ys) =
+  case testEquality x y of
+    Just Refl -> AX NP0 NP0 (stiffAt x y) (stiffAl xs ys)
+    Nothing ->
+      case stiffAl xs ys of
+        A0 dels inss -> A0 (x :* dels) (y :* inss)
+        AX dels inss at al -> AX (x :* dels) (y :* inss) at al
 
 -- utility function to extract an annotation 
 extractAnn :: NA ki (AnnFix ki codes phi) ('I ix) -> phi ix
@@ -72,10 +106,12 @@ diffAl (x :* xs) (y :* ys) =
             Modify ->
               case al of
                 A0 dels inss -> 
-                  A0
+                  undefined
+                  {- A0
                     dels
                     -- TODO: Victor Victor! Here we're stuck in a scary way too!
                     (mapNA id forgetAnn y :* inss)
+                    -}
                 AX dels inss at al -> undefined
                   {-AX
                     (mapNA id forgetAnn x :* dels)
@@ -121,6 +157,7 @@ diffAl (x :* xs) (y :* ys) =
                     at
                     al-}
         (NA_I i1, NA_I i2) ->
+          -- TODO the trick here is to  testEquality x y 
           case (getConst . extractAnn $ x, getConst . extractAnn $ y) of
             (Modify, _) -> 
               case al of
@@ -140,7 +177,7 @@ diffAl (x :* xs) (y :* ys) =
                   {-A0
                     (mapNA id forgetAnn x :* dels)
                     (mapNA id forgetAnn y :* inss) -}
-                AX dels inss at al -> _
+                AX dels inss at al -> undefined
                   {-AX
                     (mapNA id forgetAnn x :* dels)
                     (mapNA id forgetAnn y :* inss)
@@ -177,15 +214,6 @@ diffSpine s1 s2 =
                  sCns c1 (mapNP (\(a :*: b) -> diffAt a b) (zipNP p1 p2))
                Nothing -> Schg c1 c2 (diffAl p1 p2)
 
-stiffS ::
-     Rep ki (Fix ki codes) xs -> Rep ki (Fix ki codes) xs -> Spine ki codes xs
-stiffS x y =
-  case (sop x, sop y) of
-    (Tag c1 poa1, Tag c2 poa2) ->
-      case testEquality c1 c2 of
-        (Just Refl) ->
-          sCns c1 (mapNP (\(a :*: b) -> stiffAt a b) (zipNP poa1 poa2))
-        Nothing -> Schg c1 c2 $ stiffAl poa1 poa2
 
 countCopies :: AnnFix ki codes (Const Ann) ix -> Int
 countCopies = getSum . getConst . annCata copiesAlgebra
@@ -207,7 +235,7 @@ diffDel r x = undefined
 --  I'm not fully understanding the Agda code, and
 --  how we would reproduce it here.
 diffAlmu ::
-     IsNat ix
+     (IsNat ix, TestEquality ki)
   => AnnFix ki codes (Const Ann) ix
   -> AnnFix ki codes (Const Ann) ix
   -> Almu ki codes ix
