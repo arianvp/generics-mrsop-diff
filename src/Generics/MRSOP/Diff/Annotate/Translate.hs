@@ -9,6 +9,8 @@ module Generics.MRSOP.Diff.Annotate.Translate where
 import Control.Arrow
 import Data.Foldable (fold)
 import Data.Function
+import Data.List (maximumBy, zip)
+import Data.Ord (comparing)
 import Data.Functor.Const
 import Data.Functor.Product
 import Data.Maybe (fromJust)
@@ -219,15 +221,12 @@ diffCtx ::
 diffCtx cid x xs
   -- NOTE / WARNING:  that we _know_ that there will be a maximum. we just
   -- cant guarentee it because haskell
-  -- TODO we want to return the index, not the max
  =
-  let max =
-        fromJust .
-        fmap getMax .
-        getConst .
-        fold .
-        elimNP
-          (elimNA mempty (Const . Just . Max . getSum . fst . getConst . getAnn)) $
+  let maxIdx =
+        fst .
+        maximumBy (comparing snd) .
+        zip [0 ..] .
+        elimNP (elimNA (const 0) (getSum . fst . getConst . getAnn)) $
         xs
       drop' ::
            Int
@@ -237,14 +236,14 @@ diffCtx cid x xs
       drop' 0 (y :* ys) =
         case (testEquality (NA_I x) y, y) of
           (Just Refl, NA_I y) ->
-            H $
-            case cid of
-              CtxIns -> diffAlmu x y
-              CtxDel -> diffAlmu y x
+            H (case cid of
+                 CtxIns -> diffAlmu x y
+                 CtxDel -> diffAlmu y x)
+            (mapNP forgetAnn' ys)
           (Nothing, _) ->
             error "We know that the index points to a recursive position"
       drop' n (y :* ys) = T (forgetAnn' y) (drop' (n - 1) ys)
-   in drop' 5 xs
+   in drop' maxIdx xs
 
 diffIns ::
      (Eq1 ki, TestEquality ki, IsNat ix)

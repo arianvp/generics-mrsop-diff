@@ -13,9 +13,10 @@ import Data.Type.Equality ((:~:)(Refl), testEquality)
 import Generics.MRSOP.Base
 import Generics.MRSOP.Base (match)
 import Generics.MRSOP.Util
+import qualified Generics.MRSOP.Diff as Diff
 
 data Ctx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
-  H :: Almu ki codes ix -> Ctx ki codes ix ('I ix ': xs)
+  H :: Almu ki codes ix -> PoA ki (Fix ki codes) xs -> Ctx ki codes ix ('I ix ': xs)
   T
     :: NA ki (Fix ki codes) a -> Ctx ki codes ix xs -> Ctx ki codes ix (a ': xs)
 
@@ -63,3 +64,6 @@ data TrivialK (ki :: kon -> *) :: kon -> * where
 data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki codes (K kon)
   AtFix :: IsNat ix => Almu ki codes ix -> At ki codes (I ix)
+
+
+
