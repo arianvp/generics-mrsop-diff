@@ -78,6 +78,8 @@ insCofAnn c ann prf xs =
  - WARNING: Morally dubious, but we know that this edit script was
  - generated hte same time as the datatype, so it should never
  - fail to apply
+ -
+ - TODO: Actually make it return Maybe and be honest
  -}
 annSrc ::
      Eq1 ki

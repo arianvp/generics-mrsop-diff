@@ -13,6 +13,7 @@
 
 module Generics.MRSOP.GraphViz.Deep where
 
+import Data.Functor.Const
 import Control.Monad
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff
@@ -115,3 +116,4 @@ visualizeFix (Fix rep) =
           constrName = constructorName constrInfo
           dataName = showDatatypeName (datatypeName info)
       npToTable dataName constrName prod
+

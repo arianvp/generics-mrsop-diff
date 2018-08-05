@@ -1,19 +1,14 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.Diff2 where
 
-import Control.Applicative
-import Control.Monad (guard)
-import Data.Proxy
-import Data.Type.Equality ((:~:)(Refl), testEquality)
 import Generics.MRSOP.Base
-import Generics.MRSOP.Base (match)
 import Generics.MRSOP.Util
-import qualified Generics.MRSOP.Diff as Diff
 
 data Ctx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
   H :: Almu ki codes ix -> PoA ki (Fix ki codes) xs -> Ctx ki codes ix ('I ix ': xs)
@@ -43,6 +38,16 @@ npToAl :: NP (At ki codes) xs -> Al ki codes xs xs
 npToAl NP0 = A0 NP0 NP0
 npToAl (px :* pxs) = AX NP0 NP0 px (npToAl pxs)
 
+
+-- So the problem is, that his mapping is forgetful
+--      Al ki codes xs xs 
+--      doesnt have a unique representation
+--
+--      In the Agda code, we have a separate case for Schg and sCns
+--
+--      and now during merging, we have to recover again the fact
+--
+--      that we  know that an sCns can only contain  an    NP (At ki codes) xs
 sCns :: Constr sum n -> NP (At ki codes) (Lkup n sum) -> Spine ki codes sum
 sCns c x = Schg c c (npToAl x)
 
@@ -62,8 +67,8 @@ data TrivialK (ki :: kon -> *) :: kon -> * where
  -- This shouldn't be Fix, but Almu
 
 data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
-  AtSet :: TrivialK ki kon -> At ki codes (K kon)
-  AtFix :: IsNat ix => Almu ki codes ix -> At ki codes (I ix)
+  AtSet :: TrivialK ki kon -> At ki codes ('K kon)
+  AtFix :: IsNat ix => Almu ki codes ix -> At ki codes ('I ix)
 
 
 

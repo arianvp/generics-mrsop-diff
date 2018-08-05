@@ -161,7 +161,7 @@ makeEdgePP (n1, p1) (n2, p2) =
     [TailPort (LabelledPort p1 Nothing), HeadPort (LabelledPort p2 Nothing)]
 
 data VisCtxs
-  = EmptyCtxs -- ^ The zipper was empty
-  | HeadLast (NodeId, PortName) -- ^ The zipper contained at least two elements
+  = EmptyCtxs 
+  | HeadLast (NodeId, PortName) 
              (NodeId, PortName)
 
