@@ -39,10 +39,10 @@ library
     Generics.MRSOP.GraphViz.Zipper
  
   other-modules:
-    Examples.C
-    Examples.Expr
-    Examples.Lua
-    Examples.Lua.Diffs
+    -- Examples.C
+    -- Examples.Expr
+    -- Examples.Lua
+    -- Examples.Lua.Diffs
     Examples.TwoThreetree
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 
