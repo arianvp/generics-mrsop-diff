@@ -8,6 +8,7 @@ import Generics.MRSOP.Util
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff2
 
+
 {-
 data MergeResultAlmu ki codes ix :: * where
   Conflict :: Almu ki codes ix
@@ -67,24 +68,44 @@ mergeAt (AtSet k1) (AtSet k2) =
   Just (AtSet k2)
 mergeAt (AtFix almu1) (AtFix almu2) = AtFix <$> mergeAlmu almu1 almu2
 
--- TODO make less partial, explain
---
--- We're actually looking for  NP (At) here but we trew away
--- that info
-mergeAX :: Al ki codes xs xs -> Al ki codes xs xs -> Maybe (Al ki codes xs xs)
-mergeAX (A0 NP0 NP0) (A0 NP0 NP0) = Just $ A0 NP0 NP0
-mergeAX (A0 _ _) (A0 _ _) = Nothing -- TODO descriptive error message
-mergeAX (AX NP0 NP0 px xs) (AX NP0 NP0 py ys) =
-  AX NP0 NP0 <$> (mergeAt px py) <*> mergeAX xs ys
-mergeAX (AX _ _ _ _) (AX _ _ _ _) = Nothing -- TODO descriptive error message
+
+mergeAts :: NP (At ki codes) xs -> NP (At ki codes) xs -> Maybe (NP (At ki codes) xs)
+mergeAts NP0 NP0 = Just NP0
+mergeAts (px :* xs) (py :* ys) = (:*) <$> mergeAt px py <*> mergeAts xs ys
 
 
---        Assume it's an NP   
-mergeR :: Al ki codes xs xs ->  Al ki codes xs ys  -> Maybe (Al ki codes xs ys)
-mergeR = undefined
+-- assumes that this alignment is simply an NP
+-- should return a descriptive error message in the future
+-- for debugging purposes
+assumeNP :: Al ki codes xs xs -> Maybe (NP (At ki codes) xs)
+assumeNP (A0 NP0 NP0) = Just NP0
+assumeNP (A0 _ _) = Nothing
+assumeNP (AX NP0 NP0 px xs) = (px :*) <$> assumeNP xs
+assumeNP (AX _ _ _ _ ) = Nothing
 
-mergeL :: Al ki codes xs ys ->  Al ki codes xs xs -> Maybe (Al ki codes xs xs)
-mergeL = undefined
+
+{-
+  merge-At-Al : ∀{l₁ l₂}(ats : All (At PatchRec) l₁)(al : Al (At PatchRec) l₁ l₂)
+             → (hip : disj-At-Al ats al)             
+             → Al (At PatchRec) l₁ l₂         
+  merge-At-Al []       A0  hip = A0                  
+  merge-At-Al []       (Ains at al)  hip = (Ains at al)
+  merge-At-Al (a ∷ as) (Ains at al) hip          
+    = Ains at (merge-At-Al (a ∷ as) al hip)     
+  merge-At-Al (a ∷ as) (Adel at al) (ida , hip)     
+    = Adel at (merge-At-Al as al hip)            
+  merge-At-Al (a ∷ as) (AX at al)   (ha , hip)       
+    = AX (mergeAt a at ha) (merge-At-Al as al hip) -}
+
+
+-- 
+mergeAtAl :: NP (At ki codes) xs -> Al ki codes xs ys -> Maybe (Al ki codes xs ys)
+mergeAtAl = _
+
+-- assume RHS is an NP
+
+mergeAlAt :: Al ki codes xs ys -> NP (At ki codes) xs -> Maybe (NP (At ki codes) ys)
+mergeAlAt = undefined
 
 mergeSpine ::
      Spine ki codes xs -> Spine ki codes xs -> Maybe (Spine ki codes xs)
@@ -95,20 +116,30 @@ mergeSpine (Schg c1 c2 al1) (Schg c3 c4 al2) =
   case (testEquality c1 c2, testEquality c3 c4) of
     (Just Refl, Just Refl) ->
       case testEquality c1 c3 of
-        Just Refl -> Schg c1 c1 <$> mergeAX al1 al2
+        Just Refl -> do
+          ats1 <- assumeNP al1
+          ats2 <- assumeNP al2
+          Schg c1 c3 . npToAl <$> mergeAts ats1 ats2
         Nothing -> Nothing
     -- sCns   sChg
-    (Just Refl, Nothing) -> 
+    --
+    -- sChg c1 c1    sChg c2 c3
+    -- 
+    (Just Refl, Nothing) -> do
       case testEquality c1 c3 of
-        Just Refl -> Schg c1 c4 <$> mergeR al1 al2
+        Just Refl -> do 
+          ats1 <- assumeNP al1
+          Schg c1 c4  <$> mergeAtAl ats1 al2
         Nothing -> Nothing
     -- sChg SCns
-    (Nothing, Just Refl) ->
+    (Nothing, Just Refl) -> do
       case testEquality c1 c3 of
-        Just Refl -> Schg c1 c1 <$> mergeL al1 al2
+        Just Refl -> do
+          ats2 <- assumeNP al2
+          sCns c2 <$> mergeAlAt al1 ats2
         Nothing -> Nothing
+    -- sChg sChg
     (Nothing, Nothing) -> Nothing
-
 
 mergeAlmu :: IsNat ix => Almu ki codes ix -> Almu ki codes ix -> Maybe (Almu ki codes ix)
 mergeAlmu (Ins _ _) (Ins _ _) = Nothing
