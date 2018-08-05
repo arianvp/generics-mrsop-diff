@@ -26,6 +26,7 @@ library
   exposed-modules: 
     Generics.MRSOP.Diff
     Generics.MRSOP.Diff2
+    Generics.MRSOP.Diff.Merge
     Generics.MRSOP.Diff.Annotate
     Generics.MRSOP.Diff.Annotate.Translate
     Generics.MRSOP.Diff.Enumerate
@@ -34,6 +35,7 @@ library
     Generics.MRSOP.GraphViz
     Generics.MRSOP.GraphViz.Deep
     Generics.MRSOP.GraphViz.Diff
+    Generics.MRSOP.GraphViz.Diff2
     Generics.MRSOP.GraphViz.Zipper
  
   other-modules:
