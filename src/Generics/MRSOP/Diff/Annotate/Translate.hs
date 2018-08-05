@@ -151,6 +151,10 @@ diffAl (x :* xs) (y :* ys) =
             A0 dels inss -> A0 dels (forgetAnn' y :* inss)
             AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
         (Copy, Copy) -> AX NP0 NP0 (diffAt x y) (diffAl xs ys)
+
+    -- Haskell doesn't allow us to discharge contradictions unfortunately, so it gets confused
+    (NA_I i1, NA_K k2, Just a) -> error "absurd.  This is a contradiction. NA_I != NA_K"
+    (NA_K k1, NA_I i2, Just b) -> error "absurd. This is a contradiction. NA_K != NA_I"
     (NA_I i1, NA_I i2, Nothing) ->
       case ( fromJust . getAnn' . extractAnn $ x
            , fromJust . getAnn' . extractAnn $ y) of
