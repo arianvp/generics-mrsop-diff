@@ -51,8 +51,6 @@ injCofAnn (ConstrK k) ann xs = NA_K k
 
 -- lemma needed for inserting an annotation at the place of 
 -- a constructor
--- TODO: perhaps it's easier to work with IsList constraint here
--- we'll see.
 insCofAnn ::
      Cof ki codes a c
   -> Const ann ix
