@@ -100,22 +100,24 @@ assumeNP (AX _ _ _ _ ) = Nothing
 
 -- 
 
-
-
 mergeAtAl ::
      NP (At ki codes) xs -> AlOld ki codes xs ys -> Maybe (AlOld ki codes xs ys)
 mergeAtAl at al =
   case (at, al) of
     (NP0, OA0) -> Just OA0
-    (NP0, OAIns at al) -> OAIns at al
-    (a :* as, OAIns at al) -> _
-    (a :* as, OADel at al) -> _
-    (a :* as, OAX at al) -> _
+    (NP0, OAIns at al) -> Just $ OAIns at al
+    (a :* as, OAIns at al) -> OAIns at <$> mergeAtAl (a :* as) al
+    (a :* as, OADel at al) -> OADel at <$> mergeAtAl as al
+    (a :* as, OAX at al) -> OAX <$> mergeAt a at <*> mergeAtAl as al
 
 -- assume RHS is an NP
 
 mergeAlAt :: AlOld ki codes xs ys -> NP (At ki codes) xs -> Maybe (NP (At ki codes) ys)
-mergeAlAt = undefined
+mergeAlAt OA0 NP0 =  Just NP0
+mergeAlAt (OAIns at al) NP0 = (:*) <$> pure (makeIdAt at) <*> mergeAlAt al NP0
+mergeAlAt (OAIns at al) (a :* as) = (:*) <$> pure (makeIdAt at) <*> mergeAlAt al (a :* as)
+mergeAlAt (OADel at al) (a :* as) = mergeAlAt al as
+mergeAlAt (OAX at al) (a :* as) = (:*) <$> mergeAt at a <*> mergeAlAt al as
 
 mergeSpine ::
      Spine ki codes xs -> Spine ki codes xs -> Maybe (Spine ki codes xs)
