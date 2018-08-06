@@ -102,16 +102,13 @@ assumeNP (AX _ _ _ _ ) = Nothing
 
 
 
-mergeAtAl :: NP (At ki codes) xs -> Al ki codes xs ys -> Maybe (Al ki codes xs ys)
+mergeAtAl :: NP (At ki codes) xs -> AlOld ki codes xs ys -> Maybe (AlOld ki codes xs ys)
 
-mergeAtAl NP0 al =
- case al of
-  A0 NP0 inss -> Just $ A0 NP0 inss
-mergeAtAl (_ :* _) _ = undefined
+mergeAtAl = undefined
 
 -- assume RHS is an NP
 
-mergeAlAt :: Al ki codes xs ys -> NP (At ki codes) xs -> Maybe (NP (At ki codes) ys)
+mergeAlAt :: AlOld ki codes xs ys -> NP (At ki codes) xs -> Maybe (NP (At ki codes) ys)
 mergeAlAt = undefined
 
 mergeSpine ::
@@ -136,14 +133,18 @@ mergeSpine (Schg c1 c2 al1) (Schg c3 c4 al2) =
       case testEquality c1 c3 of
         Just Refl -> do 
           ats1 <- assumeNP al1
-          Schg c1 c4  <$> mergeAtAl ats1 al2
+          Schg c1 c4  . normalizeAl <$> mergeAtAl ats1 (denormalizeAl al2)
         Nothing -> Nothing
     -- sChg SCns
     (Nothing, Just Refl) -> do
       case testEquality c1 c3 of
         Just Refl -> do
           ats2 <- assumeNP al2
-          sCns c2 <$> mergeAlAt al1 ats2
+          -- TODO lets _not_ denormalize here, it's slow. we're just doing it
+          -- such that the Agda code is trivially portable, but once we ported
+          -- it, we should directly used normal form alignmen. I'm just
+          -- very lazy at the moment
+          sCns c2 <$> mergeAlAt (denormalizeAl al1) ats2
         Nothing -> Nothing
     -- sChg sChg
     (Nothing, Nothing) -> Nothing
