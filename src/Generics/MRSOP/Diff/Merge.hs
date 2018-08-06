@@ -36,7 +36,7 @@ data MergeResultAlmu ki codes ix :: * where
 
 
 makeIdAt :: NA ki (Fix ki codes) a -> At ki codes a
-makeIdAt (NA_I i) = AtFix (Spn Scp)
+makeIdAt (NA_I _) = AtFix (Spn Scp)
 makeIdAt (NA_K k) = AtSet (Trivial k k)
 
 mergeCtxAlmu ::
@@ -50,8 +50,8 @@ mergeCtxAlmu ctx almu =
       x <- mergeAlmu almu almu'
       let rest' = mapNP makeIdAt rest
       pure $ AtFix x :* rest'
-    T a ctx -> do
-      xs <- mergeCtxAlmu ctx almu
+    T a ctx' -> do
+      xs <- mergeCtxAlmu ctx' almu
       pure $ makeIdAt a :* xs
 
 
@@ -61,7 +61,7 @@ mergeAlmuCtx almu (H almu' rest) = H <$> mergeAlmu almu almu' <*> pure rest
 mergeAlmuCtx almu (T a ctx) = T a <$> mergeAlmuCtx almu ctx
 
 mergeAt :: At ki codes a -> At ki codes a -> Maybe (At ki codes a)
-mergeAt (AtSet k1) (AtSet k2) =
+mergeAt (AtSet _) (AtSet k2) =
   -- TODO
   -- if disjoint  then k2
   -- else Nothing
@@ -99,8 +99,15 @@ assumeNP (AX _ _ _ _ ) = Nothing
 
 
 -- 
+
+
+
 mergeAtAl :: NP (At ki codes) xs -> Al ki codes xs ys -> Maybe (Al ki codes xs ys)
-mergeAtAl = _
+
+mergeAtAl NP0 al =
+ case al of
+  A0 NP0 inss -> Just $ A0 NP0 inss
+mergeAtAl (_ :* _) _ = undefined
 
 -- assume RHS is an NP
 
@@ -119,7 +126,7 @@ mergeSpine (Schg c1 c2 al1) (Schg c3 c4 al2) =
         Just Refl -> do
           ats1 <- assumeNP al1
           ats2 <- assumeNP al2
-          Schg c1 c3 . npToAl <$> mergeAts ats1 ats2
+          sCns c1 <$> mergeAts ats1 ats2
         Nothing -> Nothing
     -- sCns   sChg
     --
@@ -143,10 +150,10 @@ mergeSpine (Schg c1 c2 al1) (Schg c3 c4 al2) =
 
 mergeAlmu :: IsNat ix => Almu ki codes ix -> Almu ki codes ix -> Maybe (Almu ki codes ix)
 mergeAlmu (Ins _ _) (Ins _ _) = Nothing
-mergeAlmu (Ins c ctx) almu@(Spn s) = Spn . sCns c <$> mergeCtxAlmu ctx almu
-mergeAlmu (Ins c1 ctx1) almu@(Del c2 ctx2) =
+mergeAlmu (Ins c ctx) almu@(Spn _) = Spn . sCns c <$> mergeCtxAlmu ctx almu
+mergeAlmu (Ins c1 ctx1) almu@(Del _ _) =
   Spn . sCns c1 <$> mergeCtxAlmu ctx1 almu
-mergeAlmu almu@(Spn s) (Ins c ctx) = Ins c <$> mergeAlmuCtx almu ctx
+mergeAlmu almu@(Spn _) (Ins c ctx) = Ins c <$> mergeAlmuCtx almu ctx
 mergeAlmu (Spn s1) (Spn s2) = Spn <$> mergeSpine s1 s2
 mergeAlmu (Spn _) (Del _ _) = undefined
 mergeAlmu (Del _ _) (Del _ _) = Nothing
