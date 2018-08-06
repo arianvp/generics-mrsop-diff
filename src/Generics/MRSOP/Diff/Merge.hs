@@ -102,9 +102,15 @@ assumeNP (AX _ _ _ _ ) = Nothing
 
 
 
-mergeAtAl :: NP (At ki codes) xs -> AlOld ki codes xs ys -> Maybe (AlOld ki codes xs ys)
-
-mergeAtAl = undefined
+mergeAtAl ::
+     NP (At ki codes) xs -> AlOld ki codes xs ys -> Maybe (AlOld ki codes xs ys)
+mergeAtAl at al =
+  case (at, al) of
+    (NP0, OA0) -> Just OA0
+    (NP0, OAIns at al) -> OAIns at al
+    (a :* as, OAIns at al) -> _
+    (a :* as, OADel at al) -> _
+    (a :* as, OAX at al) -> _
 
 -- assume RHS is an NP
 
