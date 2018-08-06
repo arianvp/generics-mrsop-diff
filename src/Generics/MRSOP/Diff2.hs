@@ -51,6 +51,43 @@ npToAl (px :* pxs) = AX NP0 NP0 px (npToAl pxs)
 sCns :: Constr sum n -> NP (At ki codes) (Lkup n sum) -> Spine ki codes sum
 sCns c x = Schg c c (npToAl x)
 
+-- | Old style alignments, which can be trivially lifted to 'Al'
+-- but easier to build up
+data AlOld (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
+  OA0 :: AlOld ki codes '[] '[]
+  OADel ::  NA ki (Fix ki codes) x -> AlOld ki codes xs ys -> AlOld ki codes (x ': xs) ys
+  OAIns ::  NA ki (Fix ki codes) x -> AlOld ki codes xs ys -> AlOld ki codes xs (x ': ys)
+  OAX :: At ki codes x -> AlOld ki codes xs ys -> AlOld ki codes (x ': xs) (x ': ys)
+
+nIns :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes xs (x ': ys)
+nIns a (A0 d i) = A0 d (a :* i)
+nIns a (AX d i x al) = AX d (a :* i) x al
+
+nDel :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes (x ': xs) ys
+nDel a (A0 d i) = A0 (a :* d) i
+nDel a (AX d i x al) = AX (a :* d) i x al
+
+
+
+denormalizeAl :: Al ki codes xs ys -> AlOld ki codes xs ys
+denormalizeAl xs =
+  case xs of
+    A0 NP0 NP0 -> OA0
+    A0 NP0 (i :* inss) -> OAIns i (denormalizeAl (A0 NP0 inss))
+    A0 (d :* dels) inss -> OADel d (denormalizeAl (A0 dels inss))
+    AX NP0 NP0 at al -> OAX at (denormalizeAl al)
+    AX NP0 (i :* inss) at al -> OAIns i (denormalizeAl (AX NP0 inss at al))
+    AX (d :* dels) inss at al -> OADel d (denormalizeAl (AX dels inss at al))
+    
+    
+normalizeAl :: AlOld ki codes xs ys -> Al ki codes xs ys
+normalizeAl xs =
+  case xs of
+    OA0 -> A0 NP0 NP0
+    OAIns a al -> nIns a (normalizeAl al)
+    OADel a al -> nDel a (normalizeAl al)
+    OAX at al -> AX NP0 NP0 at (normalizeAl al)
+
 data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   A0
     :: PoA ki (Fix ki codes) p1 -> PoA ki (Fix ki codes) p2 -> Al ki codes p1 p2
