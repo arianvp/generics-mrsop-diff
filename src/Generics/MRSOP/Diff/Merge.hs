@@ -157,6 +157,20 @@ mergeSpine (Schg c1 c2 al1) (Schg c3 c4 al2) =
     -- sChg sChg
     (Nothing, Nothing) -> Nothing
 
+
+mergeAtCtx ::
+     NP (At ki codes) xs -> Ctx ki codes ix xs -> Maybe (Ctx ki codes ix xs)
+mergeAtCtx (AtFix a :* as) (H almu rest) = H <$> mergeAlmu a almu <*> pure rest
+mergeAtCtx (AtFix a :* as) (T a' ctx) = T a' <$> mergeAtCtx as ctx
+mergeAtCtx (AtSet a :* as) (T a' ctx) = T a' <$> mergeAtCtx as ctx
+
+mergeCtxAt ::
+     Ctx ki codes ix xs -> NP (At ki codes) xs -> Maybe (Almu ki codes ix)
+mergeCtxAt (H almu rest) (AtFix a :* as) = mergeAlmu almu a
+mergeCtxAt (T a' ctx) (AtFix a :* as) = mergeCtxAt ctx as
+mergeCtxAt (T a' ctx) (AtSet a :* as) = mergeCtxAt ctx as
+
+
 mergeAlmu :: IsNat ix => Almu ki codes ix -> Almu ki codes ix -> Maybe (Almu ki codes ix)
 mergeAlmu (Ins _ _) (Ins _ _) = Nothing
 mergeAlmu (Ins c ctx) almu@(Spn _) = Spn . sCns c <$> mergeCtxAlmu ctx almu
@@ -164,7 +178,20 @@ mergeAlmu (Ins c1 ctx1) almu@(Del _ _) =
   Spn . sCns c1 <$> mergeCtxAlmu ctx1 almu
 mergeAlmu almu@(Spn _) (Ins c ctx) = Ins c <$> mergeAlmuCtx almu ctx
 mergeAlmu (Spn s1) (Spn s2) = Spn <$> mergeSpine s1 s2
-mergeAlmu (Spn _) (Del _ _) = undefined
+mergeAlmu (Spn Scp) x@(Del _ _) = Just x
+mergeAlmu (Spn (Schg c1 c2 al)) x@(Del c3 s) =
+  case (testEquality c1 c2, testEquality c1 c3) of
+    (Just Refl, Just Refl) -> do
+      ats <- assumeNP al
+      Del c1 <$> mergeAtCtx ats s
+    _ -> Nothing
+  
+mergeAlmu (Del _ _) (Spn Scp) = Just (Spn Scp)
+mergeAlmu (Del c1 s1) (Spn (Schg c2 c3 al)) = 
+  case (testEquality c2 c3, testEquality c1 c2) of
+    (Just Refl, Just Refl) -> do
+      ats <- assumeNP al
+      mergeCtxAt s1 ats
+    _ -> Nothing
+mergeAlmu x@(Del _ _) (Ins c2 s2) = Ins c2 <$> mergeAlmuCtx x s2
 mergeAlmu (Del _ _) (Del _ _) = Nothing
-mergeAlmu (Del _ _) (Ins _ _) = undefined
-mergeAlmu (Del _ _) (Spn _) = undefined
