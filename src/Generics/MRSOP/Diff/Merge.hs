@@ -1,4 +1,8 @@
 {-# LANGUAGE ApplicativeDo #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE EmptyCase #-}
 module Generics.MRSOP.Diff.Merge where
@@ -98,10 +102,21 @@ assumeNP (AX _ _ _ _ ) = Nothing
     = AX (mergeAt a at ha) (merge-At-Al as al hip) -}
 
 
--- 
 
+data Foo (ki :: kon -> *) ::  * where
+  X :: Foo ki 
+  Y :: Foo ki 
 
+wut ::
+     Bool -> Foo ki -> (Foo ki)
+wut at al =
+  case (at, al) of
+    (True, X) -> X
+    (True, Y) -> Y
+    (False , Y) -> _
+    (False , Left) -> _  -- Note Left is not a constructor of Foo
 
+{-
 mergeAtAl ::
      NP (At ki codes) xs -> AlOld ki codes xs ys -> Maybe (AlOld ki codes xs ys)
 mergeAtAl at al =
@@ -111,6 +126,7 @@ mergeAtAl at al =
     (a :* as, OAIns at al) -> _
     (a :* as, OADel at al) -> _
     (a :* as, AX at al) -> _
+-}
 
 -- assume RHS is an NP
 
