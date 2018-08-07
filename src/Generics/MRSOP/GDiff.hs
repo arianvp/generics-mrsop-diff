@@ -36,17 +36,17 @@ data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]])
 cofWitnessI :: Cof ki codes (I n) (CofI n c) -> Proxy n
 cofWitnessI _ = Proxy
 
-heqCof :: (TestEquality ki) 
+heqCof :: (Eq1 ki, TestEquality ki) 
        => Cof ki codes a cx -> Cof ki codes b cy ->  Maybe (a :~: b , cx :~: cy)
 heqCof cx@(ConstrI x) cy@(ConstrI y)
   = case testEquality (getSNat (cofWitnessI cx)) (getSNat (cofWitnessI cy)) of
       Nothing   -> Nothing
       Just Refl -> case testEquality x y of
-        Nothing   -> Nothing
+        Nothing   -> Nothin
         Just Refl -> Just (Refl, Refl)
 heqCof (ConstrK x) (ConstrK y)
   = case testEquality x y of
-      Just Refl -> Just (Refl , Refl)
+      Just Refl -> if eq1 x y then Just (Refl , Refl) else Nothing
       Nothing   -> Nothing
 heqCof _ _ = Nothing
 
@@ -308,7 +308,7 @@ matchConstructor (NA_I (Fix rep)) f =
 -- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
 -- TODO: ask victor
 diff
-  :: (IsNat ix1, IsNat ix2, TestEquality ki)
+  :: (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> EST ki codes '[ 'I ix1 ] '[ 'I ix2 ]
@@ -320,16 +320,16 @@ diff x y =
   in diffA x' y'
 
 
-diffA :: TestEquality ki => NA ki (Fix ki codes) x -> NA ki (Fix ki codes) y -> EST ki codes '[x] '[y]
+diffA :: (Eq1 ki, TestEquality ki) => NA ki (Fix ki codes) x -> NA ki (Fix ki codes) y -> EST ki codes '[x] '[y]
 diffA a b = diffPoA (a :* NP0) (b :* NP0)
 
-diffPoA :: TestEquality ki => PoA ki (Fix ki codes) '[x] -> PoA ki (Fix ki codes) '[y] -> EST ki codes '[x] '[y]
+diffPoA :: (Eq1 ki, TestEquality ki) => PoA ki (Fix ki codes) '[x] -> PoA ki (Fix ki codes) '[y] -> EST ki codes '[x] '[y]
 
 diffPoA = diffT
 
 diffT 
   :: forall xs ys ki codes.
-    (TestEquality ki, L2 xs ys) 
+    (Eq1 ki, TestEquality ki, L2 xs ys) 
   => PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
@@ -337,7 +337,7 @@ diffT = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys)
 
 
 diffT'
-  :: (TestEquality ki)
+  :: (Eq1 ki, TestEquality ki)
   => ListPrf xs
   -> ListPrf ys
   -> PoA ki (Fix ki codes) xs
@@ -374,7 +374,7 @@ diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
       cc isxs isxs' isys isys' cx cy (bestDiffT cx cy isxs isxs' isys isys' i d c) i d c
 
 extendd
-  :: TestEquality ki
+  :: (Eq1 ki, TestEquality ki)
   => ListPrf (Tyof codes cy)
   -> ListPrf ys
   -> Cof ki codes y cy
@@ -386,7 +386,7 @@ extendd isys' isys cy dt@(CN _ _ _) = extendd' isys' isys cy dt
 extendd isys' isys cy dt@(CC _ _ _ _ _ _) = extendd' isys' isys cy dt
 
 extendd'
-  :: TestEquality ki
+  :: (Eq1 ki, TestEquality ki)
   => ListPrf (Tyof codes cy)
   -> ListPrf ys
   -> Cof ki codes y cy
@@ -416,7 +416,7 @@ extractd (CC c _ d' _ d _) k =  k (cofToListPrf  c) (sourceTail d') c d
 extractd (CN c d' d)       k =  k (cofToListPrf  c) (sourceTail d') c d
 
 extendi
-  :: TestEquality ki
+  :: (Eq1 ki, TestEquality ki)
   => ListPrf (Tyof codes cx) 
   -> ListPrf xs 
   -> Cof ki codes x cx
@@ -428,7 +428,7 @@ extendi isxs' isxs cx dt@(NC _ _ _) = extendi' isxs' isxs cx dt
 extendi isxs' isxs cx dt@(CC _ _ _ _ _ _) = extendi' isxs' isxs cx dt
 
 extendi'
-  :: TestEquality ki
+  :: (Eq1 ki, TestEquality ki)
   => ListPrf (Tyof codes cx)
   -> ListPrf xs
   -> Cof ki codes x cx
@@ -457,7 +457,7 @@ targetTail (Del _ d) = targetTail d
 targetTail (Cpy _ _) = listPrf
 
 extracti
-  :: TestEquality ki
+  :: (Eq1 ki, TestEquality ki)
   => EST ki codes xs' (y ': ys)
   -> ( forall cy. ListPrf (Tyof codes cy)
       -> ListPrf ys 
@@ -485,7 +485,7 @@ bestSteps _ _ Z y = y
 bestSteps (S nx) x (S ny) y = bestSteps nx x ny y
 
 bestDiffT
-  :: (TestEquality ki) 
+  :: (Eq1 ki, TestEquality ki) 
   => Cof ki codes x cx
   -> Cof ki codes y cy
   -> ListPrf xs
@@ -497,16 +497,11 @@ bestDiffT
   -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
   -> ES ki codes (x ': xs) (y ': ys)
 bestDiffT cx cy isxs isxs' isys isys' i d c =
-  -- TODO: Bug! We should also check that their _values_ are the same, lol, not just the type
-  --  Note the wording in the original Gdiff paper. Equality is both value and type:
-  --    -- | Return an instance of the equality GADT ('Refl') of the type and
-    -- constructor arguments are equal, else return 'Nothing'.
-    -- decEq     ::                f tx txs -> f ty tys -> Maybe (tx :~: ty, txs :~: tys)
   case heqCof cx cy of
-    Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
+    Just (Refl , Refl) -> 
+      cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
     Nothing            ->
       best (ins isys isys' cy (getDiff i)) (del isxs isxs' cx (getDiff d))
-      -- _a -- ES ki codes  (x ': xs) (y ': ys)
 
 -- * Showing Constructors as 'Cof'
 {-
