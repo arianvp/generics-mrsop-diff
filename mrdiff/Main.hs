@@ -112,7 +112,7 @@ diffLua fp1 fp2 = do
   case x of
     Left er -> fail (show er)
     Right (left, right) ->
-      let es = GDiff.getDiff $ GDiff.diff left right
+      let es = GDiff.getDiff $ GDiff.diff' left right
           right' = GDiff.applyES es (NA_I left :* NP0)
           (NA_I src :* NP0) = Annotate.annSrc (NA_I left :* NP0) es
           (NA_I dest :* NP0) = Annotate.annDest (NA_I right :* NP0) es

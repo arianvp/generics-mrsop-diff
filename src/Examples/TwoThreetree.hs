@@ -43,7 +43,7 @@ data Tree a
           (Tree a)
           (Tree a)
           (Tree a)
-  deriving (Show)
+  deriving (Show, Eq)
 
 data TreeKon =
   TreeInt
