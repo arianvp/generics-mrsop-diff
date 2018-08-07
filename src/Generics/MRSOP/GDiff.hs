@@ -74,11 +74,13 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
 -- When Showing, we do not know what the family that we're showing is,
 -- as edit scripts are not parameterised over the family.
 -- hence, we can not get the datatype info
-showCof :: Show1 ki => Cof ki codes a c -> String
+showCof ::
+     (HasDatatypeInfo ki fam codes, Show1 ki) => Cof ki codes a c -> String
 showCof (ConstrK k) = show1 k
 showCof (ConstrI c) = show c
 
-instance Show1 ki => Show (ES ki codes xs ys) where
+instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
+         Show (ES ki codes xs ys) where
   show ES0 = "ES0"
   show (Ins c d) = "Ins " ++ showCof c ++ " $ " ++ show d
   show (Del c d) = "Del " ++ showCof c ++ " $ " ++ show d
@@ -178,7 +180,18 @@ delCof
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c :++: xs))
 delCof c (x :* xs) = flip appendNP xs <$> matchCof c x
 
-  
+
+apply
+  :: (IsNat ix1, IsNat ix2, Eq1 ki)
+  => ES ki codes '[ 'I ix1 ] '[ 'I ix2 ]
+  -> Fix ki codes ix1
+  -> Maybe (Fix ki codes ix2)
+apply es x = do
+  x <- applyES es (NA_I x :* NP0)
+  case x of
+    (NA_I y :* NP0) -> pure y
+
+
 applyES
   :: Eq1 ki 
   => ES ki codes xs ys
@@ -484,6 +497,11 @@ bestDiffT
   -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
   -> ES ki codes (x ': xs) (y ': ys)
 bestDiffT cx cy isxs isxs' isys isys' i d c =
+  -- TODO: Bug! We should also check that their _values_ are the same, lol, not just the type
+  --  Note the wording in the original Gdiff paper. Equality is both value and type:
+  --    -- | Return an instance of the equality GADT ('Refl') of the type and
+    -- constructor arguments are equal, else return 'Nothing'.
+    -- decEq     ::                f tx txs -> f ty tys -> Maybe (tx :~: ty, txs :~: tys)
   case heqCof cx cy of
     Just (Refl , Refl) -> cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
     Nothing            ->

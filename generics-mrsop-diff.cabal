@@ -24,7 +24,15 @@ executable mrdiff
     generics-mrsop,
     language-lua,
     optparse-applicative,
+    filepath,
+    graphviz,
     text
+
+test-suite generics-mrsop-diff-testsuite
+  type: detailed-0.9
+  test-module: Test
+  hs-source-dirs: test
+  build-depends: base, generics-mrsop-diff, generics-mrsop,  leancheck , Cabal
 
 library
   -- Modules exported by the library.
@@ -42,13 +50,13 @@ library
     Generics.MRSOP.GraphViz.Diff
     Generics.MRSOP.GraphViz.Diff2
     Generics.MRSOP.GraphViz.Zipper
+    Examples.Lua
+    Examples.TwoThreetree
  
   other-modules:
     -- Examples.C
     -- Examples.Expr
-    -- Examples.Lua
     -- Examples.Lua.Diffs
-    Examples.TwoThreetree
   -- LANGUAGE extensions used by modules in this package.
   other-extensions: 
     MultiParamTypeClasses,

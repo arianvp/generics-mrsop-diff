@@ -32,4 +32,4 @@ instance Eq1 LuaSingl where eq1 = (==)
 instance TestEquality LuaSingl where
   testEquality (SLuaText _) (SLuaText _) = Just Refl
 
-deriveFamilyWith ''LuaSingl [t| Stat |]
+deriveFamilyWith ''LuaSingl [t| Block |]

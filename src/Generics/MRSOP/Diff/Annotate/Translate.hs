@@ -223,8 +223,6 @@ diffCtx ::
   -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> Ctx ki codes ix xs
 diffCtx cid x xs
-  -- NOTE / WARNING:  that we _know_ that there will be a maximum. we just
-  -- cant guarentee it because haskell
  =
   let maxIdx =
         fst .
@@ -245,7 +243,12 @@ diffCtx cid x xs
                  CtxDel -> diffAlmu y x)
             (mapNP forgetAnn' ys)
           (Nothing, _) ->
-            error "We know that the index points to a recursive position"
+            -- NOTE / WARNING:  that we _know_ that there will be a maximum. we just
+            -- cant guarentee it because haskell. I verified in Agda that this is true
+            error $ "The 'impossible' happened: We know that the index points" ++
+                    "to a recursive position" ++ 
+                    "by construction, haskell just isnt smart enough"
+                  
       drop' n (y :* ys) = T (forgetAnn' y) (drop' (n - 1) ys)
    in drop' maxIdx xs
 

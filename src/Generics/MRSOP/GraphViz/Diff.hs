@@ -123,8 +123,6 @@ visualizeAl' p sourceTable targetTable al =
       pure $
       mempty
         { source
-                  -- TODO do insertion here
-                  -- by doing an elimNPM and calling visualizeDeep 
            =
             elimNP
               (const
