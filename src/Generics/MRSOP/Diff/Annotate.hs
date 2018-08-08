@@ -79,32 +79,51 @@ insCofAnn c ann prf xs =
  -
  - TODO: Actually make it return Maybe and be honest
  -}
+
+
 annSrc ::
+     (Eq1 ki , IsNat ix)
+  => Fix ki codes ix
+  -> ES ki codes '[ 'I ix] ys
+  -> AnnFix ki codes (Const Ann) ix
+annSrc x es =
+  case annSrc' (NA_I x :* NP0) es of
+    (NA_I y :* NP0) -> y
+    
+
+annDest ::
+     (Eq1 ki , IsNat ix)
+  => Fix ki codes ix
+  -> ES ki codes xs '[ 'I ix]
+  -> AnnFix ki codes (Const Ann) ix
+annDest x es = case annDest' (NA_I x :* NP0) es of
+  (NA_I y :* NP0) -> y
+
+annSrc' ::
      Eq1 ki
   => PoA ki (Fix ki codes) xs
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) xs
-annSrc xs ES0 = NP0
-annSrc xs (Ins c es) = annSrc xs es
-annSrc (x :* xs) (Del c es)
- =
+annSrc' xs ES0 = NP0
+annSrc' xs (Ins c es) = annSrc' xs es
+annSrc' (x :* xs) (Del c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Modify) listPrf (annSrc (appendNP poa xs) es)
-annSrc (x :* xs) (Cpy c es) =
+   in insCofAnn c (Const Modify) listPrf (annSrc' (appendNP poa xs) es)
+annSrc' (x :* xs) (Cpy c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Copy) listPrf (annSrc (appendNP poa xs) es)
+   in insCofAnn c (Const Copy) listPrf (annSrc' (appendNP poa xs) es)
 
-annDest ::
+annDest' ::
      Eq1 ki
   => PoA ki (Fix ki codes) ys
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) ys
-annDest xs ES0 = NP0
-annDest xs (Del c es) = annDest xs es
-annDest (x :* xs) (Ins c es)
+annDest' xs ES0 = NP0
+annDest' xs (Del c es) = annDest' xs es
+annDest' (x :* xs) (Ins c es)
  =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Modify) listPrf (annDest (appendNP poa xs) es)
-annDest (x :* xs) (Cpy c es) =
+   in insCofAnn c (Const Modify) listPrf (annDest' (appendNP poa xs) es)
+annDest' (x :* xs) (Cpy c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Copy) listPrf (annDest (appendNP poa xs) es)
+   in insCofAnn c (Const Copy) listPrf (annDest' (appendNP poa xs) es)

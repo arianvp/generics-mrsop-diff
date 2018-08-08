@@ -223,7 +223,14 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
   => ty1
   -> ty2
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
-diff a b = getDiff $ diff' (deep a) (deep b)
+diff a b = diff' (deep a) (deep b)
+
+diff' ::
+     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+  => Fix ki codes ix1
+  -> Fix ki codes ix2
+  -> ES ki codes '[ 'I ix1] '[ 'I ix2]
+diff' a b = getDiff $ diff'' a b
 
 apply' ::
      (IsNat ix1, IsNat ix2, Eq1 ki)
@@ -349,12 +356,12 @@ matchConstructor (NA_I (Fix rep)) f =
 -- | Given two deep representations, we get the diff.
 -- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
 -- TODO: ask victor
-diff' ::
+diff'' ::
      (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> EST ki codes '[ 'I ix1] '[ 'I ix2]
-diff' x y =
+diff'' x y =
   let x' = NA_I x
       y' = NA_I y
    in diffA x' y'
