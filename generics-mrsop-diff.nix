@@ -1,6 +1,6 @@
 { mkDerivation, base, Cabal, filepath, generics-mrsop, graphviz
-, language-c, language-lua, leancheck, mtl, optparse-applicative
-, semigroupoids, stdenv, text
+, hyper, language-c, language-lua, leancheck, mtl
+, optparse-applicative, semigroupoids, stdenv, text
 }:
 mkDerivation {
   pname = "generics-mrsop-diff";
@@ -9,7 +9,7 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    base generics-mrsop graphviz language-c language-lua mtl
+    base generics-mrsop graphviz hyper language-c language-lua mtl
     semigroupoids text
   ];
   executableHaskellDepends = [

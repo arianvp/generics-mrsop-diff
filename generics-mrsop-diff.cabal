@@ -50,6 +50,7 @@ library
     Generics.MRSOP.GraphViz.Diff
     Generics.MRSOP.GraphViz.Diff2
     Generics.MRSOP.GraphViz.Zipper
+    Generics.MRSOP.Hyper
     Examples.Lua
     Examples.TwoThreetree
  
@@ -81,6 +82,7 @@ library
                        language-c,
                        graphviz,
                        mtl,
+                       hyper,
                        semigroupoids,
                        text
   
