@@ -81,6 +81,7 @@ library
                        language-c,
                        graphviz,
                        mtl,
+                       semigroupoids,
                        text
   
   -- Directories containing source files.

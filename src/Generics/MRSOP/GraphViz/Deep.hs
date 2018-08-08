@@ -54,8 +54,8 @@ data AtomDot
   | Konstant String
 
 visualizeNA ::
-     (Show1 ki, HasDatatypeInfo ki fam codes)
-  => NA ki (Fix ki codes) a
+     (Show1 ki, Show1 phi, HasDatatypeInfo ki fam codes)
+  => NA ki (AnnFix ki codes phi) a
   -> DotSM AtomDot
 visualizeNA x =
   case x of
@@ -64,12 +64,13 @@ visualizeNA x =
 
 -- will create a table, 
 npToTable ::
-     (Show1 ki, HasDatatypeInfo ki fam codes)
+     (Show1 ki, Show1 phi, HasDatatypeInfo ki fam codes)
   => String
   -> String
-  -> PoA ki (Fix ki codes) xs
+  -> String
+  -> PoA ki (AnnFix ki codes phi) xs
   -> DotSM NodeId
-npToTable dataName constrName xs = do
+npToTable ann dataName constrName xs = do
   self <- preallocateNodeId
   cells <- npToCells constrName self xs
   let table =
@@ -79,18 +80,18 @@ npToTable dataName constrName xs = do
           [ Cells
               [ LabelCell
                   [ColSpan (fromIntegral $ length cells)]
-                  (Text [Str (pack dataName)])
+                  (Text [Str (pack dataName) ])
               ]
           , Cells cells
           ]
-  lift $ node self [shape PlainText, toLabel table]
+  lift $ node self [shape PlainText, toLabel table, xTextLabel (pack ann)]
   pure self
 
 npToCells ::
-     (Show1 ki, HasDatatypeInfo ki fam codes)
+     (Show1 ki, Show1 phi, HasDatatypeInfo ki fam codes)
   => String
   -> NodeId
-  -> PoA ki (Fix ki codes) xs
+  -> PoA ki (AnnFix ki codes phi) xs
   -> DotSM [Cell]
 npToCells constrName self xs = do
   fields <- elimNPM visualizeNA xs
@@ -105,15 +106,15 @@ npToCells constrName self xs = do
     toCell (Konstant x) = pure . LabelCell [] . Text $ [Str (pack x)]
 
 visualizeFix ::
-     forall ki fam codes ix. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
-  => Fix ki codes ix
+     forall ki phi fam codes ix. (Show1 ki, Show1 phi, IsNat ix, HasDatatypeInfo ki fam codes)
+  => AnnFix ki codes phi ix
   -> DotSM NodeId
-visualizeFix (Fix rep) =
+visualizeFix (AnnFix ann rep) =
   case sop rep of
     Tag c prod -> do
       let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (Proxy :: Proxy ix))
           constrInfo = constrInfoLkup c info
           constrName = constructorName constrInfo
           dataName = showDatatypeName (datatypeName info)
-      npToTable dataName constrName prod
+      npToTable (show1 ann) dataName constrName prod
 

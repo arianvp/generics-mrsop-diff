@@ -8,6 +8,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Main where
@@ -15,14 +16,18 @@ module Main where
 import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Data.Functor.Compose (Compose(Compose, getCompose))
+import Data.Functor.Const (Const(..))
+
 import Data.Semigroup ((<>))
 import Data.Text (Text)
+import Data.Monoid (Sum(..))
 
 import Data.Text.Lazy as Text
 import Data.Text.Lazy.IO as Text
 import Data.Type.Equality
 import Options.Applicative (Parser, ParserInfo)
 
+import qualified Generics.MRSOP.AG as AG
 import Generics.MRSOP.Base
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
@@ -99,7 +104,9 @@ printAST fp = do
       GraphViz.renderDot .
       GraphViz.toDot .
       GraphViz.digraph (GraphViz.Str (Text.pack fp)) .
-      GraphViz.runDotSM 0 . GraphViz.visualizeFix . deep @FamBlock $
+      GraphViz.runDotSM 0 . GraphViz.visualizeFix . 
+      AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra .
+      deep @FamBlock $
       block
 
 diffLua :: FilePath -> FilePath -> IO ()
@@ -112,10 +119,10 @@ diffLua fp1 fp2 = do
   case x of
     Left er -> fail (show er)
     Right (left, right) ->
-      let es = GDiff.getDiff $ GDiff.diff' left right
+      let es = GDiff.diff' left right
           right' = GDiff.applyES es (NA_I left :* NP0)
-          (NA_I src :* NP0) = Annotate.annSrc (NA_I left :* NP0) es
-          (NA_I dest :* NP0) = Annotate.annDest (NA_I right :* NP0) es
+          src  = Annotate.annSrc left es
+          dest = Annotate.annDest right es
           stdiff =
             Translate.diffAlmu
               (Translate.countCopies src)

@@ -19,7 +19,6 @@ import Data.Monoid
   , Last(Last, getLast)
   , Sum(Sum, getSum)
   )
-import Data.Semigroup (Max(Max, getMax))
 import Data.Semigroup (Max(Max, getMax), (<>))
 import Data.Type.Equality
 import Generics.MRSOP.AG (mapAnn, monoidAlgebra, synthesizeAnn)
