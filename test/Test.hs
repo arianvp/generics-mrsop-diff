@@ -35,22 +35,15 @@ prop y =
 
 deriveListable ''Tree
 
--- not sure why I need this
-instance Eq (Fix TreeSingl CodesTreeInt 'Z) where
-  (==) = eqFix eq1
 
 -- TODO: We need to be explicit about in which family it resides. Can we fix that?
 gdiff_reflexive :: Tree Int -> Bool
 gdiff_reflexive t =
-  case GDiff.apply (GDiff.diff @FamTreeInt t t) t of
-    Just t' -> t == t'
-    Nothing -> False
+  any (== t) $ GDiff.apply (GDiff.diff @FamTreeInt t t) t
 
 gdiff_apply_diff :: Tree Int -> Tree Int -> Bool
 gdiff_apply_diff t1 t2 =
-  case GDiff.apply (GDiff.diff @FamTreeInt t1 t2) t1 of
-    Just t2' -> t2' == t2
-    Nothing -> False
+  any (== t2) $ GDiff.apply (GDiff.diff @FamTreeInt t1 t2) t1
 
 --  
 gdiff_to_stdiff_transformation_is_sound :: Tree Int -> Tree Int -> Bool
@@ -64,9 +57,7 @@ gdiff_to_stdiff_transformation_is_sound t1 t2 =
         Translate.diffAlmu
           (Translate.countCopies t1'')
           (Translate.countCopies t2'')
-   in case (STDiff.applyAlmu diff t1') of
-        Just t2'' -> t2'' == t2'
-        Nothing -> False
+   in any (== t2') $ STDiff.applyAlmu diff t1'
 
 tests :: IO [Test]
 tests =
