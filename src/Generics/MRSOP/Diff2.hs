@@ -28,6 +28,7 @@ data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> * where
     -> Ctx ki codes ix (Lkup c (Lkup ix codes))
     -> Almu ki codes ix
 
+
 data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) (sum :: [[Atom kon]]) :: * where
   Scp :: Spine ki codes sum
   Schg

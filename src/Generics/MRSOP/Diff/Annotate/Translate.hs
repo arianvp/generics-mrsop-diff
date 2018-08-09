@@ -97,7 +97,7 @@ forgetAnn' = mapNA id forgetAnn
 -- it's the First Semigroup, not the First Monoid. But haskell doesn't distinguish between
 -- the two. We could add our own datatype later.
 diffAl ::
-     (Eq1 ki, TestEquality ki)
+     (Show1 ki, Eq1 ki, TestEquality ki)
   => PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
   -> Al ki codes xs ys
@@ -168,7 +168,7 @@ diffAl (x :* xs) (y :* ys) =
             AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
 
 diffAt ::
-     (Eq1 ki, TestEquality ki)
+     (Show1 ki, Eq1 ki, TestEquality ki)
   => NA ki (AnnFix ki codes (Const (Sum Int, First Ann))) a
   -> NA ki (AnnFix ki codes (Const (Sum Int, First Ann))) a
   -> At ki codes a
@@ -176,7 +176,7 @@ diffAt (NA_K x) (NA_K y) = AtSet (Trivial x y)
 diffAt (NA_I x) (NA_I y) = AtFix $ diffAlmu x y
 
 diffSpine ::
-     (TestEquality ki, Eq1 ki)
+     (TestEquality ki, Show1 ki, Eq1 ki)
   => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> Spine ki codes xs
@@ -214,21 +214,20 @@ countCopies = synthesizeAnn copiesAlgebra
 data CtxInsDel
   = CtxIns
   | CtxDel
+  deriving Show
 
 diffCtx ::
-     forall ki ix codes xs. (Eq1 ki, TestEquality ki, IsNat ix)
+     forall ki ix codes xs. (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
   => CtxInsDel
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> Ctx ki codes ix xs
 diffCtx cid x xs
- =
-  let maxIdx =
-        fst .
-        maximumBy (comparing snd) .
-        zip [0 ..] .
-        elimNP (elimNA (const 0) (getSum . fst . getConst . getAnn)) $
-        xs
+ = 
+  let maxIdx = fst max
+      max = maximumBy (comparing snd) zipped
+      zipped = zip [0 .. ] elimmed
+      elimmed = elimNP (elimNA (const 0) (getSum . fst . getConst . getAnn)) xs
       drop' ::
            Int
         -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
@@ -252,21 +251,24 @@ diffCtx cid x xs
    in drop' maxIdx xs
 
 diffIns ::
-     (Eq1 ki, TestEquality ki, IsNat ix)
+     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
   -> Almu ki codes ix
 diffIns x rep =
   case sop rep of
+    -- Euh what happens if xs is NP0 here, i.e. a leaf
+    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
     Tag c xs -> Ins c (diffCtx CtxIns x xs)
 
 diffDel ::
-     (Eq1 ki, TestEquality ki, IsNat ix)
+     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
   => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Almu ki codes ix
 diffDel rep x =
   case sop rep of
+    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
     Tag c xs -> Del c (diffCtx CtxDel x xs)
 
 getAnn' :: (Const (Sum Int, First Ann) ix) -> Maybe Ann
@@ -277,14 +279,17 @@ hasCopies (AnnFix (Const (Sum x, _)) _) = x > 0
 
 -- | Takes two annotated trees, and produces a patch
 diffAlmu ::
-     (Eq1 ki, IsNat ix, TestEquality ki)
+     (Show1 ki, Eq1 ki, IsNat ix, TestEquality ki)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Almu ki codes ix
 diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
   case (fromJust $ getAnn' $ ann1, fromJust $ getAnn' $ ann2) of
     (Copy, Copy) -> Spn (diffSpine rep1 rep2)
-    (Copy, Modify) -> diffIns x rep2
+    (Copy, Modify) -> 
+      if hasCopies y
+        then diffIns x rep2
+        else stiff (forgetAnn x) (forgetAnn y)
     (Modify, Copy) -> diffDel rep1 y
     (Modify, Modify) ->
       if hasCopies x

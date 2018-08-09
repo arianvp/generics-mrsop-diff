@@ -12,13 +12,17 @@ import Control.Monad.State
 import Data.GraphViz.Attributes
 import Data.GraphViz.Attributes.Complete (PortName(..))
 import Data.GraphViz.Types.Monadic
-import Data.Text.Lazy (pack)
+import Data.GraphViz.Printing
+import Data.Text.Lazy (pack, Text)
 
 
 
 type NodeId = Int
 
 type DotSM = StateT NodeId (DotM NodeId)
+
+dotToText :: String -> DotSM NodeId -> Text
+dotToText fp = renderDot . toDot . digraph (Str (pack fp)) . runDotSM 0
 
 runDotSM :: NodeId -> DotSM a -> DotM NodeId a
 runDotSM m i = evalStateT i m

@@ -118,3 +118,5 @@ visualizeFix (AnnFix ann rep) =
           dataName = showDatatypeName (datatypeName info)
       npToTable (show1 ann) dataName constrName prod
 
+
+
