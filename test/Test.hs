@@ -19,9 +19,8 @@ import qualified Generics.MRSOP.Diff2 as STDiff
 import qualified Generics.MRSOP.GDiff as GDiff
 import Generics.MRSOP.Util
 
-prop :: Testable a => a -> Test
-prop y =
-  let x =
+prop':: Testable a => a -> TestInstance
+prop' y =
         TestInstance
           { run =
               do checkFor 1000 y
@@ -31,10 +30,11 @@ prop y =
           , options = []
           , setOption = \_ _ -> Right undefined
           }
-   in Test x
+   
+prop :: Testable a => a -> Test
+prop = Test . prop'
 
 deriveListable ''Tree
-
 
 -- TODO: We need to be explicit about in which family it resides. Can we fix that?
 gdiff_reflexive :: Tree Int -> Bool
@@ -59,10 +59,38 @@ gdiff_to_stdiff_transformation_is_sound t1 t2 =
           (Translate.countCopies t2'')
    in any (== t2') $ STDiff.applyAlmu diff t1'
 
+-- counter example that leancheck gave
+regression :: (Tree Int, Tree Int)
+regression = (Two 0 Leaf Leaf, Two 0 (Two 0 Leaf Leaf) Leaf)
+
+regression2 :: (Tree Int, Tree Int)
+regression2 = (Two 0 (Two 0 Leaf Leaf) Leaf, Two 0 Leaf Leaf)
+
+(lhs, rhs) = regression
+
+-- all the steps, such that we can introspect
+lhs' = deep @FamTreeInt lhs
+rhs' = deep @FamTreeInt rhs
+es  = GDiff.diff' lhs' rhs'
+lhs'' = Annotate.annSrc lhs' es
+lhs''' = Translate.countCopies $ lhs''
+rhs'' = Annotate.annDest rhs' es
+rhs''' = Translate.countCopies $ rhs''
+diff = Translate.diffAlmu lhs''' rhs'''
+
+
+--
+--  expected =  Ins Two (0 * Leaf)
+expected :: STDiff.Almu TreeSingl  CodesTreeInt Z
+expected = undefined
+
+
 tests :: IO [Test]
 tests =
   return
     [ prop gdiff_reflexive
     , prop gdiff_apply_diff
     , prop gdiff_to_stdiff_transformation_is_sound
+    , prop $ uncurry gdiff_to_stdiff_transformation_is_sound regression
+    , prop $ uncurry gdiff_to_stdiff_transformation_is_sound regression2
     ]
