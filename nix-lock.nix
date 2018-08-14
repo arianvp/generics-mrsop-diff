@@ -7,7 +7,7 @@ pkgs.writeShellScriptBin "nix-lock" ''
   cat <<EOF 
   import (fetchTarball {
     url = ${url};
-    sha256 = $sha256;
+    sha256 = "$sha256";
   })
   EOF
 
