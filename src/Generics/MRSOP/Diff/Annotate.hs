@@ -105,11 +105,11 @@ annSrc' ::
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) xs
 annSrc' xs ES0 = NP0
-annSrc' xs (Ins c es) = annSrc' xs es
-annSrc' (x :* xs) (Del c es) =
+annSrc' xs (Ins _ c es) = annSrc' xs es
+annSrc' (x :* xs) (Del _ c es) =
   let poa = fromJust $ matchCof c x
    in insCofAnn c (Const Modify) listPrf (annSrc' (appendNP poa xs) es)
-annSrc' (x :* xs) (Cpy c es) =
+annSrc' (x :* xs) (Cpy _ c es) =
   let poa = fromJust $ matchCof c x
    in insCofAnn c (Const Copy) listPrf (annSrc' (appendNP poa xs) es)
 
@@ -119,11 +119,11 @@ annDest' ::
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) ys
 annDest' xs ES0 = NP0
-annDest' xs (Del c es) = annDest' xs es
-annDest' (x :* xs) (Ins c es)
+annDest' xs (Del _ c es) = annDest' xs es
+annDest' (x :* xs) (Ins _ c es)
  =
   let poa = fromJust $ matchCof c x
    in insCofAnn c (Const Modify) listPrf (annDest' (appendNP poa xs) es)
-annDest' (x :* xs) (Cpy c es) =
+annDest' (x :* xs) (Cpy _ c es) =
   let poa = fromJust $ matchCof c x
    in insCofAnn c (Const Copy) listPrf (annDest' (appendNP poa xs) es)

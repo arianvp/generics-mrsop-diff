@@ -14,6 +14,8 @@ import Generics.MRSOP.Util
 data RList :: [k] -> * where
   RList :: IsList ts => RList ts
 
+-- this seems more like "Coerce" to me
+{-# INLINE reify #-}
 reify :: ListPrf ts -> RList ts
 reify Nil = RList
 reify (Cons x) = case reify x of RList -> RList

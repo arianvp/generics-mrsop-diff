@@ -12,6 +12,7 @@
 
 module Generics.MRSOP.GDiff where
 
+import Debug.Trace
 import GHC.Exts hiding (IsList)
 
 import Control.Monad
@@ -71,17 +72,20 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   ES0 :: ES ki codes '[] '[]
   Ins
     :: L2 j (Tyof codes c)
-    => Cof ki codes a c
+    => Int
+    -> Cof ki codes a c
     -> ES ki codes i (Tyof codes c :++: j)
     -> ES ki codes i (a ': j)
   Del
     :: L2 i (Tyof codes c)
-    => Cof ki codes a c
+    => Int
+    -> Cof ki codes a c
     -> ES ki codes (Tyof codes c :++: i) j
     -> ES ki codes (a ': i) j
   Cpy
     :: L3 i j (Tyof codes c)
-    => Cof ki codes a c
+    => Int
+    -> Cof ki codes a c
     -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
     -> ES ki codes (a ': i) (a ': j)
 
@@ -96,15 +100,16 @@ showCof (ConstrI c) = show c
 instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
          Show (ES ki codes xs ys) where
   show ES0 = "ES0"
-  show (Ins c d) = "Ins " ++ showCof c ++ " $ " ++ show d
-  show (Del c d) = "Del " ++ showCof c ++ " $ " ++ show d
-  show (Cpy c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
+  show (Ins _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
+  show (Del _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
+  show (Cpy _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 
 -- Smart constructors 
 -- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins ::
      ListPrf j
   -> ListPrf (Tyof codes c)
+  -> Int
   -> Cof ki codes a c
   -> ES ki codes i (Tyof codes c :++: j)
   -> ES ki codes i (a ': j)
@@ -115,6 +120,7 @@ ins pj pty =
 del ::
      ListPrf i
   -> ListPrf (Tyof codes c)
+  -> Int
   -> Cof ki codes a c
   -> ES ki codes (Tyof codes c :++: i) j
   -> ES ki codes (a ': i) j
@@ -126,12 +132,13 @@ cpy ::
      ListPrf i
   -> ListPrf j
   -> ListPrf (Tyof codes c)
+  -> Int
   -> Cof ki codes a c
   -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
   -> ES ki codes (a ': i) (a ': j)
 cpy pi pj pty =
   case (reify pi, reify pj, reify pty) of
-    (RList, RList, RList) -> Cpy
+    (RList, RList, RList) -> Cpy 
 
 -- In Agda this would be:
 -- ++⁻ : {A : Set}
@@ -248,16 +255,21 @@ applyES ::
   -> PoA ki (Fix ki codes) xs
   -> Maybe (PoA ki (Fix ki codes) ys)
 applyES ES0 x = Just NP0
-applyES (Ins c es) xs = insCof c <$> applyES es xs
-applyES (Del c es) xs = delCof c xs >>= applyES es
-applyES (Cpy c es) xs = insCof c <$> (delCof c xs >>= applyES es)
+applyES (Ins _ c es) xs = insCof c <$> applyES es xs
+applyES (Del _ c es) xs = delCof c xs >>= applyES es
+applyES (Cpy _ c es) xs = insCof c <$> (delCof c xs >>= applyES es)
 
+-- {-# INLINE cost #-}
+--
+--  IDEA: Instead of calculating cost every time (Expensive)
+--  build up cost by construction (We get it for free)
 cost :: ES ki codes txs tys -> Int
 cost ES0 = 0
-cost (Ins c es) = 1 + cost es
-cost (Del c es) = 1 + cost es
-cost (Cpy c es) = cost es
+cost (Ins k c es) = k
+cost (Del k c es) = k
+cost (Cpy k c es) = k
 
+-- {-# INLINE meet #-}
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
 meet d1 d2 =
   if cost d1 <= cost d2
@@ -398,17 +410,20 @@ diffT' Nil Nil NP0 NP0 = NN ES0
 diffT' (Cons isxs) Nil (x :* xs) NP0 =
   matchConstructor x $ \cx isxs' xs' ->
     let d = diffT' (appendIsListLemma isxs' isxs) Nil (appendNP xs' xs) NP0
-     in cn isxs isxs' cx (del isxs isxs' cx (getDiff d)) d
+        d' = getDiff d
+     in cn isxs isxs' cx (del isxs isxs' (1 + cost d') cx d') d
       -- TODO(1) use smart constructors! CN c (Del c (getDiff d)) d
 diffT' Nil (Cons isys) NP0 (y :* ys) =
   matchConstructor y $ \c isys' ys' ->
     let i = diffT' Nil (appendIsListLemma isys' isys) NP0 (appendNP ys' ys)
-     in nc isys isys' c (ins isys isys' c (getDiff i)) i
+        i' = getDiff i 
+     in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
   matchConstructor x $ \cx isxs' xs' ->
     matchConstructor y $ \cy isys' ys' ->
       let i = extendi isxs' isxs cx c
           d = extendd isys' isys cy c
+          -- NOTE, c is shared to calculate i and d!
           c =
             diffT'
               (appendIsListLemma isxs' isxs)
@@ -434,8 +449,8 @@ extendd ::
   -> Cof ki codes y cy
   -> EST ki codes xs (Tyof codes cy :++: ys)
   -> EST ki codes xs (y ': ys)
-extendd isys' isys cy dt@(NN d) = nc isys isys' cy (ins isys isys' cy d) dt
-extendd isys' isys cy dt@(NC _ d _) = nc isys isys' cy (ins isys isys' cy d) dt
+extendd isys' isys cy dt@(NN d) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
+extendd isys' isys cy dt@(NC _ d _) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
 extendd isys' isys cy dt@(CN _ _ _) = extendd' isys' isys cy dt
 extendd isys' isys cy dt@(CC _ _ _ _ _ _) = extendd' isys' isys cy dt
 
@@ -478,8 +493,8 @@ extendi ::
   -> Cof ki codes x cx
   -> EST ki codes (Tyof codes cx :++: xs) ys
   -> EST ki codes (x ': xs) ys
-extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' cx d) dt
-extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs isxs' cx d) dt
+extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
+extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
 extendi isxs' isxs cx dt@(NC _ _ _) = extendi' isxs' isxs cx dt
 extendi isxs' isxs cx dt@(CC _ _ _ _ _ _) = extendi' isxs' isxs cx dt
 
@@ -511,15 +526,17 @@ cofToListPrf ::
      IsList (Tyof codes cy) => Cof ki codes y cy -> ListPrf (Tyof codes cy)
 cofToListPrf _ = listPrf
 
+-- Most time is now spent around marshalling list proofs
+-- Question: Do we actually need these list proofs?
 sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
-sourceTail (Ins _ d) = sourceTail d
-sourceTail (Del _ _) = listPrf
-sourceTail (Cpy _ _) = listPrf
+sourceTail (Ins _ _ d) = sourceTail d
+sourceTail (Del _ _ _) = listPrf
+sourceTail (Cpy _ _ _) = listPrf
 
 targetTail :: ES ki codes xs (y ': ys) -> ListPrf ys
-targetTail (Ins _ d) = listPrf
-targetTail (Del _ d) = targetTail d
-targetTail (Cpy _ _) = listPrf
+targetTail (Ins _ _ d) = listPrf
+targetTail (Del _ _ d) = targetTail d
+targetTail (Cpy _ _ _) = listPrf
 
 extracti ::
      (Eq1 ki, TestEquality ki)
@@ -528,22 +545,6 @@ extracti ::
   -> r
 extracti (CC _ c d i _ _) k = k (cofToListPrf c) (targetTail d) c i
 extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
-
-best :: ES ki codes xs ys -> ES ki codes xs ys -> ES ki codes xs ys
-best dx dy = bestSteps (steps dx) dx (steps dy) dy
-
--- TODO apparently Nat isn't really a very good representation of 
--- a measure, and is very slow in Haskell :)
-steps :: ES ki codes xs ys -> Nat
-steps (Ins _ d) = S $ steps d
-steps (Del _ d) = S $ steps d
-steps (Cpy _ d) = S $ steps d
-steps ES0 = Z
-
-bestSteps :: Nat -> d -> Nat -> d -> d
-bestSteps Z x _ _ = x
-bestSteps _ _ Z y = y
-bestSteps (S nx) x (S ny) y = bestSteps nx x ny y
 
 bestDiffT ::
      (Eq1 ki, TestEquality ki)
@@ -560,6 +561,20 @@ bestDiffT ::
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
     Just (Refl, Refl) ->
-      cpy isxs isys isxs' cx (getDiff c) -- cpy isxs' isxs isys cx (getDiff c)
+      -- TODO: I think this is a bug, we need to consider inserts
+      -- or delets as well
+      let c' = getDiff c
+      in cpy isxs isys isxs' (cost c') cx c' -- cpy isxs' isxs isys cx (getDiff c)
     Nothing ->
-      best (ins isys isys' cy (getDiff i)) (del isxs isxs' cx (getDiff d))
+      -- TOD: It's wasteful to calculate cost every time. Lets do this instead
+      -- costI = getCost (getDiff i)
+      -- costD = getCost (getDiff d)
+      --
+      -- if costI <= costD
+      --  then  ins (1 + costI)  (getDiff i)
+      --  else  del (1 + costD)  (getDiff d)
+      --
+      -- this will stop us from calculating cost Over and Over again
+      let i' = getDiff i
+          d' = getDiff d
+      in meet (ins isys isys' (1 + cost i') cy i') (del isxs isxs' (1 + cost d') cx d')
