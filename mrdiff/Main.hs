@@ -101,10 +101,8 @@ printAST fp = do
     Left er -> fail (show er)
     Right block ->
       Text.putStrLn .
-      GraphViz.renderDot .
-      GraphViz.toDot .
-      GraphViz.digraph (GraphViz.Str (Text.pack fp)) .
-      GraphViz.runDotSM 0 . GraphViz.visualizeFix . 
+      GraphViz.dotToText fp .
+      GraphViz.visualizeFix . 
       AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra .
       deep @FamBlock $
       block
@@ -130,10 +128,7 @@ diffLua fp1 fp2 = do
        in case right' of
             Just (NA_I right'' :* NP0) -> do
               Text.putStrLn .
-                GraphViz.renderDot .
-                GraphViz.toDot .
-                GraphViz.digraph (GraphViz.Str (Text.pack (fp1 ++ " -> " ++ fp2))) .
-                GraphViz.runDotSM 0 .
+                GraphViz.dotToText (fp1 ++ " -> " ++ fp2) .
                 GraphViz.visualizeAlmu $ stdiff
               
 
