@@ -18,6 +18,10 @@ cabal-version:       >=1.10
 
 executable mrdiff
   main-is: mrdiff/Main.hs
+  ghc-options:
+    -O2
+    -fprof-auto
+    "-with-rtsopts= -p -s -h -i0.1"
   build-depends:
     base,
     generics-mrsop-diff,

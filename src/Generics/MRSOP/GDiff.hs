@@ -532,6 +532,8 @@ extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
 best :: ES ki codes xs ys -> ES ki codes xs ys -> ES ki codes xs ys
 best dx dy = bestSteps (steps dx) dx (steps dy) dy
 
+-- TODO apparently Nat isn't really a very good representation of 
+-- a measure, and is very slow in Haskell :)
 steps :: ES ki codes xs ys -> Nat
 steps (Ins _ d) = S $ steps d
 steps (Del _ d) = S $ steps d
