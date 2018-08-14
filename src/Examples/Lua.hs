@@ -18,7 +18,6 @@ import Data.Type.Equality
 import Generics.MRSOP.TH
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
-import Generics.MRSOP.GDiff
 
 data LuaKon = LuaText
 data LuaSingl (kon :: LuaKon) :: * where
