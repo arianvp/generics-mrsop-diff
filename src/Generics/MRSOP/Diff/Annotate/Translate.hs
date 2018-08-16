@@ -9,6 +9,7 @@ module Generics.MRSOP.Diff.Annotate.Translate where
 import Control.Arrow
 import Data.Foldable (fold)
 import Data.Function
+import Debug.Trace
 import Data.List (maximumBy, zip)
 import Data.Ord (comparing)
 import Data.Functor.Const
@@ -234,6 +235,16 @@ diffCtx cid x xs
         -> Ctx ki codes ix ys
       drop' n NP0 = error "We should've found it"
       drop' 0 (y :* ys) =
+        -- TODO: there is a bug here.
+        --
+        -- At first, I converted  ALmu to a homogenous form by using
+        -- normal form contexts. However, I went back to the old definition
+        -- of Almu such that the code here was easily portable from Agda.
+        -- As it's kind a difficult to build up Ctxs stack programatically, or
+        -- at least, I didn't find it straightforward.  However, when doing so
+        -- I forgot to make Almu heterogenous agian, making it impossible to
+        -- change the _index_ into the family. Hence we can not diff 
+        -- an Expr with a Stmt at the moment. Which is a bug :)
         case (testEquality (NA_I x) y, y) of
           (Just Refl, NA_I y) ->
             H (case cid of
@@ -241,6 +252,7 @@ diffCtx cid x xs
                  CtxDel -> diffAlmu y x)
             (mapNP forgetAnn' ys)
           (Nothing, _) ->
+            
             -- NOTE / WARNING:  that we _know_ that there will be a maximum. we just
             -- cant guarentee it because haskell. I verified in Agda that this is true
             error $ "The 'impossible' happened: We know that the index points" ++
