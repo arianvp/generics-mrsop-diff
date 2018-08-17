@@ -10,6 +10,7 @@ import Control.Arrow
 import Data.Foldable (fold)
 import Data.Function
 import Debug.Trace
+import Data.Proxy
 import Data.List (maximumBy, zip)
 import Data.Ord (comparing)
 import Data.Functor.Const
@@ -251,16 +252,14 @@ diffCtx cid x xs
                  CtxIns -> diffAlmu x y
                  CtxDel -> diffAlmu y x)
             (mapNP forgetAnn' ys)
-          (Nothing, _) ->
-            
-            -- NOTE / WARNING:  that we _know_ that there will be a maximum. we just
-            -- cant guarentee it because haskell. I verified in Agda that this is true
-            error $ "The 'impossible' happened: We know that the index points" ++
-                    "to a recursive position" ++ 
-                    "by construction, haskell just isnt smart enough"
+          (Nothing, NA_I _) ->
+            error $ "we want to change  " ++ show (extractNat (NA_I x)) ++ " into " ++ show (extractNat y)
                   
       drop' n (y :* ys) = T (forgetAnn' y) (drop' (n - 1) ys)
    in drop' maxIdx xs
+
+extractNat :: forall ki phi n. NA ki phi (I n) -> Integer
+extractNat (NA_I _) = getNat (Proxy :: Proxy n)
 
 diffIns ::
      (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
