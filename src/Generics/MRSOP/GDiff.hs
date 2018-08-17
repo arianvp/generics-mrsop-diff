@@ -594,15 +594,6 @@ bestDiffT cx cy isxs isxs' isys isys' i d c =
       let c' = getDiff c
       in cpy isxs isys isxs' (cost c') cx c' -- cpy isxs' isxs isys cx (getDiff c)
     Nothing ->
-      -- TOD: It's wasteful to calculate cost every time. Lets do this instead
-      -- costI = getCost (getDiff i)
-      -- costD = getCost (getDiff d)
-      --
-      -- if costI <= costD
-      --  then  ins (1 + costI)  (getDiff i)
-      --  else  del (1 + costD)  (getDiff d)
-      --
-      -- this will stop us from calculating cost Over and Over again
       let i' = getDiff i
           d' = getDiff d
       in meet (ins isys isys' (1 + cost i') cy i') (del isxs isxs' (1 + cost d') cx d')
