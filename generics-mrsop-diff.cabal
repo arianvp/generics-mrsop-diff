@@ -89,6 +89,7 @@ library
                        mtl,
                        hyper,
                        semigroupoids,
+                       hs-digems,
                        text
   
   -- Directories containing source files.

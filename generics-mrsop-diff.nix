@@ -1,5 +1,5 @@
 { mkDerivation, base, Cabal, filepath, generics-mrsop, graphviz
-, hyper, language-c, language-lua, leancheck, mtl
+, hs-digems, hyper, language-c, language-lua, leancheck, mtl
 , optparse-applicative, semigroupoids, stdenv, text
 }:
 mkDerivation {
@@ -9,8 +9,8 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    base generics-mrsop graphviz hyper language-c language-lua mtl
-    semigroupoids text
+    base generics-mrsop graphviz hs-digems hyper language-c
+    language-lua mtl semigroupoids text
   ];
   executableHaskellDepends = [
     base filepath generics-mrsop graphviz language-lua
