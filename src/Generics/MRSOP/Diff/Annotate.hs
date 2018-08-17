@@ -23,7 +23,7 @@ import Data.Maybe (fromJust)
 
 -- | Annotations for each family in the datatype
 -- we ignore ix, as they're the same everywhere
-data Ann = Modify | Copy deriving Show
+-- data Ann = Modify | Copy deriving Show
 
 
 injCofAnn ::

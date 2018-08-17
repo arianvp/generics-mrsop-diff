@@ -17,12 +17,34 @@ import GHC.Exts hiding (IsList)
 
 import Control.Monad
 import Data.Proxy
+import Data.Functor.Const
 import Data.Semigroup
 import Data.Type.Equality
 import Generics.MRSOP.Base
 import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.GDiff.Util
 import Generics.MRSOP.Util
+import Data.Digems.Generic.Digest (Digest, Digestible1)
+import qualified Data.Digems.Generic.Digest as Digest
+import qualified Generics.MRSOP.AG as AG
+
+
+data Ann = Copy | Modify
+
+copyOrModify :: Eq a => Const a ix -> Const a ix -> Const Ann ix
+copyOrModify (Const x) (Const y) = if x == y then Const Copy else Const Modify
+
+-- | Given a tree that's annotated with some decision about its content
+-- decide what parts to copy or modify
+findCopies
+  :: Eq a
+  => AnnFix ki codes (Const a) ix
+  -> AnnFix ki codes (Const a) ix
+  -> AnnFix ki codes (Const Ann) ix
+findCopies = AG.zipAnn copyOrModify
+
+
+
 
 data SinglCof
   = CofI Nat
@@ -82,6 +104,11 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
     -> Cof ki codes a c
     -> ES ki codes (Tyof codes c :++: i) j
     -> ES ki codes (a ': i) j
+  CpyTree
+    :: Int
+    -> NA ki phi ('I a)
+    -> ES ki codes i j
+    -> ES ki codes ('I a ': i) ('I a ': j)
   Cpy
     :: L3 i j (Tyof codes c)
     => Int
@@ -226,6 +253,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
      , IsNat ix2
      , Eq1 ki
      , TestEquality ki
+     , Digestible1 ki
      )
   => ty1
   -> ty2
@@ -233,7 +261,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
 diff a b = diff' (deep a) (deep b)
 
 diff' ::
-     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Digestible1 ki, Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
@@ -357,11 +385,11 @@ getDiff (CC _ _ x _ _ _) = x
 --   however, we can't make a function   NP p xs -> ListPrf xs
 --   as the constructors of NP don't carry the List proof
 matchConstructor ::
-     NA ki (Fix ki codes) a
-  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
+     NA ki (AnnFix ki codes phi) a
+  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f = f (ConstrK k) Nil NP0
-matchConstructor (NA_I (Fix rep)) f =
+matchConstructor (NA_I (AnnFix _ rep)) f =
   case sop rep of
     Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
 
@@ -369,7 +397,7 @@ matchConstructor (NA_I (Fix rep)) f =
 -- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
 -- TODO: ask victor
 diff'' ::
-     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Eq1 ki, Digestible1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> EST ki codes '[ 'I ix1] '[ 'I ix2]
@@ -379,32 +407,32 @@ diff'' x y =
    in diffA x' y'
 
 diffA ::
-     (Eq1 ki, TestEquality ki)
+     (Eq1 ki, Digestible1 ki, TestEquality ki)
   => NA ki (Fix ki codes) x
   -> NA ki (Fix ki codes) y
   -> EST ki codes '[ x] '[ y]
 diffA a b = diffPoA (a :* NP0) (b :* NP0)
 
 diffPoA ::
-     (Eq1 ki, TestEquality ki)
+     (Eq1 ki, Digestible1 ki, TestEquality ki)
   => PoA ki (Fix ki codes) '[ x]
   -> PoA ki (Fix ki codes) '[ y]
   -> EST ki codes '[ x] '[ y]
 diffPoA = diffT
 
 diffT ::
-     forall xs ys ki codes. (Eq1 ki, TestEquality ki, L2 xs ys)
+     forall xs ys ki codes. (Eq1 ki, TestEquality ki, Digestible1 ki, L2 xs ys)
   => PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
-diffT = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys)
+diffT xs ys = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys) (mapNP (mapNA id Digest.auth) xs) (mapNP (mapNA id Digest.auth) ys)
 
 diffT' ::
      (Eq1 ki, TestEquality ki)
   => ListPrf xs
   -> ListPrf ys
-  -> PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
+  -> PoA ki (AnnFix ki codes (Const Digest) ) xs
+  -> PoA ki (AnnFix ki codes (Const Digest) ) ys
   -> EST ki codes xs ys
 diffT' Nil Nil NP0 NP0 = NN ES0
 diffT' (Cons isxs) Nil (x :* xs) NP0 =
