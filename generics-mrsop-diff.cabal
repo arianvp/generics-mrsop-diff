@@ -21,7 +21,7 @@ executable mrdiff
   ghc-options:
     -O2
     -fprof-auto
-    "-with-rtsopts= -p -s -h -i0.1"
+    -- "-with-rtsopts= -p -s -h -i0.1"
   build-depends:
     base,
     generics-mrsop-diff,
