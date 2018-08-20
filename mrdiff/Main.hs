@@ -125,11 +125,12 @@ diffLua fp1 fp2 = do
             Translate.diffAlmu
               (Translate.countCopies src)
               (Translate.countCopies dest)
-       in case right' of
+       in print es
+       {-case right' of
             Just (NA_I right'' :* NP0) -> do
               Text.putStrLn .
                 GraphViz.dotToText (fp1 ++ " -> " ++ fp2) .
-                GraphViz.visualizeAlmu $ stdiff
+                GraphViz.visualizeAlmu $ stdiff -}
               
 
 command :: Cmd -> IO ()
