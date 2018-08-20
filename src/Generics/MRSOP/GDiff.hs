@@ -258,6 +258,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
      , IsNat ix1
      , IsNat ix2
      , Eq1 ki
+     , Digestible1 ki
      , TestEquality ki
      )
   => ty1
@@ -266,7 +267,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
 diff a b = diff' (deep a) (deep b)
 
 diff' ::
-     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Eq1 ki, Digestible1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
@@ -328,9 +329,9 @@ data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] 
     :: L4 txs tys (Tyof codes cy) (Tyof codes cx)
     => Cof ki codes x cx
     -> Cof ki codes y cy
-    -> ES ki codes (x ': txs) (y ': tys)
-    -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
-    -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
+    -> ES ki codes (x ': txs) (y ': tys)                              -- best so far
+    -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)               -- col
+    -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)               -- row
     -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
     -> EST ki codes (x ': txs) (y ': tys)
 
@@ -402,78 +403,42 @@ matchConstructor (NA_I (AnnFix _ rep)) f =
 -- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
 -- TODO: ask victor
 diff'' ::
-     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Eq1 ki, Digestible1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> EST ki codes '[ 'I ix1] '[ 'I ix2]
 diff'' x y =
-  let x' = NA_I x
-      y' = NA_I y
+  let x' = NA_I (Digest.auth x)
+      y' = NA_I (Digest.auth y)
    in diffA x' y'
 
 diffA ::
      (Eq1 ki, TestEquality ki)
-  => NA ki (AnnFix ki codes phi) x
-  -> NA ki (AnnFix ki codes phi) y
+  => NA ki (AnnFix ki codes (Const Digest)) x
+  -> NA ki (AnnFix ki codes (Const Digest)) y
   -> EST ki codes '[ x] '[ y]
 diffA a b = diffPoA (a :* NP0) (b :* NP0)
 
 diffPoA ::
      (Eq1 ki, TestEquality ki, IsList xs, IsList ys)
-  => PoA ki (AnnFix ki codes phi) xs
-  -> PoA ki (AnnFix ki codes phi) ys
+  => PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) ys
   -> EST ki codes xs ys
 diffPoA = diffT
 
 diffT ::
-     forall xs ys ki codes phi. (Eq1 ki, TestEquality ki, L2 xs ys)
-  => PoA ki (AnnFix ki codes phi) xs
-  -> PoA ki (AnnFix ki codes phi) ys
+     forall xs ys ki codes. (Eq1 ki, TestEquality ki, L2 xs ys)
+  => PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) ys
   -> EST ki codes xs ys
 diffT xs ys = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys) xs ys
--- 
-
-appendES :: ListPrf as -> ListPrf bs -> ListPrf cs -> ListPrf ds -> ES ki codes as bs -> ES ki codes cs ds -> ES ki codes (as :++: cs) (bs :++: ds)
-appendES pas pbs pcs pds ES0 xs = xs
-appendES pas (Cons pbs) pcs pds (Ins cost cof xs) ys = ins (appendIsListLemma pbs pds) undefined cost cof (appendES undefined undefined pcs pds xs ys) -- (appendES _ _ _ _ xs ys)
-
--- | Diffs two lists of toplevel declarations
---
--- Uses the heuristic that edits are usually focussed on just some declarations, not all of them
--- and simply copies the entire subtree of declarations that end up being the same
-diffDecls
-  :: (Eq1 ki, TestEquality ki, Digestible1 ki)
-  => ListPrf xs
-  -> ListPrf ys
-  -> PoA ki (AnnFix ki codes (Const Digest)) xs
-  -> PoA ki (AnnFix ki codes (Const Digest)) ys
-  -> ES ki codes xs ys
-diffDecls pxs pys NP0 NP0 = ES0
-diffDecls pxs pys NP0 (y :* ys) = getDiff $ diffT' pxs pys NP0 (y :* ys)
-diffDecls pxs pys (x :* xs) NP0 = getDiff $ diffT' pxs pys (x :* xs) NP0
-diffDecls (Cons pxs) (Cons pys) (x@(NA_I (AnnFix hx x')) :* xs) (y@(NA_I (AnnFix hy y')) :* ys) =
-  case testEquality (sNatFixIdx hx) (sNatFixIdx hy) of
-    Just Refl ->
-      if hx == hy 
-      then cpyTree pxs pys x $ diffDecls  pxs pys xs ys
-      -- if they're not the same, we just fallback to diffing
-      else
-        undefined (diffA x y) (diffDecls pxs pys xs ys)
-        -- getDiff $ diffT' (Cons pxs) (Cons pys) (x :* xs) (y :* ys)
-    Nothing ->
-       -- not the same fixpoint, we subtract one of the assumption stack
-       -- and just try again
-      undefined --dhh diffDecls (n - 1) (Cons pxs) (Cons pys) (x :* xs) (y :* ys)
-      -- we'll fallback, and do _one_ layer of funny diff
-  
-
 
 diffT' ::
      (Eq1 ki, TestEquality ki)
   => ListPrf xs
   -> ListPrf ys
-  -> PoA ki (AnnFix ki codes phi ) xs
-  -> PoA ki (AnnFix ki codes phi ) ys
+  -> PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) ys
   -> EST ki codes xs ys
 diffT' Nil Nil NP0 NP0 = NN ES0
 diffT' (Cons isxs) Nil (x :* xs) NP0 =
@@ -484,31 +449,49 @@ diffT' (Cons isxs) Nil (x :* xs) NP0 =
 diffT' Nil (Cons isys) NP0 (y :* ys) =
   matchConstructor y $ \c isys' ys' ->
     let i = diffT' Nil (appendIsListLemma isys' isys) NP0 (appendNP ys' ys)
-        i' = getDiff i 
+        i' = getDiff i
      in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
 diffT' (Cons isxs) (Cons isys) (x@(NA_I (AnnFix hx x')) :* xs) (y@(NA_I (AnnFix hy y')) :* ys) =
   matchConstructor x $ \cx isxs' xs' ->
     matchConstructor y $ \cy isys' ys' ->
       let i = extendi isxs' isxs cx c
           d = extendd isys' isys cy c
-          -- NOTE, c is shared to calculate i and d!
+              -- NOTE, c is shared to calculate i and d!
           c =
             diffT'
               (appendIsListLemma isxs' isxs)
               (appendIsListLemma isys' isys)
               (appendNP xs' xs)
               (appendNP ys' ys)
-       in cc
-            isxs
-            isxs'
-            isys
-            isys'
-            cx
-            cy
-            (bestDiffT cx cy isxs isxs' isys isys' i d c)
-            i
-            d
-            c
+       in case testEquality (sNatFixIdx hx) (sNatFixIdx hy) of
+            Just Refl | hx == hy ->
+              -- TODO:  we instead always copy the tree,  (or later if some predicate is true)
+              -- and then we skip the expensive subcomputation of c
+              let c' = c
+              in
+              cc
+                isxs
+                isxs'
+                isys
+                isys'
+                cx
+                cy
+                (bestDiffT cx cy isxs isxs' isys isys' i d c')
+                i
+                d
+                c'
+            _ ->
+              cc
+                isxs
+                isxs'
+                isys
+                isys'
+                cx
+                cy
+                (bestDiffT cx cy isxs isxs' isys isys' i d c) -- or a copy tree
+                i
+                d
+                c
         
 
 extendd ::
@@ -631,8 +614,6 @@ bestDiffT ::
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
     Just (Refl, Refl) ->
-      -- TODO: I think this is a bug, we need to consider inserts
-      -- or delets as well
       let c' = getDiff c
           i' = getDiff i
           d' = getDiff d
