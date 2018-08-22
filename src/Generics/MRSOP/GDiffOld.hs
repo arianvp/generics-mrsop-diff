@@ -19,10 +19,10 @@ import Control.Monad
 import Data.Proxy
 import Data.Semigroup
 import Data.Type.Equality
-import Generics.MRSOP.Base
+import Generics.MRSOP.Base hiding (listPrfNP)
 import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.GDiff.Util
-import Generics.MRSOP.Util
+import Generics.MRSOP.Util (Nat, Eq1(eq1), IsNat, (:++:), Lkup, Show1(show1), Idx, El(El), getSNat)
 
 data SinglCof
   = CofI Nat

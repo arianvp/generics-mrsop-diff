@@ -17,7 +17,8 @@ import Data.Coerce
 import Data.Functor.Const
 import Generics.MRSOP.Base
 import Generics.MRSOP.GDiff
-import Generics.MRSOP.Util
+import Generics.MRSOP.Util hiding (ListPrf, listPrf)
+import Generics.MRSOP.GDiff.Util
 
 import Data.Maybe (fromJust)
 

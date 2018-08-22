@@ -20,10 +20,10 @@ import Data.Proxy
 import Data.Functor.Const
 import Data.Semigroup
 import Data.Type.Equality
-import Generics.MRSOP.Base
+import Generics.MRSOP.Base hiding (listPrfNP)
 import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.GDiff.Util
-import Generics.MRSOP.Util
+import Generics.MRSOP.Util (Nat, Eq1(eq1), IsNat, (:++:), Lkup, Show1(show1), Idx, El(El), getSNat)
 import Data.Digems.Generic.Digest (Digest, Digestible1)
 import qualified Data.Digems.Generic.Digest as Digest
 import qualified Generics.MRSOP.AG as AG
