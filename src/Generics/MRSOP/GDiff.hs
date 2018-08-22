@@ -74,11 +74,8 @@ heqCof cx@(ConstrI x) cy@(ConstrI y) =
         Just Refl -> Just (Refl, Refl)
 heqCof (ConstrK x) (ConstrK y) =
   case testEquality x y of
-    Just Refl ->
-      if eq1 x y
-        then Just (Refl, Refl)
-        else Nothing
-    Nothing -> Nothing
+    Just Refl | eq1 x y -> Just (Refl, Refl)
+    _ -> Nothing
 heqCof _ _ = Nothing
 
 type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
@@ -103,12 +100,6 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
     -> Cof ki codes a c
     -> ES ki codes (Tyof codes c :++: i) j
     -> ES ki codes (a ': i) j
-  CpyTree -- TODO add  IsList constraints, I'll need them later
-    :: L2 i j
-    => Int
-    -> NA ki phi ('I a)
-    -> ES ki codes i j
-    -> ES ki codes ('I a ': i) ('I a ': j)
   Cpy
     :: L3 i j (Tyof codes c)
     => Int
@@ -155,14 +146,6 @@ del pi pty =
   case (reify pi, reify pty) of
     (RList, RList) -> Del
 
-cpyTree
-  :: ListPrf i
-  -> ListPrf j 
-  -> Int
-  -> NA ki phi ('I a)
-  -> ES ki codes i j
-  -> ES ki codes ('I a ': i) ('I a ': j)
-cpyTree pi pj = case (reify pi, reify pj) of (RList, RList) -> CpyTree
 
 cpy ::
      ListPrf i
@@ -305,7 +288,6 @@ cost ES0 = 0
 cost (Ins k c es) = k
 cost (Del k c es) = k
 cost (Cpy k c es) = k
-cost (CpyTree k _ _) = k
 
 -- {-# INLINE meet #-}
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
@@ -329,12 +311,6 @@ data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] 
     -> ES ki codes (x ': txs) '[]
     -> EST ki codes (Tyof codes c :++: txs) '[]
     -> EST ki codes (x ': txs) '[]
-  -- TODO: Maybe this is too greedy?
-  CCT :: L2 txs tys
-      => ES ki codes ('I x ': txs) ('I x ': tys)
-      -> NA ki phi ('I x)
-      -> EST ki codes txs tys
-      -> EST ki codes ('I x ': txs) ('I x ': tys)
   CC
     :: L4 txs tys (Tyof codes cy) (Tyof codes cx)
     => Cof ki codes x cx
@@ -367,17 +343,6 @@ cn a b =
   case (reify a, reify b) of
     (RList, RList) -> CN
 
-cct ::
-     ListPrf txs
-  -> ListPrf tys
-  -> ES ki codes ('I x ': txs) ('I x ': tys)
-  -> NA ki phi ('I x)
-  -> EST ki codes txs tys
-  -> EST ki codes ('I x ': txs) ('I x ': tys)
-cct a b =
-  case (reify a, reify b) of
-    (RList, RList) -> CCT
-
 cc ::
      ListPrf txs
   -> ListPrf (Tyof codes cx)
@@ -399,7 +364,6 @@ getDiff (NN x) = x
 getDiff (NC _ x _) = x
 getDiff (CN _ x _) = x
 getDiff (CC _ _ x _ _ _) = x
-getDiff (CCT x _ _) = x
 
 -- in order to match a constructor of an Atom
 -- we will try all possible constructors, and once we find one that
@@ -421,9 +385,6 @@ matchConstructor (NA_I (AnnFix _ rep)) f =
   case sop rep of
     Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
 
--- | Given two deep representations, we get the diff.
--- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
--- TODO: ask victor
 diff'' ::
      (Eq1 ki, Digestible1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
@@ -455,6 +416,64 @@ diffT ::
   -> EST ki codes xs ys
 diffT xs ys = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys) xs ys
 
+
+-- produces the trivial edit script that maps a tree to itself
+cpyTree'
+  :: (Eq1 ki) 
+   => ListPrf xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> ES ki codes xs xs
+cpyTree' Nil NP0 = ES0
+cpyTree' (Cons isxs) (x :* xs) =
+  matchConstructor x $ \c ispoa poa -> 
+    cpy isxs isxs ispoa 0 c (cpyTree' (appendIsListLemma ispoa isxs) (appendNP poa xs))
+
+cpyTree
+  :: (Eq1 ki, IsNat ix)
+  => AnnFix ki codes (Const Digest) ix
+  -> ES ki codes '[ 'I ix ] '[ 'I ix ]
+cpyTree x = cpyTree' (Cons Nil) (NA_I x :* NP0)
+  
+cpyTreeT
+  :: (Eq1 ki, TestEquality ki)
+  => NA ki (AnnFix ki codes (Const Digest)) a
+  -> EST ki codes '[ a ] '[ a ]
+cpyTreeT x = cpyTreeT' (Cons Nil) (x :* NP0)
+
+cpyTreeT'
+  :: (Eq1 ki, TestEquality ki)
+  => ListPrf xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> EST ki codes xs xs
+cpyTreeT' Nil NP0 = NN ES0
+cpyTreeT' (Cons isxs) (x :* xs) = 
+  matchConstructor x $ \c ispoa poa ->
+    let
+      c' = cpyTreeT' (appendIsListLemma ispoa isxs) (appendNP poa xs)
+    in
+      cc 
+        isxs ispoa isxs ispoa c c (cpy isxs isxs ispoa 0 c (getDiff c')) 
+        -- TODO faster version of extendi that only considers cpy
+        (extendi ispoa isxs c c')
+        (extendd ispoa isxs c c')
+        c'
+
+
+-- | Tests if two trees are equal, based on their annotated hash
+hashEq
+  :: (TestEquality ki, Eq1 ki) 
+  => NA ki (AnnFix ki codes (Const Digest)) a
+  -> NA ki (AnnFix ki codes (Const Digest)) b
+  -> Maybe (a :~: b)
+hashEq (NA_I x) (NA_I y) =
+  case testEquality (sNatFixIdx x) (sNatFixIdx y) of
+    Just Refl | getAnn x == getAnn y -> Just Refl
+    _ -> Nothing
+hashEq (NA_K x) (NA_K y) =
+  case testEquality x y of
+    Just Refl | eq1 x y -> Just Refl
+    _ -> Nothing 
+
 diffT' ::
      (Eq1 ki, TestEquality ki)
   => ListPrf xs
@@ -473,61 +492,34 @@ diffT' Nil (Cons isys) NP0 (y :* ys) =
     let i = diffT' Nil (appendIsListLemma isys' isys) NP0 (appendNP ys' ys)
         i' = getDiff i
      in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
-diffT' (Cons isxs) (Cons isys) (x@(NA_I (AnnFix hx x')) :* xs) (y@(NA_I (AnnFix hy y')) :* ys) =
-  matchConstructor x $ \cx isxs' xs' ->
-    matchConstructor y $ \cy isys' ys' ->
-      let i = extendi isxs' isxs cx c
-          d = extendd isys' isys cy c
-              -- NOTE, c is shared to calculate i and d!
-          c =
-            diffT'
-              (appendIsListLemma isxs' isxs)
-              (appendIsListLemma isys' isys)
-              (appendNP xs' xs)
-              (appendNP ys' ys)
-       in case testEquality (sNatFixIdx hx) (sNatFixIdx hy) of
-            Just Refl | hx == hy ->
-              -- Dumb heuristic: If we can CopyTree, we _always_ CopyTree
-              -- we can simply skip over  i, d, and their extended version c
-              let c' = diffT' isxs isys xs ys
-                  c'' = getDiff c'
-              in cct isxs isys (cpyTree isxs isys (cost c'') x c'') x c'
-            _ ->
-              cc
-                isxs
-                isxs'
-                isys
-                isys'
-                cx
-                cy
-                (bestDiffT cx cy isxs isxs' isys isys' i d c) -- or a copy tree
-                i
-                d
-                c
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
-  matchConstructor x $ \cx isxs' xs' ->
-    matchConstructor y $ \cy isys' ys' ->
-      let i = extendi isxs' isxs cx c
-          d = extendd isys' isys cy c
-              -- NOTE, c is shared to calculate i and d!
-          c =
-            diffT'
-              (appendIsListLemma isxs' isxs)
-              (appendIsListLemma isys' isys)
-              (appendNP xs' xs)
-              (appendNP ys' ys)
-       in
-              cc
-                isxs
-                isxs'
-                isys
-                isys'
-                cx
-                cy
-                (bestDiffT cx cy isxs isxs' isys isys' i d c) -- or a copy tree
-                i
-                d
-                c
+  case (hashEq x y, xs, ys) of
+    -- if two subtrees are equal, we just copy it directly
+    (Just Refl, NP0, NP0) ->
+      cpyTreeT x
+    _ -> 
+      matchConstructor x $ \cx isxs' xs' ->
+        matchConstructor y $ \cy isys' ys' ->
+          let i = extendi isxs' isxs cx c
+              d = extendd isys' isys cy c
+              c =
+                diffT'
+                  (appendIsListLemma isxs' isxs)
+                  (appendIsListLemma isys' isys)
+                  (appendNP xs' xs)
+                  (appendNP ys' ys)
+           in
+                  cc
+                    isxs
+                    isxs'
+                    isys
+                    isys'
+                    cx
+                    cy
+                    (bestDiffT cx cy isxs isxs' isys isys' i d c) -- or a copy tree
+                    i
+                    d
+                    c
   
         
 
@@ -577,7 +569,6 @@ extractd (CN c d' d) k = k (cofToListPrf c) (sourceTail d') c d
 
 -- | Takes the shared part dt and adds another a column on top
 --
--- TODO how does CCT play into this?
 extendi ::
      (Eq1 ki, TestEquality ki)
   => ListPrf (Tyof codes cx)
@@ -589,7 +580,6 @@ extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) 
 extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
 extendi isxs' isxs cx dt@(NC _ _ _) = extendi' isxs' isxs cx dt
 extendi isxs' isxs cx dt@(CC _ _ _ _ _ _) = extendi' isxs' isxs cx dt
-extendi isxs' isxs cx dt@(CCT  _ _ _) = extendi' isxs' isxs cx dt
 
 extendi' ::
      (Eq1 ki, TestEquality ki)
@@ -625,13 +615,11 @@ sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
 sourceTail (Ins _ _ d) = sourceTail d
 sourceTail (Del _ _ _) = listPrf
 sourceTail (Cpy _ _ _) = listPrf
-sourceTail (CpyTree _ _ _) = listPrf
 
 targetTail :: ES ki codes xs (y ': ys) -> ListPrf ys
 targetTail (Ins _ _ d) = listPrf
 targetTail (Del _ _ d) = targetTail d
 targetTail (Cpy _ _ _) = listPrf
-targetTail (CpyTree _ _ _) = listPrf
 
 extracti ::
      (Eq1 ki, TestEquality ki)
@@ -666,3 +654,5 @@ bestDiffT cx cy isxs isxs' isys isys' i d c =
       let i' = getDiff i
           d' = getDiff d
       in ins isys isys' (1 + cost i') cy i' `meet` del isxs isxs' (1 + cost d') cx d'
+
+
