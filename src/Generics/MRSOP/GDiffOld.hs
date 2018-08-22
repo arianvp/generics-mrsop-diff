@@ -10,40 +10,19 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
 
-module Generics.MRSOP.GDiff where
+module Generics.MRSOP.GDiffOld where
 
 import Debug.Trace
 import GHC.Exts hiding (IsList)
 
 import Control.Monad
 import Data.Proxy
-import Data.Functor.Const
 import Data.Semigroup
 import Data.Type.Equality
 import Generics.MRSOP.Base
 import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.GDiff.Util
 import Generics.MRSOP.Util
-import Data.Digems.Generic.Digest (Digest, Digestible1)
-import qualified Data.Digems.Generic.Digest as Digest
-import qualified Generics.MRSOP.AG as AG
-
-data Ann = Copy | Modify
-
-copyOrModify :: Eq a => Const a ix -> Const a ix -> Const Ann ix
-copyOrModify (Const x) (Const y) = if x == y then Const Copy else Const Modify
-
--- | Given a tree that's annotated with some decision about its content
--- decide what parts to copy or modify
-findCopies
-  :: Eq a
-  => AnnFix ki codes (Const a) ix
-  -> AnnFix ki codes (Const a) ix
-  -> AnnFix ki codes (Const Ann) ix
-findCopies = AG.zipAnn copyOrModify
-
-
-
 
 data SinglCof
   = CofI Nat
@@ -74,8 +53,11 @@ heqCof cx@(ConstrI x) cy@(ConstrI y) =
         Just Refl -> Just (Refl, Refl)
 heqCof (ConstrK x) (ConstrK y) =
   case testEquality x y of
-    Just Refl | eq1 x y -> Just (Refl, Refl)
-    _ -> Nothing
+    Just Refl ->
+      if eq1 x y
+        then Just (Refl, Refl)
+        else Nothing
+    Nothing -> Nothing
 heqCof _ _ = Nothing
 
 type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
@@ -123,6 +105,7 @@ instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
   show (Cpy _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 
 -- Smart constructors 
+-- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins ::
      ListPrf j
   -> ListPrf (Tyof codes c)
@@ -144,7 +127,6 @@ del ::
 del pi pty =
   case (reify pi, reify pty) of
     (RList, RList) -> Del
-
 
 cpy ::
      ListPrf i
@@ -243,7 +225,6 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
      , IsNat ix1
      , IsNat ix2
      , Eq1 ki
-     , Digestible1 ki
      , TestEquality ki
      )
   => ty1
@@ -252,7 +233,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
 diff a b = diff' (deep a) (deep b)
 
 diff' ::
-     (Eq1 ki, Digestible1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
@@ -314,10 +295,10 @@ data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] 
     :: L4 txs tys (Tyof codes cy) (Tyof codes cx)
     => Cof ki codes x cx
     -> Cof ki codes y cy
-    -> ES ki codes (x ': txs) (y ': tys)                              -- best so far
-    -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)               -- insert
-    -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)               -- delete
-    -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys) -- copy
+    -> ES ki codes (x ': txs) (y ': tys)
+    -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
+    -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
+    -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
     -> EST ki codes (x ': txs) (y ': tys)
 
 nc ::
@@ -376,109 +357,54 @@ getDiff (CC _ _ x _ _ _) = x
 --   however, we can't make a function   NP p xs -> ListPrf xs
 --   as the constructors of NP don't carry the List proof
 matchConstructor ::
-     NA ki (AnnFix ki codes phi) a
-  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
+     NA ki (Fix ki codes) a
+  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f = f (ConstrK k) Nil NP0
-matchConstructor (NA_I (AnnFix _ rep)) f =
+matchConstructor (NA_I (Fix rep)) f =
   case sop rep of
     Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
 
+-- | Given two deep representations, we get the diff.
+-- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
+-- TODO: ask victor
 diff'' ::
-     (Eq1 ki, Digestible1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> EST ki codes '[ 'I ix1] '[ 'I ix2]
 diff'' x y =
-  let x' = NA_I (Digest.auth x)
-      y' = NA_I (Digest.auth y)
+  let x' = NA_I x
+      y' = NA_I y
    in diffA x' y'
 
 diffA ::
      (Eq1 ki, TestEquality ki)
-  => NA ki (AnnFix ki codes (Const Digest)) x
-  -> NA ki (AnnFix ki codes (Const Digest)) y
+  => NA ki (Fix ki codes) x
+  -> NA ki (Fix ki codes) y
   -> EST ki codes '[ x] '[ y]
 diffA a b = diffPoA (a :* NP0) (b :* NP0)
 
 diffPoA ::
-     (Eq1 ki, TestEquality ki, IsList xs, IsList ys)
-  => PoA ki (AnnFix ki codes (Const Digest)) xs
-  -> PoA ki (AnnFix ki codes (Const Digest)) ys
-  -> EST ki codes xs ys
+     (Eq1 ki, TestEquality ki)
+  => PoA ki (Fix ki codes) '[ x]
+  -> PoA ki (Fix ki codes) '[ y]
+  -> EST ki codes '[ x] '[ y]
 diffPoA = diffT
 
 diffT ::
      forall xs ys ki codes. (Eq1 ki, TestEquality ki, L2 xs ys)
-  => PoA ki (AnnFix ki codes (Const Digest)) xs
-  -> PoA ki (AnnFix ki codes (Const Digest)) ys
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
-diffT xs ys = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys) xs ys
-
-
--- produces the trivial edit script that maps a tree to itself
-cpyTree'
-  :: (Eq1 ki) 
-   => ListPrf xs
-  -> PoA ki (AnnFix ki codes (Const Digest)) xs
-  -> ES ki codes xs xs
-cpyTree' Nil NP0 = ES0
-cpyTree' (Cons isxs) (x :* xs) =
-  matchConstructor x $ \c ispoa poa -> 
-    cpy isxs isxs ispoa 0 c (cpyTree' (appendIsListLemma ispoa isxs) (appendNP poa xs))
-
-cpyTree
-  :: (Eq1 ki, IsNat ix)
-  => AnnFix ki codes (Const Digest) ix
-  -> ES ki codes '[ 'I ix ] '[ 'I ix ]
-cpyTree x = cpyTree' (Cons Nil) (NA_I x :* NP0)
-  
-cpyTreeT
-  :: (Eq1 ki, TestEquality ki)
-  => NA ki (AnnFix ki codes (Const Digest)) a
-  -> EST ki codes '[ a ] '[ a ]
-cpyTreeT x = cpyTreeT' (Cons Nil) (x :* NP0)
-
-cpyTreeT'
-  :: (Eq1 ki, TestEquality ki)
-  => ListPrf xs
-  -> PoA ki (AnnFix ki codes (Const Digest)) xs
-  -> EST ki codes xs xs
-cpyTreeT' Nil NP0 = NN ES0
-cpyTreeT' (Cons isxs) (x :* xs) = 
-  matchConstructor x $ \c ispoa poa ->
-    let
-      c' = cpyTreeT' (appendIsListLemma ispoa isxs) (appendNP poa xs)
-    in
-      cc 
-        isxs ispoa isxs ispoa c c (cpy isxs isxs ispoa 0 c (getDiff c')) 
-        -- TODO faster version of extendi that only considers cpy
-        (extendi ispoa isxs c c')
-        (extendd ispoa isxs c c')
-        c'
-
-
--- | Tests if two trees are equal, based on their annotated hash
-hashEq
-  :: (TestEquality ki, Eq1 ki) 
-  => NA ki (AnnFix ki codes (Const Digest)) a
-  -> NA ki (AnnFix ki codes (Const Digest)) b
-  -> Maybe (a :~: b)
-hashEq (NA_I x) (NA_I y) =
-  case testEquality (sNatFixIdx x) (sNatFixIdx y) of
-    Just Refl | getAnn x == getAnn y -> Just Refl
-    _ -> Nothing
-hashEq (NA_K x) (NA_K y) =
-  case testEquality x y of
-    Just Refl | eq1 x y -> Just Refl
-    _ -> Nothing 
+diffT = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys)
 
 diffT' ::
      (Eq1 ki, TestEquality ki)
   => ListPrf xs
   -> ListPrf ys
-  -> PoA ki (AnnFix ki codes (Const Digest)) xs
-  -> PoA ki (AnnFix ki codes (Const Digest)) ys
+  -> PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
   -> EST ki codes xs ys
 diffT' Nil Nil NP0 NP0 = NN ES0
 diffT' (Cons isxs) Nil (x :* xs) NP0 =
@@ -486,41 +412,35 @@ diffT' (Cons isxs) Nil (x :* xs) NP0 =
     let d = diffT' (appendIsListLemma isxs' isxs) Nil (appendNP xs' xs) NP0
         d' = getDiff d
      in cn isxs isxs' cx (del isxs isxs' (1 + cost d') cx d') d
+      -- TODO(1) use smart constructors! CN c (Del c (getDiff d)) d
 diffT' Nil (Cons isys) NP0 (y :* ys) =
   matchConstructor y $ \c isys' ys' ->
     let i = diffT' Nil (appendIsListLemma isys' isys) NP0 (appendNP ys' ys)
-        i' = getDiff i
+        i' = getDiff i 
      in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
-  case (hashEq x y, xs, ys) of
-    -- if two subtrees are equal, we just copy it directly
-    (Just Refl, NP0, NP0) ->
-      cpyTreeT x
-    _ -> 
-      matchConstructor x $ \cx isxs' xs' ->
-        matchConstructor y $ \cy isys' ys' ->
-          let i = extendi isxs' isxs cx c
-              d = extendd isys' isys cy c
-              c =
-                diffT'
-                  (appendIsListLemma isxs' isxs)
-                  (appendIsListLemma isys' isys)
-                  (appendNP xs' xs)
-                  (appendNP ys' ys)
-           in
-                  cc
-                    isxs
-                    isxs'
-                    isys
-                    isys'
-                    cx
-                    cy
-                    (bestDiffT cx cy isxs isxs' isys isys' i d c)
-                    i
-                    d
-                    c
-  
-        
+  matchConstructor x $ \cx isxs' xs' ->
+    matchConstructor y $ \cy isys' ys' ->
+      let i = extendi isxs' isxs cx c
+          d = extendd isys' isys cy c
+          -- NOTE, c is shared to calculate i and d!
+          c =
+            diffT'
+              (appendIsListLemma isxs' isxs)
+              (appendIsListLemma isys' isys)
+              (appendNP xs' xs)
+              (appendNP ys' ys)
+       in cc
+            isxs
+            isxs'
+            isys
+            isys'
+            cx
+            cy
+            (bestDiffT cx cy isxs isxs' isys isys' i d c)
+            i
+            d
+            c
 
 extendd ::
      (Eq1 ki, TestEquality ki)
@@ -566,8 +486,6 @@ extractd ::
 extractd (CC c _ d' _ d _) k = k (cofToListPrf c) (sourceTail d') c d
 extractd (CN c d' d) k = k (cofToListPrf c) (sourceTail d') c d
 
--- | Takes the shared part dt and adds another a column on top
---
 extendi ::
      (Eq1 ki, TestEquality ki)
   => ListPrf (Tyof codes cx)
@@ -643,15 +561,20 @@ bestDiffT ::
 bestDiffT cx cy isxs isxs' isys isys' i d c =
   case heqCof cx cy of
     Just (Refl, Refl) ->
+      -- TODO: I think this is a bug, we need to consider inserts
+      -- or delets as well
       let c' = getDiff c
-          i' = getDiff i
-          d' = getDiff d
-      in cpy isxs isys isxs' (cost c') cx c' `meet` 
-         ins isys isys' (1 + cost i') cy i' `meet`
-         del isxs isxs' (1 + cost d') cx d'
+      in cpy isxs isys isxs' (cost c') cx c' -- cpy isxs' isxs isys cx (getDiff c)
     Nothing ->
+      -- TOD: It's wasteful to calculate cost every time. Lets do this instead
+      -- costI = getCost (getDiff i)
+      -- costD = getCost (getDiff d)
+      --
+      -- if costI <= costD
+      --  then  ins (1 + costI)  (getDiff i)
+      --  else  del (1 + costD)  (getDiff d)
+      --
+      -- this will stop us from calculating cost Over and Over again
       let i' = getDiff i
           d' = getDiff d
-      in ins isys isys' (1 + cost i') cy i' `meet` del isxs isxs' (1 + cost d') cx d'
-
-
+      in meet (ins isys isys' (1 + cost i') cy i') (del isxs isxs' (1 + cost d') cx d')
