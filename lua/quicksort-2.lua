@@ -19,7 +19,7 @@ function quicksort(array, left, right)
 	    quicksort(array, pivotNewIndex + 1, right)
 	end
 end
-function arian(array, left, right)
+function quicksort(array, left, right)
 	if right > left then
 	    local pivotNewIndex = partition(array, left, right, left)
 	    a(array, left, pivotNewIndex - 1)
