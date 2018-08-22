@@ -123,7 +123,6 @@ instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
   show (Cpy _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 
 -- Smart constructors 
--- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
 ins ::
      ListPrf j
   -> ListPrf (Tyof codes c)
