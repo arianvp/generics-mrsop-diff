@@ -439,6 +439,15 @@ cpyTreeT
   -> EST ki codes '[ a ] '[ a ]
 cpyTreeT x = cpyTreeT' (Cons Nil) (x :* NP0)
 
+-- obviously slower now..  because we do not share subresults, but are
+-- still doing _exactly_ the same computation.  *Sigh*
+--
+--
+--  this is exactly diffT' in terms of complexity ... lol 
+--
+-- So our "optimization" was actually making everything slower
+--
+-- Discuss with Victor tomorrow
 cpyTreeT'
   :: (Eq1 ki, TestEquality ki)
   => ListPrf xs
