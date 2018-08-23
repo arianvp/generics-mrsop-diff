@@ -32,6 +32,7 @@ import Generics.MRSOP.Base
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
 import qualified Generics.MRSOP.GDiff as GDiff
+import qualified Generics.MRSOP.GDiffOld as GDiffOld
 import Generics.MRSOP.Util
 
 import qualified Data.GraphViz.Printing as GraphViz
@@ -52,7 +53,7 @@ data Language =
 
 data Cmd
   = AST FilePath
-  | Diff FilePath
+  | Diff V FilePath
          FilePath
   | Merge FilePath
           FilePath
@@ -71,9 +72,12 @@ parserInfoCmd =
     (Options.Applicative.progDesc "Tree-based diff and merge tool" <>
      Options.Applicative.fullDesc)
 
+data V = O | N
+
 parseCmd :: Parser Cmd
 parseCmd =
-  subcommand "diff" "Diff two files" diffParser <|>
+  subcommand "diff" "Diff two files" (diffParser N) <|>
+  subcommand "olddiff" "Diff two files" (diffParser O) <|>
   subcommand "ast" "show ast of file" astParser <|>
   subcommand "merge" "Merge two files, given their common ancestor" mergeParser
   where
@@ -90,7 +94,7 @@ parseCmd =
         parser = Options.Applicative.helper <*> cmdParser
     mergeParser =
       Merge <$> argument "origin" <*> argument "left" <*> argument "right"
-    diffParser = Diff <$> argument "left" <*> argument "right"
+    diffParser v = Diff v <$> argument "left" <*> argument "right"
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
 
@@ -107,8 +111,8 @@ printAST fp = do
       deep @FamBlock $
       block
 
-diffLua :: FilePath -> FilePath -> IO ()
-diffLua fp1 fp2 = do
+diffLua :: V -> FilePath -> FilePath -> IO ()
+diffLua v fp1 fp2 = do
   x <-
     getCompose $ do
       x <- Compose . Language.Lua.Parser.parseFile $ fp1
@@ -117,21 +121,10 @@ diffLua fp1 fp2 = do
   case x of
     Left er -> fail (show er)
     Right (left, right) ->
-      let es = GDiff.diff' left right
-          right' = GDiff.applyES es (NA_I left :* NP0)
-          src  = Annotate.annSrc left es
-          dest = Annotate.annDest right es
-          stdiff =
-            Translate.diffAlmu
-              (Translate.countCopies src)
-              (Translate.countCopies dest)
-       in print es
-       {-case right' of
-            Just (NA_I right'' :* NP0) -> do
-              Text.putStrLn .
-                GraphViz.dotToText (fp1 ++ " -> " ++ fp2) .
-                GraphViz.visualizeAlmu $ stdiff -}
-              
+      case v of
+        N -> print (GDiff.diff' left right)
+        O -> print (GDiffOld.diff' left right)
+             
 
 command :: Cmd -> IO ()
 command x =
@@ -140,14 +133,14 @@ command x =
       case getLanguage file of
         Just Lua -> printAST file
         Nothing -> fail "Not a supported language"
-    Diff left right -> do
+    Diff v left right -> do
       let lang = do
             lleft <- getLanguage left
             lright <- getLanguage right
             guard $ lleft == lright
             pure lleft
       case lang of
-        Just Lua -> diffLua left right
+        Just Lua -> diffLua v left right
         Nothing -> fail "Languages differ or unsupported"
     Merge origin left right -> do
       let lang = do

@@ -19,7 +19,7 @@ cabal-version:       >=1.10
 executable mrdiff
   main-is: mrdiff/Main.hs
   ghc-options:
-    -O2
+    -O3
     -fprof-auto
     -- "-with-rtsopts= -p -s -h -i0.1"
   build-depends:
@@ -39,6 +39,8 @@ test-suite generics-mrsop-diff-testsuite
   build-depends: base, generics-mrsop-diff, generics-mrsop,  leancheck , Cabal
 
 library
+  ghc-options:
+    -O3
   -- Modules exported by the library.
   exposed-modules: 
     Generics.MRSOP.Diff

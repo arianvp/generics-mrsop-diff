@@ -71,20 +71,24 @@ type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
 data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   ES0 :: ES ki codes '[] '[]
   Ins
-    :: L2 j (Tyof codes c)
-    => Int
+    :: ListPrf j
+    -> ListPrf (Tyof codes c)
+    -> Int
     -> Cof ki codes a c
     -> ES ki codes i (Tyof codes c :++: j)
     -> ES ki codes i (a ': j)
   Del
-    :: L2 i (Tyof codes c)
-    => Int
+    :: ListPrf i
+    -> ListPrf (Tyof codes c)
+    -> Int
     -> Cof ki codes a c
     -> ES ki codes (Tyof codes c :++: i) j
     -> ES ki codes (a ': i) j
   Cpy
-    :: L3 i j (Tyof codes c)
-    => Int
+    :: ListPrf i
+    -> ListPrf j
+    -> ListPrf (Tyof codes c)
+    -> Int
     -> Cof ki codes a c
     -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
     -> ES ki codes (a ': i) (a ': j)
@@ -100,9 +104,9 @@ showCof (ConstrI c) = show c
 instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
          Show (ES ki codes xs ys) where
   show ES0 = "ES0"
-  show (Ins _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
-  show (Del _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
-  show (Cpy _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
+  show (Ins _ _ _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
+  show (Del _ _ _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
+  show (Cpy _ _ _ _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 
 -- Smart constructors 
 -- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
@@ -113,9 +117,7 @@ ins ::
   -> Cof ki codes a c
   -> ES ki codes i (Tyof codes c :++: j)
   -> ES ki codes i (a ': j)
-ins pj pty =
-  case (reify pj, reify pty) of
-    (RList, RList) -> Ins
+ins = Ins
 
 del ::
      ListPrf i
@@ -124,9 +126,7 @@ del ::
   -> Cof ki codes a c
   -> ES ki codes (Tyof codes c :++: i) j
   -> ES ki codes (a ': i) j
-del pi pty =
-  case (reify pi, reify pty) of
-    (RList, RList) -> Del
+del = Del
 
 cpy ::
      ListPrf i
@@ -136,9 +136,7 @@ cpy ::
   -> Cof ki codes a c
   -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
   -> ES ki codes (a ': i) (a ': j)
-cpy pi pj pty =
-  case (reify pi, reify pj, reify pty) of
-    (RList, RList, RList) -> Cpy 
+cpy = Cpy
 
 -- In Agda this would be:
 -- ++⁻ : {A : Set}
@@ -194,6 +192,7 @@ delCof ::
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c :++: xs))
 delCof c (x :* xs) = flip appendNP xs <$> matchCof c x
 
+{-
 apply ::
      forall ki fam codes ty1 ty2 ix1 ix2.
      ( Family ki fam codes
@@ -215,6 +214,7 @@ apply es a =
       case dto @ix2 x of
         El b -> Just b
     Nothing -> Nothing
+-}
 
 diff :: forall fam ki codes ix1 ix2 ty1 ty2.
      ( Family ki fam codes
@@ -239,6 +239,7 @@ diff' ::
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
 diff' a b = getDiff $ diff'' a b
 
+{-
 apply' ::
      (IsNat ix1, IsNat ix2, Eq1 ki)
   => ES ki codes '[ 'I ix1] '[ 'I ix2]
@@ -248,7 +249,9 @@ apply' es x = do
   x <- applyES es (NA_I x :* NP0)
   case x of
     (NA_I y :* NP0) -> pure y
+-}
 
+{- TODO use new constructors
 applyES ::
      Eq1 ki
   => ES ki codes xs ys
@@ -258,6 +261,7 @@ applyES ES0 x = Just NP0
 applyES (Ins _ c es) xs = insCof c <$> applyES es xs
 applyES (Del _ c es) xs = delCof c xs >>= applyES es
 applyES (Cpy _ c es) xs = insCof c <$> (delCof c xs >>= applyES es)
+-}
 
 -- {-# INLINE cost #-}
 --
@@ -265,9 +269,9 @@ applyES (Cpy _ c es) xs = insCof c <$> (delCof c xs >>= applyES es)
 --  build up cost by construction (We get it for free)
 cost :: ES ki codes txs tys -> Int
 cost ES0 = 0
-cost (Ins k c es) = k
-cost (Del k c es) = k
-cost (Cpy k c es) = k
+cost (Ins _ _ k c es) = k
+cost (Del _ _ k c es) = k
+cost (Cpy _ _ _ k c es) = k
 
 -- {-# INLINE meet #-}
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
@@ -529,14 +533,14 @@ cofToListPrf _ = listPrf
 -- Most time is now spent around marshalling list proofs
 -- Question: Do we actually need these list proofs?
 sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
-sourceTail (Ins _ _ d) = sourceTail d
-sourceTail (Del _ _ _) = listPrf
-sourceTail (Cpy _ _ _) = listPrf
+sourceTail (Ins x y _ _ d) = sourceTail d
+sourceTail (Del x y _ _ _) = x
+sourceTail (Cpy x y z _ _ _) = x
 
 targetTail :: ES ki codes xs (y ': ys) -> ListPrf ys
-targetTail (Ins _ _ d) = listPrf
-targetTail (Del _ _ d) = targetTail d
-targetTail (Cpy _ _ _) = listPrf
+targetTail (Ins x y _ _ d) = x
+targetTail (Del x y _ _ d) = targetTail d
+targetTail (Cpy x y z _ _ _) = y
 
 extracti ::
      (Eq1 ki, TestEquality ki)
