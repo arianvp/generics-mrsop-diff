@@ -49,8 +49,8 @@ library
     Generics.MRSOP.Diff.Annotate
     Generics.MRSOP.Diff.Annotate.Translate
     Generics.MRSOP.Diff.Enumerate
+    Generics.MRSOP.GDiffCopyExperiment
     Generics.MRSOP.GDiff
-    Generics.MRSOP.GDiffOld
     Generics.MRSOP.GDiff.Util
     Generics.MRSOP.GraphViz
     Generics.MRSOP.GraphViz.Deep

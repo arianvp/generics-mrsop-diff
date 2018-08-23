@@ -32,7 +32,7 @@ import Generics.MRSOP.Base
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
 import qualified Generics.MRSOP.GDiff as GDiff
-import qualified Generics.MRSOP.GDiffOld as GDiffOld
+import qualified Generics.MRSOP.GDiffCopyExperiment as GDiffOld
 import Generics.MRSOP.Util
 
 import qualified Data.GraphViz.Printing as GraphViz

@@ -6,7 +6,6 @@
 
 module Generics.MRSOP.Diff.Annotate.Translate where
 
-import Generics.MRSOP.GDiff (Ann(..))
 import Control.Arrow
 import Data.Foldable (fold)
 import Data.Function
