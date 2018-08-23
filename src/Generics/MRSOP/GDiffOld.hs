@@ -284,20 +284,25 @@ meet d1 d2 =
 data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES ki codes '[] '[] -> EST ki codes '[] '[]
   NC
-    :: L2 tys (Tyof codes c)
-    => Cof ki codes y c
+    :: ListPrf tys
+    -> ListPrf (Tyof codes c)
+    -> Cof ki codes y c
     -> ES ki codes '[] (y ': tys)
     -> EST ki codes '[] (Tyof codes c :++: tys)
     -> EST ki codes '[] (y ': tys)
   CN
-    :: L2 txs (Tyof codes c)
-    => Cof ki codes x c
-    -> ES ki codes (x ': txs) '[]
-    -> EST ki codes (Tyof codes c :++: txs) '[]
-    -> EST ki codes (x ': txs) '[]
+   :: ListPrf txs
+   -> ListPrf (Tyof codes c)
+   -> Cof ki codes x c
+   -> ES ki codes (x ': txs) '[]
+   -> EST ki codes (Tyof codes c :++: txs) '[]
+   -> EST ki codes (x ': txs) '[]
   CC
-    :: L4 txs tys (Tyof codes cy) (Tyof codes cx)
-    => Cof ki codes x cx
+    :: ListPrf txs
+    -> ListPrf (Tyof codes cx)
+    -> ListPrf tys
+    -> ListPrf (Tyof codes cy)
+    -> Cof ki codes x cx
     -> Cof ki codes y cy
     -> ES ki codes (x ': txs) (y ': tys)
     -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
@@ -312,23 +317,19 @@ nc ::
   -> ES ki codes '[] (y ': tys)
   -> EST ki codes '[] (Tyof codes c :++: tys)
   -> EST ki codes '[] (y ': tys)
-nc a b =
-  case (reify a, reify b) of
-    (RList, RList) -> NC
+nc = NC
 
-cn ::
-     ListPrf txs
+cn
+  :: ListPrf txs
   -> ListPrf (Tyof codes c)
   -> Cof ki codes x c
   -> ES ki codes (x ': txs) '[]
   -> EST ki codes (Tyof codes c :++: txs) '[]
   -> EST ki codes (x ': txs) '[]
-cn a b =
-  case (reify a, reify b) of
-    (RList, RList) -> CN
+cn = CN
 
-cc ::
-     ListPrf txs
+cc 
+  :: ListPrf txs
   -> ListPrf (Tyof codes cx)
   -> ListPrf tys
   -> ListPrf (Tyof codes cy)
@@ -339,15 +340,13 @@ cc ::
   -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
   -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
   -> EST ki codes (x ': txs) (y ': tys)
-cc a b c d =
-  case (reify a, reify b, reify c, reify d) of
-    (RList, RList, RList, RList) -> CC
+cc = CC
 
 getDiff :: forall ki codes rxs rys. EST ki codes rxs rys -> ES ki codes rxs rys
 getDiff (NN x) = x
-getDiff (NC _ x _) = x
-getDiff (CN _ x _) = x
-getDiff (CC _ _ x _ _ _) = x
+getDiff (NC _ _ _ x _) = x
+getDiff (CN _ _ _ x _) = x
+getDiff (CC _ _ _ _ _ _ x _ _ _) = x
 
 -- in order to match a constructor of an Atom
 -- we will try all possible constructors, and once we find one that
@@ -454,9 +453,9 @@ extendd ::
   -> EST ki codes xs (Tyof codes cy :++: ys)
   -> EST ki codes xs (y ': ys)
 extendd isys' isys cy dt@(NN d) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
-extendd isys' isys cy dt@(NC _ d _) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
-extendd isys' isys cy dt@(CN _ _ _) = extendd' isys' isys cy dt
-extendd isys' isys cy dt@(CC _ _ _ _ _ _) = extendd' isys' isys cy dt
+extendd isys' isys cy dt@(NC _ _  _ d _) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
+extendd isys' isys cy dt@(CN _ _ _ _ _) = extendd' isys' isys cy dt
+extendd isys' isys cy dt@(CC _ _ _ _ _ _ _ _ _ _) = extendd' isys' isys cy dt
 
 extendd' ::
      (Eq1 ki, TestEquality ki)
@@ -487,8 +486,8 @@ extractd ::
   => EST ki codes (x ': xs) ys'
   -> (forall cx. ListPrf (Tyof codes cx) -> ListPrf xs -> Cof ki codes x cx -> EST ki codes (Tyof codes cx :++: xs) ys' -> r)
   -> r
-extractd (CC c _ d' _ d _) k = k (cofToListPrf c) (sourceTail d') c d
-extractd (CN c d' d) k = k (cofToListPrf c) (sourceTail d') c d
+extractd (CC _ isxs _ isys c _ d' _ d _) k = k isxs (sourceTail d') c d
+extractd (CN _ isxs c d' d) k = k isxs (sourceTail d') c d
 
 extendi ::
      (Eq1 ki, TestEquality ki)
@@ -498,9 +497,9 @@ extendi ::
   -> EST ki codes (Tyof codes cx :++: xs) ys
   -> EST ki codes (x ': xs) ys
 extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
-extendi isxs' isxs cx dt@(CN _ d _) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
-extendi isxs' isxs cx dt@(NC _ _ _) = extendi' isxs' isxs cx dt
-extendi isxs' isxs cx dt@(CC _ _ _ _ _ _) = extendi' isxs' isxs cx dt
+extendi isxs' isxs cx dt@(CN _ _ _ d _) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
+extendi isxs' isxs cx dt@(NC _ _ _ _ _) = extendi' isxs' isxs cx dt
+extendi isxs' isxs cx dt@(CC _ _ _ _ _ _ _ _ _ _) = extendi' isxs' isxs cx dt
 
 extendi' ::
      (Eq1 ki, TestEquality ki)
@@ -547,8 +546,8 @@ extracti ::
   => EST ki codes xs' (y ': ys)
   -> (forall cy. ListPrf (Tyof codes cy) -> ListPrf ys -> Cof ki codes y cy -> EST ki codes xs' (Tyof codes cy :++: ys) -> r)
   -> r
-extracti (CC _ c d i _ _) k = k (cofToListPrf c) (targetTail d) c i
-extracti (NC c d i) k = k (cofToListPrf c) (targetTail d) c i
+extracti (CC _ isxs _ isys _ c d i _ _) k = k isys (targetTail d) c i
+extracti (NC _ isxs c d i) k = k isxs (targetTail d) c i
 
 bestDiffT ::
      (Eq1 ki, TestEquality ki)
