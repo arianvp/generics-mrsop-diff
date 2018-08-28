@@ -4,6 +4,7 @@
 module Language.Clojure.Parser
     ( parseTop
     , parse
+    , parseFile
     , parseTest
     , parseAsExprList
 
@@ -174,5 +175,7 @@ identifier = do
   return (c:cs)
 
 
-parseFile :: FilePath -> IO (Either String Expr)
-parseFile = undefined
+parseFile :: FilePath -> IO (Either ParseError Expr)
+parseFile fname = do 
+  input <- readFile fname
+  return (runParser parseTop () fname input)

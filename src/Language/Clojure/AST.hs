@@ -46,8 +46,6 @@ data Term = TaggedString !Tag !Text
 
 data Tag = String | Var  deriving (Show, Eq)
 
-data SubTree = Exp Expr | Sel SepExprList
-  deriving (Show)
 
 
 data ConflictResult a = NoConflict | ConflictAt a

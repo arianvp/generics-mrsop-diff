@@ -482,6 +482,7 @@ hashEq (NA_K x) (NA_K y) =
   case testEquality x y of
     Just Refl | eq1 x y -> Just Refl
     _ -> Nothing 
+hashEq _ _ = Nothing
 
 diffT' ::
      (Eq1 ki, TestEquality ki)
