@@ -28,21 +28,6 @@ import Data.Digems.Generic.Digest (Digest, Digestible1)
 import qualified Data.Digems.Generic.Digest as Digest
 import qualified Generics.MRSOP.AG as AG
 
-data Ann = Copy | Modify
-
-copyOrModify :: Eq a => Const a ix -> Const a ix -> Const Ann ix
-copyOrModify (Const x) (Const y) = if x == y then Const Copy else Const Modify
-
--- | Given a tree that's annotated with some decision about its content
--- decide what parts to copy or modify
-findCopies
-  :: Eq a
-  => AnnFix ki codes (Const a) ix
-  -> AnnFix ki codes (Const a) ix
-  -> AnnFix ki codes (Const Ann) ix
-findCopies = AG.zipAnn copyOrModify
-
-
 
 
 data SinglCof

@@ -17,6 +17,7 @@ import GHC.Exts hiding (IsList)
 
 import Control.Monad
 import Data.Proxy
+import Data.Functor.Const
 import Data.Semigroup
 import Data.Type.Equality
 import Generics.MRSOP.Base hiding (listPrfNP)
@@ -24,10 +25,31 @@ import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.GDiff.Util
 import Generics.MRSOP.Util (Nat, Eq1(eq1), IsNat, (:++:), Lkup, Show1(show1), Idx, El(El), getSNat)
 
+import Data.Digems.Generic.Digest (Digest, Digestible1)
+import qualified Data.Digems.Generic.Digest as Digest
+import qualified Generics.MRSOP.AG as AG
+
 data SinglCof
   = CofI Nat
          Nat -- type index and constructor index within the type
   | CofK
+
+
+-- | Tests if two trees are equal, based on their annotated hash
+hashEq
+  :: (TestEquality ki, Digestible1 ki, Eq1 ki) 
+  => NA ki (AnnFix ki codes (Const Digest)) a
+  -> NA ki (AnnFix ki codes (Const Digest)) b
+  -> Maybe (a :~: b)
+hashEq (NA_I x) (NA_I y) =
+  case testEquality (sNatFixIdx x) (sNatFixIdx y) of
+    Just Refl | getAnn x == getAnn y -> Just Refl
+    _ -> Nothing
+hashEq (NA_K x) (NA_K y) =
+  case testEquality x y of
+    Just Refl | eq1 x y -> Just Refl
+    _ -> Nothing 
+hashEq _ _ = Nothing
 
 data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) (a :: Atom kon) (c :: SinglCof) where
   ConstrI
@@ -203,7 +225,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
      , Lkup ix2 fam ~ ty2
      , IsNat ix1
      , IsNat ix2
-     , Eq1 ki
+     , Digestible1 ki, Eq1 ki
      , TestEquality ki
      )
   => ty1
@@ -212,7 +234,7 @@ diff :: forall fam ki codes ix1 ix2 ty1 ty2.
 diff a b = diff' (deep a) (deep b)
 
 diff' ::
-     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Digestible1 ki, Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
@@ -227,7 +249,7 @@ apply ::
      , Lkup ix2 fam ~ ty2
      , IsNat ix1
      , IsNat ix2
-     , Eq1 ki
+     , Digestible1 ki, Eq1 ki
      , TestEquality ki
      )
   => ES ki codes '[ 'I ix1] '[ 'I ix2]
@@ -241,7 +263,7 @@ apply es a =
     Nothing -> Nothing
 
 apply' ::
-     (IsNat ix1, IsNat ix2, Eq1 ki)
+     (IsNat ix1, IsNat ix2, Digestible1 ki, Eq1 ki)
   => ES ki codes '[ 'I ix1] '[ 'I ix2]
   -> Fix ki codes ix1
   -> Maybe (Fix ki codes ix2)
@@ -357,11 +379,11 @@ getDiff (CC _ _ _ _ _ _ x _ _ _) = x
 --   however, we can't make a function   NP p xs -> ListPrf xs
 --   as the constructors of NP don't carry the List proof
 matchConstructor ::
-     NA ki (Fix ki codes) a
-  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (Fix ki codes) (Tyof codes c) -> r)
+     NA ki (AnnFix ki codes phi) a
+  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
   -> r
 matchConstructor (NA_K k) f = f (ConstrK k) Nil NP0
-matchConstructor (NA_I (Fix rep)) f =
+matchConstructor (NA_I (AnnFix _ rep)) f =
   case sop rep of
     Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
 
@@ -369,42 +391,67 @@ matchConstructor (NA_I (Fix rep)) f =
 -- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
 -- TODO: ask victor
 diff'' ::
-     (Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+     (Digestible1 ki, Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> EST ki codes '[ 'I ix1] '[ 'I ix2]
 diff'' x y =
-  let x' = NA_I x
-      y' = NA_I y
+  let x' = NA_I (Digest.auth x)
+      y' = NA_I (Digest.auth y)
    in diffA x' y'
 
 diffA ::
-     (Eq1 ki, TestEquality ki)
-  => NA ki (Fix ki codes) x
-  -> NA ki (Fix ki codes) y
+     (Digestible1 ki, Eq1 ki, TestEquality ki)
+  => NA ki (AnnFix ki codes (Const Digest)) x
+  -> NA ki (AnnFix ki codes (Const Digest)) y
   -> EST ki codes '[ x] '[ y]
 diffA a b = diffPoA (a :* NP0) (b :* NP0)
 
 diffPoA ::
-     (Eq1 ki, TestEquality ki)
-  => PoA ki (Fix ki codes) '[ x]
-  -> PoA ki (Fix ki codes) '[ y]
+     (Digestible1 ki, Eq1 ki, TestEquality ki)
+  => PoA ki (AnnFix ki codes (Const Digest)) '[ x]
+  -> PoA ki (AnnFix ki codes (Const Digest)) '[ y]
   -> EST ki codes '[ x] '[ y]
 diffPoA = diffT
 
 diffT ::
-     forall xs ys ki codes. (Eq1 ki, TestEquality ki, L2 xs ys)
-  => PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
+     forall xs ys ki codes. (Digestible1 ki, Eq1 ki, TestEquality ki, L2 xs ys)
+  => PoA ki (AnnFix ki codes (Const Digest) ) xs
+  -> PoA ki (AnnFix ki codes (Const Digest) ) ys
   -> EST ki codes xs ys
 diffT = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys)
 
+cpyTreeT
+  :: (Eq1 ki, TestEquality ki)
+  => NA ki (AnnFix ki codes (Const Digest)) a
+  -> EST ki codes '[ a ] '[ a ]
+cpyTreeT x = cpyTreeT' (Cons Nil) (x :* NP0)
+
+cpyTreeT'
+  :: (Eq1 ki, TestEquality ki)
+  => ListPrf xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> EST ki codes xs xs
+cpyTreeT' Nil NP0 = NN ES0
+cpyTreeT' (Cons isxs) (x :* xs) = 
+  matchConstructor x $ \c ispoa poa ->
+    let
+      c' = cpyTreeT' (appendIsListLemma ispoa isxs) (appendNP poa xs)
+    in
+      cc 
+        isxs ispoa isxs ispoa c c (cpy isxs isxs ispoa 0 c (getDiff c')) 
+        -- TODO faster version of extendi that only considers cpy 
+        -- and thus does not call bestDiffT
+        (extendi ispoa isxs c c')
+        (extendd ispoa isxs c c')
+        c'
+
 diffT' ::
-     (Eq1 ki, TestEquality ki)
+     (Digestible1 ki, Eq1 ki, TestEquality ki)
   => ListPrf xs
   -> ListPrf ys
-  -> PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
+  -> PoA ki (AnnFix ki codes (Const Digest)) xs
+  -> PoA ki (AnnFix ki codes (Const Digest)) ys
   -> EST ki codes xs ys
 diffT' Nil Nil NP0 NP0 = NN ES0
 diffT' (Cons isxs) Nil (x :* xs) NP0 =
@@ -419,28 +466,33 @@ diffT' Nil (Cons isys) NP0 (y :* ys) =
         i' = getDiff i 
      in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
-  matchConstructor x $ \cx isxs' xs' ->
-    matchConstructor y $ \cy isys' ys' ->
-      let i = extendi isxs' isxs cx c
-          d = extendd isys' isys cy c
-          -- NOTE, c is shared to calculate i and d!
-          c =
-            diffT'
-              (appendIsListLemma isxs' isxs)
-              (appendIsListLemma isys' isys)
-              (appendNP xs' xs)
-              (appendNP ys' ys)
-       in cc
-            isxs
-            isxs'
-            isys
-            isys'
-            cx
-            cy
-            (bestDiffT cx cy isxs isxs' isys isys' i d c)
-            i
-            d
-            c
+  case (hashEq x y, xs, ys) of
+    -- if two subtrees are equal, we just copy it directly
+    (Just Refl, NP0, NP0) ->
+      cpyTreeT x
+    _ -> 
+      matchConstructor x $ \cx isxs' xs' ->
+        matchConstructor y $ \cy isys' ys' ->
+          let i = extendi isxs' isxs cx c
+              d = extendd isys' isys cy c
+              -- NOTE, c is shared to calculate i and d!
+              c =
+                diffT'
+                  (appendIsListLemma isxs' isxs)
+                  (appendIsListLemma isys' isys)
+                  (appendNP xs' xs)
+                  (appendNP ys' ys)
+           in cc
+                isxs
+                isxs'
+                isys
+                isys'
+                cx
+                cy
+                (bestDiffT cx cy isxs isxs' isys isys' i d c)
+                i
+                d
+                c
 
 extendd ::
      (Eq1 ki, TestEquality ki)
