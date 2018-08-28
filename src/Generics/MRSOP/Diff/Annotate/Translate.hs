@@ -39,11 +39,14 @@ import Unsafe.Coerce (unsafeCoerce)
 --   One option would be to fall back to the diff algorithm that enumerates
 --   all possibilities and choose the one with the least cost.
 stiff ::
-     (TestEquality ki, IsNat ix)
+     (TestEquality ki, IsNat ix, IsNat iy)
   => Fix ki codes ix
-  -> Fix ki codes ix
-  -> Almu ki codes ix
-stiff (Fix x) (Fix y) = Spn (stiffS x y)
+  -> Fix ki codes iy
+  -> Almu ki codes ix iy
+stiff (Fix x) (Fix y) = undefined
+  {- case (sop x, sop y) of
+    (Tag c1 xs, Tag c2 ys) -> 
+      Del c1 (DH _ xs) -- (stiffS x y) -}
 
 stiffS ::
      TestEquality ki
@@ -218,7 +221,7 @@ data CtxInsDel
   | CtxDel
   deriving Show
 
-diffCtx ::
+{-diffCtx ::
      forall ki ix codes xs. (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
   => CtxInsDel
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
@@ -257,29 +260,35 @@ diffCtx cid x xs
                   
       drop' n (y :* ys) = T (forgetAnn' y) (drop' (n - 1) ys)
    in drop' maxIdx xs
+-}
 
 extractNat :: forall ki phi n. NA ki phi (I n) -> Integer
 extractNat (NA_I _) = getNat (Proxy :: Proxy n)
 
+diffInsCtx
+  :: AnnFix ki codes (Const (Sum Int, First ann)) ix
+  -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  -> InsCtx ki codes ix xs
+diffInsCtx = undefined
 diffIns ::
      (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
-  -> Almu ki codes ix
+  -> Almu ki codes ix ix
 diffIns x rep =
   case sop rep of
     -- Euh what happens if xs is NP0 here, i.e. a leaf
-    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
-    Tag c xs -> Ins c (diffCtx CtxIns x xs)
+    Tag c NP0 -> undefined -- stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
+    Tag c xs -> Ins c (diffInsCtx x xs)
 
 diffDel ::
      (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
   => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> Almu ki codes ix
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) iy
+  -> Almu ki codes ix iy
 diffDel rep x =
   case sop rep of
-    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
+    Tag c NP0 -> undefined -- stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
     Tag c xs -> Del c (diffCtx CtxDel x xs)
 
 getAnn' :: (Const (Sum Int, First Ann) ix) -> Maybe Ann
@@ -292,8 +301,8 @@ hasCopies (AnnFix (Const (Sum x, _)) _) = x > 0
 diffAlmu ::
      (Show1 ki, Eq1 ki, IsNat ix, TestEquality ki)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> Almu ki codes ix
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) iy
+  -> Almu ki codes ix iy
 diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
   case (fromJust $ getAnn' $ ann1, fromJust $ getAnn' $ ann2) of
     (Copy, Copy) -> Spn (diffSpine rep1 rep2)

@@ -12,21 +12,45 @@ import Control.Monad (guard, (<=<))
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
 
-data Ctx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
-  H :: Almu ki codes ix -> PoA ki (Fix ki codes) xs -> Ctx ki codes ix ('I ix ': xs)
-  T
-    :: NA ki (Fix ki codes) a -> Ctx ki codes ix xs -> Ctx ki codes ix (a ': xs)
+type Almu' ki codes ix iy = Almu ki codes iy ix
+type Almu'' ki codes ix = Almu ki codes ix ix
 
-data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> * where
-  Spn :: (IsNat ix) => Spine ki codes (Lkup ix codes) -> Almu ki codes ix
+
+data InsCtx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
+  IH
+    :: IsNat iy
+    => Almu ki codes ix iy
+    -> PoA ki (Fix ki codes) xs
+    -> InsCtx ki codes ix ('I iy ': xs)
+  IT
+    :: NA ki (Fix ki codes) a
+    -> InsCtx ki codes ix xs
+    -> InsCtx ki codes ix (a ': xs)
+    
+data DelCtx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
+  DH
+    :: Almu ki codes iy ix
+    -> PoA ki (Fix ki codes) xs
+    -> DelCtx ki codes ix ('I iy ': xs)
+  DT
+    :: NA ki (Fix ki codes) a
+    -> DelCtx ki codes ix xs
+    -> DelCtx ki codes ix (a ': xs)
+
+data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
+  Spn
+    :: (IsNat ix) 
+    => Spine ki codes (Lkup ix codes)
+    -> Almu ki codes ix ix
   Ins
-    :: Constr (Lkup ix codes) c
-    -> Ctx ki codes ix (Lkup c (Lkup ix codes))
-    -> Almu ki codes ix
+    :: Constr (Lkup iy codes) c
+    -> InsCtx ki codes ix (Lkup c (Lkup iy codes))
+    -> Almu ki codes ix iy
   Del
-    :: Constr (Lkup ix codes) c
-    -> Ctx ki codes ix (Lkup c (Lkup ix codes))
-    -> Almu ki codes ix
+    :: IsNat iy
+    => Constr (Lkup ix codes) c
+    -> DelCtx ki codes iy (Lkup c (Lkup ix codes))
+    -> Almu ki codes ix iy
 
 
 data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) (sum :: [[Atom kon]]) :: * where
@@ -108,7 +132,7 @@ data TrivialK (ki :: kon -> *) :: kon -> * where
 
 data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki codes ('K kon)
-  AtFix :: IsNat ix => Almu ki codes ix -> At ki codes ('I ix)
+  AtFix :: (IsNat ix) => Almu ki codes ix ix -> At ki codes ('I ix)
 
 
 
@@ -158,30 +182,26 @@ applySpine spn r =
 -- Instead of returning  Nothing here, perhaps we want something better
 -- like actually telling why it failed in the future.
 
+insCtx :: (IsNat ix, Eq1 ki) => InsCtx ki codes ix xs  -> Fix ki codes ix -> Maybe (PoA ki (Fix ki codes) xs)
+insCtx (IH x x2) x1 = (\x -> NA_I x :* x2) <$> applyAlmu x x1
+insCtx (IT x x2) x1 = (x :*) <$> insCtx x2 x1
 
-inCtx ::
-     (Eq1 ki, IsNat ix)
-  => Ctx ki codes ix xs
-  -> Fix ki codes ix
-  -> Maybe (PoA ki (Fix ki codes) xs)
-inCtx (H spu atmus) x = (:* atmus) . NA_I <$> applyAlmu spu x
-inCtx (T atmu al) x = (atmu :*) <$> inCtx al x
 
-matchCtx ::
+delCtx ::
      (Eq1 ki, IsNat ix)
-  => Ctx ki codes ix xs
+  => DelCtx ki codes ix xs
   -> PoA ki (Fix ki codes) xs
   -> Maybe (Fix ki codes ix)
-matchCtx (H spu atmus) (NA_I x :* p) = applyAlmu spu x
-matchCtx (T atmu al) (at :* p) = matchCtx al p
+delCtx (DH spu atmus) (NA_I x :* p) = applyAlmu spu x
+delCtx (DT atmu al) (at :* p) = delCtx al p
 
 applyAlmu ::
      (IsNat ix, Eq1 ki)
-  => Almu ki codes ix
+  => Almu ki codes ix iy
   -> Fix ki codes ix
-  -> Maybe (Fix ki codes ix)
+  -> Maybe (Fix ki codes iy)
 applyAlmu almu f@(Fix x) =
   case almu of
     Spn spine -> Fix <$> applySpine spine x
-    Ins c ctx -> Fix . inj c <$> inCtx ctx f
-    Del c ctx -> matchCtx ctx <=< match c $ x
+    Ins c ctx -> Fix . inj c <$> insCtx ctx f
+    Del c ctx -> delCtx ctx <=< match c $ x

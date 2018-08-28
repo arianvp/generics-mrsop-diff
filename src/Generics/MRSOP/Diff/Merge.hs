@@ -34,17 +34,17 @@ data MergeResultAlmu ki codes ix :: * where
 -- But for now, we just give a Nothing, so that we have
 -- something that works :)
 
-
+{-
 makeIdAt :: NA ki (Fix ki codes) a -> At ki codes a
 makeIdAt (NA_I _) = AtFix (Spn Scp)
 makeIdAt (NA_K k) = AtSet (Trivial k k)
 
 mergeCtxAlmu ::
      IsNat ix
-  => Ctx ki codes ix xs
-  -> Almu ki codes ix
+  => InsCtx ki codes ix xs
+  -> Almu ki codes ix iy
   -> Maybe (NP (At ki codes) xs)
-mergeCtxAlmu ctx almu =
+mergeCtxAlmu ctx almu = undefined
   case ctx of
     H almu' rest -> do
       x <- mergeAlmu almu almu'
@@ -53,7 +53,6 @@ mergeCtxAlmu ctx almu =
     T a ctx' -> do
       xs <- mergeCtxAlmu ctx' almu
       pure $ makeIdAt a :* xs
-
 
 mergeAlmuCtx :: IsNat ix =>
      Almu ki codes ix -> Ctx ki codes ix xs -> Maybe (Ctx ki codes ix xs)
@@ -171,11 +170,10 @@ mergeCtxAt (T a' ctx) (AtFix a :* as) = mergeCtxAt ctx as
 mergeCtxAt (T a' ctx) (AtSet a :* as) = mergeCtxAt ctx as
 
 
-mergeAlmu :: IsNat ix => Almu ki codes ix -> Almu ki codes ix -> Maybe (Almu ki codes ix)
+mergeAlmu :: IsNat ix => Almu ki codes ix iy -> Almu ki codes ix ix -> Maybe (Almu ki codes ix ix)
 mergeAlmu (Ins _ _) (Ins _ _) = Nothing
 mergeAlmu (Ins c ctx) almu@(Spn _) = Spn . sCns c <$> mergeCtxAlmu ctx almu
-mergeAlmu (Ins c1 ctx1) almu@(Del _ _) =
-  Spn . sCns c1 <$> mergeCtxAlmu ctx1 almu
+mergeAlmu (Ins c1 ctx1) almu@(Del _ _) = Spn . sCns c1 <$> mergeCtxAlmu ctx1 almu -- Spn . sCns c1 <$> mergeCtxAlmu ctx1 almu
 mergeAlmu almu@(Spn _) (Ins c ctx) = Ins c <$> mergeAlmuCtx almu ctx
 mergeAlmu (Spn s1) (Spn s2) = Spn <$> mergeSpine s1 s2
 mergeAlmu (Spn Scp) x@(Del _ _) = Just x
@@ -195,3 +193,4 @@ mergeAlmu (Del c1 s1) (Spn (Schg c2 c3 al)) =
     _ -> Nothing
 mergeAlmu x@(Del _ _) (Ins c2 s2) = Ins c2 <$> mergeAlmuCtx x s2
 mergeAlmu (Del _ _) (Del _ _) = Nothing
+-}
