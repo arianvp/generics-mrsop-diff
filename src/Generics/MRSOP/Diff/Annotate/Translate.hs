@@ -265,31 +265,37 @@ diffCtx cid x xs
 extractNat :: forall ki phi n. NA ki phi (I n) -> Integer
 extractNat (NA_I _) = getNat (Proxy :: Proxy n)
 
+diffDelCtx 
+  :: AnnFix ki codes (Const (Sum Int, First Ann)) ix
+  -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  -> DelCtx ki codes ix xs
+diffDelCtx = undefined
+
 diffInsCtx
-  :: AnnFix ki codes (Const (Sum Int, First ann)) ix
+  :: AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
   -> InsCtx ki codes ix xs
 diffInsCtx = undefined
+
 diffIns ::
-     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
+     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix, IsNat iy)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
-  -> Almu ki codes ix ix
+  -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup iy codes)
+  -> Almu ki codes ix iy
 diffIns x rep =
   case sop rep of
-    -- Euh what happens if xs is NP0 here, i.e. a leaf
-    Tag c NP0 -> undefined -- stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
+    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
     Tag c xs -> Ins c (diffInsCtx x xs)
 
 diffDel ::
-     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
+     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix, IsNat iy)
   => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
   -> AnnFix ki codes (Const (Sum Int, First Ann)) iy
   -> Almu ki codes ix iy
 diffDel rep x =
   case sop rep of
-    Tag c NP0 -> undefined -- stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
-    Tag c xs -> Del c (diffCtx CtxDel x xs)
+    Tag c NP0 -> stiff (Fix (mapRep forgetAnn rep)) (forgetAnn x)
+    Tag c xs ->  Del c (diffDelCtx x xs)
 
 getAnn' :: (Const (Sum Int, First Ann) ix) -> Maybe Ann
 getAnn' (Const (_, First x)) = x
@@ -299,13 +305,16 @@ hasCopies (AnnFix (Const (Sum x, _)) _) = x > 0
 
 -- | Takes two annotated trees, and produces a patch
 diffAlmu ::
-     (Show1 ki, Eq1 ki, IsNat ix, TestEquality ki)
+     (Show1 ki, Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> AnnFix ki codes (Const (Sum Int, First Ann)) iy
   -> Almu ki codes ix iy
 diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
   case (fromJust $ getAnn' $ ann1, fromJust $ getAnn' $ ann2) of
-    (Copy, Copy) -> Spn (diffSpine rep1 rep2)
+    (Copy, Copy) ->
+      case testEquality (sNatFixIdx x) (sNatFixIdx y) of
+        Just Refl -> Spn (diffSpine rep1 rep2)
+        Nothing -> error "should never happen"
     (Copy, Modify) -> 
       if hasCopies y
         then diffIns x rep2

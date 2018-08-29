@@ -12,30 +12,23 @@ import Control.Monad (guard, (<=<))
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
 
-type Almu' ki codes ix iy = Almu ki codes iy ix
-type Almu'' ki codes ix = Almu ki codes ix ix
+newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
 
+type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
+type DelCtx ki codes ix xs = Ctx ki codes (AlmuMin ki codes) ix xs
 
-data InsCtx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
-  IH
-    :: IsNat iy
-    => Almu ki codes ix iy
+data Ctx (ki :: kon -> *)
+         (codes :: [[[Atom kon]]]) 
+         (p :: Nat -> Nat -> *)
+         (ix :: Nat) :: [Atom kon] -> * where
+  H :: IsNat iy
+    => p ix iy
     -> PoA ki (Fix ki codes) xs
-    -> InsCtx ki codes ix ('I iy ': xs)
-  IT
-    :: NA ki (Fix ki codes) a
-    -> InsCtx ki codes ix xs
-    -> InsCtx ki codes ix (a ': xs)
+    -> Ctx ki codes p ix ('I iy ': xs)
+  T :: NA ki (Fix ki codes) a
+    -> Ctx ki codes p ix xs
+    -> Ctx ki codes p ix (a ': xs)
     
-data DelCtx (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: [Atom kon] -> * where
-  DH
-    :: Almu ki codes iy ix
-    -> PoA ki (Fix ki codes) xs
-    -> DelCtx ki codes ix ('I iy ': xs)
-  DT
-    :: NA ki (Fix ki codes) a
-    -> DelCtx ki codes ix xs
-    -> DelCtx ki codes ix (a ': xs)
 
 data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
   Spn
@@ -182,18 +175,22 @@ applySpine spn r =
 -- Instead of returning  Nothing here, perhaps we want something better
 -- like actually telling why it failed in the future.
 
-insCtx :: (IsNat ix, Eq1 ki) => InsCtx ki codes ix xs  -> Fix ki codes ix -> Maybe (PoA ki (Fix ki codes) xs)
-insCtx (IH x x2) x1 = (\x -> NA_I x :* x2) <$> applyAlmu x x1
-insCtx (IT x x2) x1 = (x :*) <$> insCtx x2 x1
+insCtx
+  :: (IsNat ix, Eq1 ki)
+  => InsCtx ki codes ix xs
+  -> Fix ki codes ix
+  -> Maybe (PoA ki (Fix ki codes) xs)
+insCtx (H x x2) x1 = (\x -> NA_I x :* x2) <$> applyAlmu x x1
+insCtx (T x x2) x1 = (x :*) <$> insCtx x2 x1
 
 
-delCtx ::
-     (Eq1 ki, IsNat ix)
+delCtx
+  :: (Eq1 ki, IsNat ix)
   => DelCtx ki codes ix xs
   -> PoA ki (Fix ki codes) xs
   -> Maybe (Fix ki codes ix)
-delCtx (DH spu atmus) (NA_I x :* p) = applyAlmu spu x
-delCtx (DT atmu al) (at :* p) = delCtx al p
+delCtx (H spu atmus) (NA_I x :* p) = applyAlmu (unAlmuMin spu) x
+delCtx (T atmu al) (at :* p) = delCtx al p
 
 applyAlmu ::
      (IsNat ix, Eq1 ki)

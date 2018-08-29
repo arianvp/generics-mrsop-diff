@@ -58,7 +58,7 @@ makeEdgePP (n1, p1) (n2, p2) =
     n2
     [TailPort (LabelledPort p1 Nothing), HeadPort (LabelledPort p2 Nothing)]
 
-
+{- TODO: Adapt to InsCtx and DelCtx
 npHoleToCells :: (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes) => String -> NodeId -> PortName -> Ctx ki codes ix xs -> DotSM [Cell]
 npHoleToCells constrName self port h =
   let strLabel p x = LabelCell p (Text [Str (pack x)])
@@ -74,7 +74,6 @@ npHoleToCells constrName self port h =
           let na' = elimNA kToCell recToCell na
           l <- npHoleToCells constrName self port h'
           pure (na' : l)
-
 
 
 visualizeCtx ::
@@ -99,16 +98,17 @@ visualizeCtx color c ctx = do
           [Cells (LabelCell [] (Text [Str (pack constrName)]) : cells)]
   lift $ node self [shape PlainText, toLabel table]
   pure self
+-}
 
 visualizeAlmu ::
      forall ix ki fam codes. (Show1 ki, IsNat ix, HasDatatypeInfo ki fam codes)
-  => Almu ki codes ix
+  => Almu ki codes ix ix
   -> DotSM NodeId
 visualizeAlmu almu = 
   case almu of
     Spn spine -> visualizeSpine (Proxy :: Proxy ix) spine
-    Ins c ctx -> visualizeCtx Green c ctx
-    Del c ctx -> visualizeCtx Red c ctx
+    Ins c ctx -> undefined -- visualizeCtx Green c ctx
+    Del c ctx -> undefined -- visualizeCtx Red c ctx
 
 
 visualizeSpine ::
