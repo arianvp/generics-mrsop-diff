@@ -57,7 +57,7 @@ b :: Almu Singl CodesStmt Expr' Stmt'
 b = Ins CZ (T (NA_K (SString "x")) (H a NP0))
 
 c :: Almu Singl CodesStmt Stmt' Stmt'
-c = Del CZ (T (NA_K (SString "y")) (H (AlmuMin b) NP0))
+c = Del CZ (T (NA_K (SString "x")) (H (AlmuMin b) NP0))
 
 
 
@@ -68,7 +68,7 @@ b' :: Almu Singl CodesStmt Stmt' Expr'
 b' = Del CZ (T (NA_K (SString "x")) (H (AlmuMin a') NP0))
 
 c' :: Almu Singl CodesStmt Stmt' Stmt'
-c' = Ins CZ (T (NA_K (SString "y")) (H b' NP0))
+c' = Ins CZ (T (NA_K (SString "x")) (H b' NP0))
 
 merged :: Almu Singl CodesStmt Stmt' Stmt'
 merged = fromJust $ mergeAlmu c c'

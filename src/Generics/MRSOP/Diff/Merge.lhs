@@ -192,9 +192,10 @@ We want the following diagram:
 mergeAlmu
   :: forall ki codes ix iy
    . IsNat ix
+  => IsNat iy
   => Almu ki codes ix ix
-  -> Almu ki codes ix ix
-  -> Maybe (Almu ki codes iy ix)
+  -> Almu ki codes ix iy
+  -> Maybe (Almu ki codes ix iy)
 \end{code}
 
 Because we pattern match in |Spn|, we catually learn 
@@ -263,35 +264,45 @@ ix|c1|a|b|*|d|    |                iy|c2|e|f|g|*|        |
                       (merge x y) (Almu :: iw iw)   /
 
 \begin{code}
-mergeAlmu (Ins c1 ctx1) y@(Del c2 ctx2) =
-  Spn . sCns c1 <$> mergeCtxAlmu ctx1 y
+mergeAlmu x@(Ins c1 ctx1) (Del c2 ctx2) = Nothing
+  {-
   where
+    mergeCtxAlmu
+      :: DelCtx ki codes iy xs
+      -> AlmuMin ki codes ix ix
+      -> Maybe (DelCtx ki codes iy xs)
+    mergeCtxAlmu (H x@(AlmuMin almu') xs) y@(AlmuMin almu) = do
+      Refl <- testEquality (sNatFixIdx x) (sNatFixIdx y)
+      -- If they're equal we can actually do the sCns trick
+      almu'' <- mergeAlmu almu almu'
+      pure $ H (AlmuMin almu'') xs
+    mergeAlmuCtx almu (T a ctx) = do
+      _ <$>  _ <*> mergeAlmuCtx almu ctx
     mergeCtxAlmu
       :: InsCtx ki codes ix  xs
       -> Almu ki codes ix iy
       -> Maybe (NP (At ki codes) xs)
     mergeCtxAlmu (H almu' xs) almu = do
       -- THE IMPORTANT BIT
-      Refl <- testEquality (sNatFixIdx almu') (sNatFixIdx almu)
       almu'' <- mergeAlmu almu' almu
       pure $ AtFix almu'' :* (mapNP makeIdAt xs)
     mergeCtxAlmu (T a ctx) almu =  do
       let at = makeIdAt a
       xs <- mergeCtxAlmu ctx almu
       pure $ at :* xs
+    -}
 \end{code}
 
 \begin{code}
+-- Delete followed by an Insert is perfectly fine
 mergeAlmu x@(Del c1 ctx1) (Ins c2 ctx2) =
   Ins c2 <$> mergeAlmuCtx x ctx2
   where
     mergeAlmuCtx
-      :: Almu ki codes ix iy
+      :: Almu ki codes ix ix
       -> InsCtx ki codes ix xs
-      -> Maybe (InsCtx ki codes iy xs)
+      -> Maybe (InsCtx ki codes ix xs)
     mergeAlmuCtx almu (H almu' xs) = do
-      -- THE IMPORTANT BIT
-      Refl <- testEquality (sNatFixIdx almu) (sNatFixIdx almu')
       almu'' <- mergeAlmu almu almu'
       pure $ H almu'' xs
     mergeAlmuCtx almu (T a ctx) = T a  <$> mergeAlmuCtx almu ctx
