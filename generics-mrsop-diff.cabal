@@ -60,13 +60,14 @@ library
     Generics.MRSOP.Hyper
     Examples.Lua
     Examples.TwoThreetree
+    Examples.MergePlayground
  
   other-modules:
     -- Examples.C
     -- Examples.Expr
     -- Examples.Lua.Diffs
   -- LANGUAGE extensions used by modules in this package.
-  other-extensions: 
+  default-extensions: 
     MultiParamTypeClasses,
     FlexibleInstances,
     FlexibleContexts,
@@ -76,6 +77,7 @@ library
     TypeOperators,
     DataKinds,
     PolyKinds,
+    PatternSynonyms,
     GADTs,
     TypeApplications,
     ConstraintKinds,

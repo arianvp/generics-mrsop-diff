@@ -17,6 +17,28 @@ newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
 type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
 type DelCtx ki codes ix xs = Ctx ki codes (AlmuMin ki codes) ix xs
 
+data InsOrDel (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: (Nat -> Nat -> *) -> * where
+  CtxIns :: InsOrDel ki codes (Almu ki codes)
+  CtxDel :: InsOrDel ki codes (AlmuMin ki codes)
+  
+
+
+-- Say we want a stiff diff between
+--
+--   x = Two (Two a b) (Three x y z)
+--
+--   y = Three (Two a b) (Three x y z) (Three u w v)
+
+---  Del (Two * (Three x y z))
+--            |
+--            v
+--            Del (Two * a)
+--                     |
+--                     v
+--                     Spn (stiffS)
+--
+
+
 data Ctx (ki :: kon -> *)
          (codes :: [[[Atom kon]]]) 
          (p :: Nat -> Nat -> *)
@@ -31,13 +53,17 @@ data Ctx (ki :: kon -> *)
     
 
 data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
+  -- | When stuff can't be figured out, we just delete subtree and insert subtree.  Stupid diff is stupid
+  -- This might not be the best approach right now, but we can always
+  -- later look for an embedding  Fix i -> Fix j -> Almu i j
+  Stiff ::  Fix ki codes ix -> Fix ki codes iy -> Almu ki codes ix yi
   Spn
     :: (IsNat ix) 
     => Spine ki codes (Lkup ix codes)
     -> Almu ki codes ix ix
   Ins
     :: Constr (Lkup iy codes) c
-    -> InsCtx ki codes ix (Lkup c (Lkup iy codes))
+    -> InsCtx ki codes ix (Lkup c (Lkup iy codes)) -- its an ix with an iy typed-hoed
     -> Almu ki codes ix iy
   Del
     :: IsNat iy
