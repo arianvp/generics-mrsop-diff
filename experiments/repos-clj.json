@@ -1,0 +1,417 @@
+[
+  {
+    "name": "leiningen",
+    "url": "https://github.com/technomancy/leiningen",
+    "contributors": 315
+  },
+  {
+    "name": "riemann",
+    "url": "https://github.com/riemann/riemann",
+    "contributors": 114
+  },
+  {
+    "name": "clj-http",
+    "url": "https://github.com/dakrone/clj-http",
+    "contributors": 109
+  },
+  {
+    "name": "ring",
+    "url": "https://github.com/ring-clojure/ring",
+    "contributors": 99
+  },
+  {
+    "name": "frontend",
+    "url": "https://github.com/circleci/frontend",
+    "contributors": 92
+  },
+  {
+    "name": "lein-figwheel",
+    "url": "https://github.com/bhauman/lein-figwheel",
+    "contributors": 86
+  },
+  {
+    "name": "incanter",
+    "url": "https://github.com/incanter/incanter",
+    "contributors": 82
+  },
+  {
+    "name": "boot",
+    "url": "https://github.com/boot-clj/boot",
+    "contributors": 66
+  },
+  {
+    "name": "duckling_old",
+    "url": "https://github.com/wit-ai/duckling_old",
+    "contributors": 65
+  },
+  {
+    "name": "aleph",
+    "url": "https://github.com/ztellman/aleph",
+    "contributors": 62
+  },
+  {
+    "name": "pedestal",
+    "url": "https://github.com/pedestal/pedestal",
+    "contributors": 59
+  },
+  {
+    "name": "overtone",
+    "url": "https://github.com/overtone/overtone",
+    "contributors": 55
+  },
+  {
+    "name": "kibit",
+    "url": "https://github.com/jonase/kibit",
+    "contributors": 47
+  },
+  {
+    "name": "onyx",
+    "url": "https://github.com/onyx-platform/onyx",
+    "contributors": 46
+  },
+  {
+    "name": "cascalog",
+    "url": "https://github.com/nathanmarz/cascalog",
+    "contributors": 43
+  },
+  {
+    "name": "liberator",
+    "url": "https://github.com/clojure-liberator/liberator",
+    "contributors": 42
+  },
+  {
+    "name": "compojure-api",
+    "url": "https://github.com/metosin/compojure-api",
+    "contributors": 36
+  },
+  {
+    "name": "Midje",
+    "url": "https://github.com/marick/Midje",
+    "contributors": 35
+  },
+  {
+    "name": "quil",
+    "url": "https://github.com/quil/quil",
+    "contributors": 34
+  },
+  {
+    "name": "friend",
+    "url": "https://github.com/cemerick/friend",
+    "contributors": 33
+  },
+  {
+    "name": "compojure",
+    "url": "https://github.com/weavejester/compojure",
+    "contributors": 33
+  },
+  {
+    "name": "devcards",
+    "url": "https://github.com/bhauman/devcards",
+    "contributors": 32
+  },
+  {
+    "name": "datascript",
+    "url": "https://github.com/tonsky/datascript",
+    "contributors": 32
+  },
+  {
+    "name": "honeysql",
+    "url": "https://github.com/jkk/honeysql",
+    "contributors": 31
+  },
+  {
+    "name": "reagent",
+    "url": "https://github.com/reagent-project/reagent",
+    "contributors": 31
+  },
+  {
+    "name": "cheshire",
+    "url": "https://github.com/dakrone/cheshire",
+    "contributors": 30
+  },
+  {
+    "name": "seesaw",
+    "url": "https://github.com/daveray/seesaw",
+    "contributors": 30
+  },
+  {
+    "name": "pallet",
+    "url": "https://github.com/pallet/pallet",
+    "contributors": 29
+  },
+  {
+    "name": "dommy",
+    "url": "https://github.com/plumatic/dommy",
+    "contributors": 28
+  },
+  {
+    "name": "test.check",
+    "url": "https://github.com/clojure/test.check",
+    "contributors": 28
+  },
+  {
+    "name": "cortex",
+    "url": "https://github.com/thinktopic/cortex",
+    "contributors": 26
+  },
+  {
+    "name": "hiccup",
+    "url": "https://github.com/weavejester/hiccup",
+    "contributors": 26
+  },
+  {
+    "name": "lt-cljs-tutorial",
+    "url": "https://github.com/swannodette/lt-cljs-tutorial",
+    "contributors": 25
+  },
+  {
+    "name": "hoplon",
+    "url": "https://github.com/hoplon/hoplon",
+    "contributors": 24
+  },
+  {
+    "name": "plumbing",
+    "url": "https://github.com/plumatic/plumbing",
+    "contributors": 24
+  },
+  {
+    "name": "lacinia",
+    "url": "https://github.com/walmartlabs/lacinia",
+    "contributors": 23
+  },
+  {
+    "name": "core.logic",
+    "url": "https://github.com/clojure/core.logic",
+    "contributors": 23
+  },
+  {
+    "name": "clara-rules",
+    "url": "https://github.com/cerner/clara-rules",
+    "contributors": 22
+  },
+  {
+    "name": "alda",
+    "url": "https://github.com/alda-lang/alda",
+    "contributors": 22
+  },
+  {
+    "name": "lamina",
+    "url": "https://github.com/ztellman/lamina",
+    "contributors": 21
+  },
+  {
+    "name": "4clojure",
+    "url": "https://github.com/4clojure/4clojure",
+    "contributors": 21
+  },
+  {
+    "name": "sente",
+    "url": "https://github.com/ptaoussanis/sente",
+    "contributors": 21
+  },
+  {
+    "name": "enlive",
+    "url": "https://github.com/cgrand/enlive",
+    "contributors": 21
+  },
+  {
+    "name": "instaparse",
+    "url": "https://github.com/Engelberg/instaparse",
+    "contributors": 21
+  },
+  {
+    "name": "mount",
+    "url": "https://github.com/tolitius/mount",
+    "contributors": 20
+  },
+  {
+    "name": "klipse",
+    "url": "https://github.com/viebel/klipse",
+    "contributors": 20
+  },
+  {
+    "name": "secretary",
+    "url": "https://github.com/gf3/secretary",
+    "contributors": 19
+  },
+  {
+    "name": "mori",
+    "url": "https://github.com/swannodette/mori",
+    "contributors": 19
+  },
+  {
+    "name": "noir",
+    "url": "https://github.com/noir-clojure/noir",
+    "contributors": 18
+  },
+  {
+    "name": "pulsar",
+    "url": "https://github.com/puniverse/pulsar",
+    "contributors": 18
+  },
+  {
+    "name": "core.typed",
+    "url": "https://github.com/clojure/core.typed",
+    "contributors": 18
+  },
+  {
+    "name": "lumo",
+    "url": "https://github.com/anmonteiro/lumo",
+    "contributors": 18
+  },
+  {
+    "name": "core.async",
+    "url": "https://github.com/clojure/core.async",
+    "contributors": 18
+  },
+  {
+    "name": "yesql",
+    "url": "https://github.com/krisajenkins/yesql",
+    "contributors": 17
+  },
+  {
+    "name": "om",
+    "url": "https://github.com/omcljs/om",
+    "contributors": 17
+  },
+  {
+    "name": "eastwood",
+    "url": "https://github.com/jonase/eastwood",
+    "contributors": 16
+  },
+  {
+    "name": "specter",
+    "url": "https://github.com/nathanmarz/specter",
+    "contributors": 16
+  },
+  {
+    "name": "play-clj",
+    "url": "https://github.com/oakes/play-clj",
+    "contributors": 15
+  },
+  {
+    "name": "drake",
+    "url": "https://github.com/Factual/drake",
+    "contributors": 15
+  },
+  {
+    "name": "code-maat",
+    "url": "https://github.com/adamtornhill/code-maat",
+    "contributors": 14
+  },
+  {
+    "name": "garden",
+    "url": "https://github.com/noprompt/garden",
+    "contributors": 14
+  },
+  {
+    "name": "criterium",
+    "url": "https://github.com/hugoduncan/criterium",
+    "contributors": 13
+  },
+  {
+    "name": "hitchhiker-tree",
+    "url": "https://github.com/datacrypt-project/hitchhiker-tree",
+    "contributors": 13
+  },
+  {
+    "name": "ultra",
+    "url": "https://github.com/venantius/ultra",
+    "contributors": 13
+  },
+  {
+    "name": "icepick",
+    "url": "https://github.com/frankiesardo/icepick",
+    "contributors": 13
+  },
+  {
+    "name": "carmine",
+    "url": "https://github.com/ptaoussanis/carmine",
+    "contributors": 12
+  },
+  {
+    "name": "logic-tutorial",
+    "url": "https://github.com/swannodette/logic-tutorial",
+    "contributors": 12
+  },
+  {
+    "name": "Nightcode",
+    "url": "https://github.com/oakes/Nightcode",
+    "contributors": 12
+  },
+  {
+    "name": "environ",
+    "url": "https://github.com/weavejester/environ",
+    "contributors": 11
+  },
+  {
+    "name": "core.match",
+    "url": "https://github.com/clojure/core.match",
+    "contributors": 11
+  },
+  {
+    "name": "lux",
+    "url": "https://github.com/LuxLang/lux",
+    "contributors": 11
+  },
+  {
+    "name": "tesser",
+    "url": "https://github.com/aphyr/tesser",
+    "contributors": 9
+  },
+  {
+    "name": "Arcadia",
+    "url": "https://github.com/arcadia-unity/Arcadia",
+    "contributors": 8
+  },
+  {
+    "name": "auto-parcel",
+    "url": "https://github.com/frankiesardo/auto-parcel",
+    "contributors": 7
+  },
+  {
+    "name": "transit-format",
+    "url": "https://github.com/cognitect/transit-format",
+    "contributors": 7
+  },
+  {
+    "name": "cljs-devtools",
+    "url": "https://github.com/binaryage/cljs-devtools",
+    "contributors": 6
+  },
+  {
+    "name": "clojurec",
+    "url": "https://github.com/schani/clojurec",
+    "contributors": 6
+  },
+  {
+    "name": "closh",
+    "url": "https://github.com/dundalek/closh",
+    "contributors": 6
+  },
+  {
+    "name": "asciinema-player",
+    "url": "https://github.com/asciinema/asciinema-player",
+    "contributors": 4
+  },
+  {
+    "name": "markright",
+    "url": "https://github.com/dvcrn/markright",
+    "contributors": 4
+  },
+  {
+    "name": "frak",
+    "url": "https://github.com/noprompt/frak",
+    "contributors": 4
+  },
+  {
+    "name": "Nightlight",
+    "url": "https://github.com/oakes/Nightlight",
+    "contributors": 3
+  },
+  {
+    "name": "component",
+    "url": "https://github.com/stuartsierra/component",
+    "contributors": 1
+  }
+]
