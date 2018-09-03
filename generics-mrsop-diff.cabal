@@ -61,6 +61,8 @@ library
     Examples.Lua
     Examples.TwoThreetree
     Examples.MergePlayground
+    Language.Clojure.AST
+    Language.Clojure.Parser
  
   other-modules:
     -- Examples.C
@@ -94,7 +96,8 @@ library
                        hyper,
                        semigroupoids,
                        hs-digems,
-                       text
+                       text,
+                       parsec
   
   -- Directories containing source files.
   hs-source-dirs:      src

@@ -45,10 +45,11 @@ import qualified Options.Applicative
 import qualified System.FilePath
 
 import Examples.Lua (FamBlock)
+import Language.Clojure.AST (FamExpr)
+import qualified Language.Clojure.Parser
 import qualified Language.Lua.Parser
 
-data Language =
-  Lua
+data Language = Lua | Clj
   deriving (Eq)
 
 data Cmd
@@ -63,6 +64,7 @@ getLanguage :: FilePath -> Maybe Language
 getLanguage fp =
   case System.FilePath.takeExtension fp of
     ".lua" -> Just Lua
+    ".clj" -> Just Clj
     _ -> Nothing
 
 parserInfoCmd :: ParserInfo Cmd
@@ -98,6 +100,18 @@ parseCmd =
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
 
+printCLJAST :: FilePath -> IO ()
+printCLJAST fp = do
+  x <- Language.Clojure.Parser.parseFile fp
+  case x of
+    Left er -> fail (show er)
+    Right block ->
+      Text.putStrLn .
+      GraphViz.dotToText fp .
+      GraphViz.visualizeFix . 
+      AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra .
+      deep @FamExpr $
+      block
 printAST :: FilePath -> IO ()
 printAST fp = do
   x <- Language.Lua.Parser.parseFile fp
@@ -111,6 +125,30 @@ printAST fp = do
       deep @FamBlock $
       block
 
+diffClj :: V -> FilePath -> FilePath -> IO ()
+diffClj v fp1 fp2 = do
+  x <-
+    getCompose $ do
+      x <- Compose . Language.Clojure.Parser.parseFile $ fp1
+      y <- Compose . Language.Clojure.Parser.parseFile $ fp2
+      pure (deep @FamExpr x, deep @FamExpr y)
+  case x of
+    Left er -> fail (show er)
+    Right (left, right) ->
+      case v of
+        N -> do
+          let d = GDiff.diff' left right
+          print d
+          {-let l = Annotate.annSrc left d
+          let r = Annotate.annDest right d
+          let s = Translate.diffAlmu 
+                    (Translate.countCopies l)
+                    (Translate.countCopies r)
+          let x = GraphViz.visualizeAlmu s
+          Text.putStrLn . GraphViz.dotToText "yo" $ x
+          -}
+        O -> print (GDiffOld.diff' left right)
+             
 diffLua :: V -> FilePath -> FilePath -> IO ()
 diffLua v fp1 fp2 = do
   x <-
@@ -132,6 +170,7 @@ command x =
     AST file ->
       case getLanguage file of
         Just Lua -> printAST file
+        Just Clj -> printCLJAST file
         Nothing -> fail "Not a supported language"
     Diff v left right -> do
       let lang = do
@@ -141,6 +180,7 @@ command x =
             pure lleft
       case lang of
         Just Lua -> diffLua v left right
+        Just Clj -> diffClj v left right
         Nothing -> fail "Languages differ or unsupported"
     Merge origin left right -> do
       let lang = do

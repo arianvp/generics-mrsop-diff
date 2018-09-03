@@ -5,6 +5,7 @@ in
     nativeBuildInputs = pkg.nativeBuildInputs ++ [
       pkgs.haskellPackages.ghcid
       pkgs.cabal-install
+      pkgs.graphviz
     ];
   })
   
