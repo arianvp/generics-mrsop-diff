@@ -1,0 +1,502 @@
+[
+  {
+    "name": "awesome",
+    "url": "https://github.com/awesomeWM/awesome",
+    "contributors": 239
+  },
+  {
+    "name": "nn",
+    "url": "https://github.com/torch/nn",
+    "contributors": 179
+  },
+  {
+    "name": "luci",
+    "url": "https://github.com/openwrt/luci",
+    "contributors": 160
+  },
+  {
+    "name": "garrysmod",
+    "url": "https://github.com/Facepunch/garrysmod",
+    "contributors": 137
+  },
+  {
+    "name": "kong",
+    "url": "https://github.com/Kong/kong",
+    "contributors": 116
+  },
+  {
+    "name": "minetest_game",
+    "url": "https://github.com/minetest/minetest_game",
+    "contributors": 112
+  },
+  {
+    "name": "Algorithm-Implementations",
+    "url": "https://github.com/kennyledet/Algorithm-Implementations",
+    "contributors": 97
+  },
+  {
+    "name": "tarantool",
+    "url": "https://github.com/tarantool/tarantool",
+    "contributors": 81
+  },
+  {
+    "name": "koreader",
+    "url": "https://github.com/koreader/koreader",
+    "contributors": 75
+  },
+  {
+    "name": "luvit",
+    "url": "https://github.com/luvit/luvit",
+    "contributors": 65
+  },
+  {
+    "name": "CorsixTH",
+    "url": "https://github.com/CorsixTH/CorsixTH",
+    "contributors": 62
+  },
+  {
+    "name": "snabb",
+    "url": "https://github.com/snabbco/snabb",
+    "contributors": 62
+  },
+  {
+    "name": "hawkthorne-journey",
+    "url": "https://github.com/hawkthorne/hawkthorne-journey",
+    "contributors": 60
+  },
+  {
+    "name": "luakit",
+    "url": "https://github.com/luakit/luakit",
+    "contributors": 58
+  },
+  {
+    "name": "telegram-bot",
+    "url": "https://github.com/yagop/telegram-bot",
+    "contributors": 50
+  },
+  {
+    "name": "luarocks",
+    "url": "https://github.com/luarocks/luarocks",
+    "contributors": 48
+  },
+  {
+    "name": "Penlight",
+    "url": "https://github.com/stevedonovan/Penlight",
+    "contributors": 46
+  },
+  {
+    "name": "rnn",
+    "url": "https://github.com/Element-Research/rnn",
+    "contributors": 42
+  },
+  {
+    "name": "busted",
+    "url": "https://github.com/Olivine-Labs/busted",
+    "contributors": 39
+  },
+  {
+    "name": "vlsub",
+    "url": "https://github.com/exebetche/vlsub",
+    "contributors": 36
+  },
+  {
+    "name": "ZeroBraneStudio",
+    "url": "https://github.com/pkulchenko/ZeroBraneStudio",
+    "contributors": 36
+  },
+  {
+    "name": "OpenNMT",
+    "url": "https://github.com/OpenNMT/OpenNMT",
+    "contributors": 36
+  },
+  {
+    "name": "kali-nethunter",
+    "url": "https://github.com/offensive-security/kali-nethunter",
+    "contributors": 33
+  },
+  {
+    "name": "luacheck",
+    "url": "https://github.com/mpeterv/luacheck",
+    "contributors": 26
+  },
+  {
+    "name": "lsyncd",
+    "url": "https://github.com/axkibe/lsyncd",
+    "contributors": 26
+  },
+  {
+    "name": "openface",
+    "url": "https://github.com/cmusatyalab/openface",
+    "contributors": 26
+  },
+  {
+    "name": "hump",
+    "url": "https://github.com/vrld/hump",
+    "contributors": 25
+  },
+  {
+    "name": "fblualib",
+    "url": "https://github.com/facebookarchive/fblualib",
+    "contributors": 25
+  },
+  {
+    "name": "sailor",
+    "url": "https://github.com/sailorproject/sailor",
+    "contributors": 25
+  },
+  {
+    "name": "torch-autograd",
+    "url": "https://github.com/twitter/torch-autograd",
+    "contributors": 24
+  },
+  {
+    "name": "lua-resty-http",
+    "url": "https://github.com/pintsized/lua-resty-http",
+    "contributors": 24
+  },
+  {
+    "name": "MoonGen",
+    "url": "https://github.com/emmericp/MoonGen",
+    "contributors": 23
+  },
+  {
+    "name": "sile",
+    "url": "https://github.com/simoncozens/sile",
+    "contributors": 23
+  },
+  {
+    "name": "awesome-copycats",
+    "url": "https://github.com/lcpz/awesome-copycats",
+    "contributors": 22
+  },
+  {
+    "name": "waifu2x",
+    "url": "https://github.com/nagadomi/waifu2x",
+    "contributors": 22
+  },
+  {
+    "name": "VeryNginx",
+    "url": "https://github.com/alexazhou/VeryNginx",
+    "contributors": 21
+  },
+  {
+    "name": "fb.resnet.torch",
+    "url": "https://github.com/facebook/fb.resnet.torch",
+    "contributors": 19
+  },
+  {
+    "name": "moonscript",
+    "url": "https://github.com/leafo/moonscript",
+    "contributors": 19
+  },
+  {
+    "name": "char-rnn",
+    "url": "https://github.com/karpathy/char-rnn",
+    "contributors": 19
+  },
+  {
+    "name": "fbcunn",
+    "url": "https://github.com/facebookarchive/fbcunn",
+    "contributors": 17
+  },
+  {
+    "name": "torchnet",
+    "url": "https://github.com/torchnet/torchnet",
+    "contributors": 15
+  },
+  {
+    "name": "PathOfBuilding",
+    "url": "https://github.com/Openarl/PathOfBuilding",
+    "contributors": 14
+  },
+  {
+    "name": "dockercraft",
+    "url": "https://github.com/docker/dockercraft",
+    "contributors": 13
+  },
+  {
+    "name": "neural-style",
+    "url": "https://github.com/jcjohnson/neural-style",
+    "contributors": 13
+  },
+  {
+    "name": "lor",
+    "url": "https://github.com/sumory/lor",
+    "contributors": 12
+  },
+  {
+    "name": "torch-rnn",
+    "url": "https://github.com/jcjohnson/torch-rnn",
+    "contributors": 12
+  },
+  {
+    "name": "pix2pix",
+    "url": "https://github.com/phillipi/pix2pix",
+    "contributors": 12
+  },
+  {
+    "name": "luafun",
+    "url": "https://github.com/luafun/luafun",
+    "contributors": 10
+  },
+  {
+    "name": "CycleGAN",
+    "url": "https://github.com/junyanz/CycleGAN",
+    "contributors": 10
+  },
+  {
+    "name": "inspect.lua",
+    "url": "https://github.com/kikito/inspect.lua",
+    "contributors": 9
+  },
+  {
+    "name": "keyboard",
+    "url": "https://github.com/jasonrudolph/keyboard",
+    "contributors": 9
+  },
+  {
+    "name": "middleclass",
+    "url": "https://github.com/kikito/middleclass",
+    "contributors": 9
+  },
+  {
+    "name": "lua-resty-redis",
+    "url": "https://github.com/openresty/lua-resty-redis",
+    "contributors": 9
+  },
+  {
+    "name": "fast-neural-style",
+    "url": "https://github.com/jcjohnson/fast-neural-style",
+    "contributors": 9
+  },
+  {
+    "name": "redis-lua",
+    "url": "https://github.com/nrk/redis-lua",
+    "contributors": 8
+  },
+  {
+    "name": "seq2seq-attn",
+    "url": "https://github.com/harvardnlp/seq2seq-attn",
+    "contributors": 8
+  },
+  {
+    "name": "fairseq",
+    "url": "https://github.com/facebookresearch/fairseq",
+    "contributors": 8
+  },
+  {
+    "name": "neuralconvo",
+    "url": "https://github.com/macournoyer/neuralconvo",
+    "contributors": 7
+  },
+  {
+    "name": "Anycomplete",
+    "url": "https://github.com/nathancahill/Anycomplete",
+    "contributors": 7
+  },
+  {
+    "name": "wav2letter",
+    "url": "https://github.com/facebookresearch/wav2letter",
+    "contributors": 7
+  },
+  {
+    "name": "DenseNet",
+    "url": "https://github.com/liuzhuang13/DenseNet",
+    "contributors": 7
+  },
+  {
+    "name": "texture_nets",
+    "url": "https://github.com/DmitryUlyanov/texture_nets",
+    "contributors": 6
+  },
+  {
+    "name": "dcgan.torch",
+    "url": "https://github.com/soumith/dcgan.torch",
+    "contributors": 5
+  },
+  {
+    "name": "siggraph2016_colorization",
+    "url": "https://github.com/satoshiiizuka/siggraph2016_colorization",
+    "contributors": 5
+  },
+  {
+    "name": "deepmask",
+    "url": "https://github.com/facebookresearch/deepmask",
+    "contributors": 5
+  },
+  {
+    "name": "AdaIN-style",
+    "url": "https://github.com/xunhuang1995/AdaIN-style",
+    "contributors": 4
+  },
+  {
+    "name": "telize",
+    "url": "https://github.com/fcambus/telize",
+    "contributors": 4
+  },
+  {
+    "name": "doomrl",
+    "url": "https://github.com/ChaosForge/doomrl",
+    "contributors": 4
+  },
+  {
+    "name": "lsofgraph",
+    "url": "https://github.com/zevv/lsofgraph",
+    "contributors": 4
+  },
+  {
+    "name": "orange",
+    "url": "https://github.com/sumory/orange",
+    "contributors": 4
+  },
+  {
+    "name": "neuralart",
+    "url": "https://github.com/kaishengtai/neuralart",
+    "contributors": 4
+  },
+  {
+    "name": "lua-resty-template",
+    "url": "https://github.com/bungle/lua-resty-template",
+    "contributors": 3
+  },
+  {
+    "name": "lstm",
+    "url": "https://github.com/wojzaremba/lstm",
+    "contributors": 3
+  },
+  {
+    "name": "eyescream",
+    "url": "https://github.com/facebook/eyescream",
+    "contributors": 3
+  },
+  {
+    "name": "NeuralKart",
+    "url": "https://github.com/rameshvarun/NeuralKart",
+    "contributors": 3
+  },
+  {
+    "name": "bAbI-tasks",
+    "url": "https://github.com/facebook/bAbI-tasks",
+    "contributors": 3
+  },
+  {
+    "name": "CNNMRF",
+    "url": "https://github.com/chuanli11/CNNMRF",
+    "contributors": 3
+  },
+  {
+    "name": "crnn",
+    "url": "https://github.com/bgshih/crnn",
+    "contributors": 3
+  },
+  {
+    "name": "multipathnet",
+    "url": "https://github.com/facebookresearch/multipathnet",
+    "contributors": 3
+  },
+  {
+    "name": "MemNN",
+    "url": "https://github.com/facebook/MemNN",
+    "contributors": 3
+  },
+  {
+    "name": "openstar",
+    "url": "https://github.com/starjun/openstar",
+    "contributors": 2
+  },
+  {
+    "name": "FluidNet",
+    "url": "https://github.com/google/FluidNet",
+    "contributors": 2
+  },
+  {
+    "name": "XNOR-Net",
+    "url": "https://github.com/allenai/XNOR-Net",
+    "contributors": 2
+  },
+  {
+    "name": "treelstm",
+    "url": "https://github.com/stanfordnlp/treelstm",
+    "contributors": 2
+  },
+  {
+    "name": "tiefvision",
+    "url": "https://github.com/paucarre/tiefvision",
+    "contributors": 2
+  },
+  {
+    "name": "nmap-nse-scripts",
+    "url": "https://github.com/cldrn/nmap-nse-scripts",
+    "contributors": 2
+  },
+  {
+    "name": "lstm-char-cnn",
+    "url": "https://github.com/yoonkim/lstm-char-cnn",
+    "contributors": 2
+  },
+  {
+    "name": "vulscan",
+    "url": "https://github.com/scipag/vulscan",
+    "contributors": 2
+  },
+  {
+    "name": "Faster-High-Res-Neural-Inpainting",
+    "url": "https://github.com/leehomyc/Faster-High-Res-Neural-Inpainting",
+    "contributors": 2
+  },
+  {
+    "name": "nmap-vulners",
+    "url": "https://github.com/vulnersCom/nmap-vulners",
+    "contributors": 2
+  },
+  {
+    "name": "ResNeXt",
+    "url": "https://github.com/facebookresearch/ResNeXt",
+    "contributors": 2
+  },
+  {
+    "name": "DeepMind-Atari-Deep-Q-Learner",
+    "url": "https://github.com/kuz/DeepMind-Atari-Deep-Q-Learner",
+    "contributors": 2
+  },
+  {
+    "name": "ngx_lua_waf",
+    "url": "https://github.com/loveshell/ngx_lua_waf",
+    "contributors": 2
+  },
+  {
+    "name": "videogan",
+    "url": "https://github.com/cvondrick/videogan",
+    "contributors": 1
+  },
+  {
+    "name": "resnet-1k-layers",
+    "url": "https://github.com/KaimingHe/resnet-1k-layers",
+    "contributors": 1
+  },
+  {
+    "name": "icml2016",
+    "url": "https://github.com/reedscot/icml2016",
+    "contributors": 1
+  },
+  {
+    "name": "NAMAS",
+    "url": "https://github.com/facebookarchive/NAMAS",
+    "contributors": 1
+  },
+  {
+    "name": "Crepe",
+    "url": "https://github.com/zhangxiangxiao/Crepe",
+    "contributors": 1
+  },
+  {
+    "name": "wide-residual-networks",
+    "url": "https://github.com/szagoruyko/wide-residual-networks",
+    "contributors": 1
+  },
+  {
+    "name": "Neural-Dialogue-Generation",
+    "url": "https://github.com/jiweil/Neural-Dialogue-Generation",
+    "contributors": 0
+  }
+]

@@ -1,0 +1,467 @@
+[
+  {
+    "name": "leiningen",
+    "url": "https://github.com/technomancy/leiningen",
+    "contributors": 297
+  },
+  {
+    "name": "riemann",
+    "url": "https://github.com/riemann/riemann",
+    "contributors": 110
+  },
+  {
+    "name": "clj-http",
+    "url": "https://github.com/dakrone/clj-http",
+    "contributors": 90
+  },
+  {
+    "name": "ring",
+    "url": "https://github.com/ring-clojure/ring",
+    "contributors": 90
+  },
+  {
+    "name": "incanter",
+    "url": "https://github.com/incanter/incanter",
+    "contributors": 83
+  },
+  {
+    "name": "lein-figwheel",
+    "url": "https://github.com/bhauman/lein-figwheel",
+    "contributors": 69
+  },
+  {
+    "name": "re-frame",
+    "url": "https://github.com/Day8/re-frame",
+    "contributors": 63
+  },
+  {
+    "name": "duckling",
+    "url": "https://github.com/wit-ai/duckling",
+    "contributors": 59
+  },
+  {
+    "name": "pedestal",
+    "url": "https://github.com/pedestal/pedestal",
+    "contributors": 56
+  },
+  {
+    "name": "amazonica",
+    "url": "https://github.com/mcohen01/amazonica",
+    "contributors": 55
+  },
+  {
+    "name": "boot",
+    "url": "https://github.com/boot-clj/boot",
+    "contributors": 54
+  },
+  {
+    "name": "schema",
+    "url": "https://github.com/plumatic/schema",
+    "contributors": 54
+  },
+  {
+    "name": "Korma",
+    "url": "https://github.com/korma/Korma",
+    "contributors": 52
+  },
+  {
+    "name": "aleph",
+    "url": "https://github.com/ztellman/aleph",
+    "contributors": 49
+  },
+  {
+    "name": "overtone",
+    "url": "https://github.com/overtone/overtone",
+    "contributors": 44
+  },
+  {
+    "name": "kibit",
+    "url": "https://github.com/jonase/kibit",
+    "contributors": 43
+  },
+  {
+    "name": "cascalog",
+    "url": "https://github.com/nathanmarz/cascalog",
+    "contributors": 43
+  },
+  {
+    "name": "jepsen",
+    "url": "https://github.com/jepsen-io/jepsen",
+    "contributors": 42
+  },
+  {
+    "name": "timbre",
+    "url": "https://github.com/ptaoussanis/timbre",
+    "contributors": 41
+  },
+  {
+    "name": "chestnut",
+    "url": "https://github.com/plexus/chestnut",
+    "contributors": 39
+  },
+  {
+    "name": "liberator",
+    "url": "https://github.com/clojure-liberator/liberator",
+    "contributors": 39
+  },
+  {
+    "name": "FiraCode",
+    "url": "https://github.com/tonsky/FiraCode",
+    "contributors": 38
+  },
+  {
+    "name": "onyx",
+    "url": "https://github.com/onyx-platform/onyx",
+    "contributors": 37
+  },
+  {
+    "name": "bidi",
+    "url": "https://github.com/juxt/bidi",
+    "contributors": 35
+  },
+  {
+    "name": "friend",
+    "url": "https://github.com/cemerick/friend",
+    "contributors": 34
+  },
+  {
+    "name": "quil",
+    "url": "https://github.com/quil/quil",
+    "contributors": 33
+  },
+  {
+    "name": "compojure",
+    "url": "https://github.com/weavejester/compojure",
+    "contributors": 32
+  },
+  {
+    "name": "Midje",
+    "url": "https://github.com/marick/Midje",
+    "contributors": 31
+  },
+  {
+    "name": "pallet",
+    "url": "https://github.com/pallet/pallet",
+    "contributors": 30
+  },
+  {
+    "name": "awesomo",
+    "url": "https://github.com/lk-geimfari/awesomo",
+    "contributors": 30
+  },
+  {
+    "name": "compojure-api",
+    "url": "https://github.com/metosin/compojure-api",
+    "contributors": 29
+  },
+  {
+    "name": "devcards",
+    "url": "https://github.com/bhauman/devcards",
+    "contributors": 29
+  },
+  {
+    "name": "seesaw",
+    "url": "https://github.com/daveray/seesaw",
+    "contributors": 28
+  },
+  {
+    "name": "dommy",
+    "url": "https://github.com/plumatic/dommy",
+    "contributors": 27
+  },
+  {
+    "name": "cheshire",
+    "url": "https://github.com/dakrone/cheshire",
+    "contributors": 27
+  },
+  {
+    "name": "hiccup",
+    "url": "https://github.com/weavejester/hiccup",
+    "contributors": 26
+  },
+  {
+    "name": "datascript",
+    "url": "https://github.com/tonsky/datascript",
+    "contributors": 26
+  },
+  {
+    "name": "lt-cljs-tutorial",
+    "url": "https://github.com/swannodette/lt-cljs-tutorial",
+    "contributors": 25
+  },
+  {
+    "name": "plumbing",
+    "url": "https://github.com/plumatic/plumbing",
+    "contributors": 25
+  },
+  {
+    "name": "trapperkeeper",
+    "url": "https://github.com/puppetlabs/trapperkeeper",
+    "contributors": 24
+  },
+  {
+    "name": "core.logic",
+    "url": "https://github.com/clojure/core.logic",
+    "contributors": 24
+  },
+  {
+    "name": "reagent",
+    "url": "https://github.com/reagent-project/reagent",
+    "contributors": 24
+  },
+  {
+    "name": "test.check",
+    "url": "https://github.com/clojure/test.check",
+    "contributors": 23
+  },
+  {
+    "name": "hoplon",
+    "url": "https://github.com/hoplon/hoplon",
+    "contributors": 22
+  },
+  {
+    "name": "lamina",
+    "url": "https://github.com/ztellman/lamina",
+    "contributors": 21
+  },
+  {
+    "name": "sente",
+    "url": "https://github.com/ptaoussanis/sente",
+    "contributors": 21
+  },
+  {
+    "name": "enlive",
+    "url": "https://github.com/cgrand/enlive",
+    "contributors": 21
+  },
+  {
+    "name": "4clojure",
+    "url": "https://github.com/4clojure/4clojure",
+    "contributors": 20
+  },
+  {
+    "name": "instaparse",
+    "url": "https://github.com/Engelberg/instaparse",
+    "contributors": 20
+  },
+  {
+    "name": "alda",
+    "url": "https://github.com/alda-lang/alda",
+    "contributors": 20
+  },
+  {
+    "name": "secretary",
+    "url": "https://github.com/gf3/secretary",
+    "contributors": 19
+  },
+  {
+    "name": "core.typed",
+    "url": "https://github.com/clojure/core.typed",
+    "contributors": 19
+  },
+  {
+    "name": "mori",
+    "url": "https://github.com/swannodette/mori",
+    "contributors": 19
+  },
+  {
+    "name": "mount",
+    "url": "https://github.com/tolitius/mount",
+    "contributors": 18
+  },
+  {
+    "name": "pulsar",
+    "url": "https://github.com/puniverse/pulsar",
+    "contributors": 18
+  },
+  {
+    "name": "noir",
+    "url": "https://github.com/noir-clojure/noir",
+    "contributors": 18
+  },
+  {
+    "name": "yesql",
+    "url": "https://github.com/krisajenkins/yesql",
+    "contributors": 18
+  },
+  {
+    "name": "clara-rules",
+    "url": "https://github.com/cerner/clara-rules",
+    "contributors": 17
+  },
+  {
+    "name": "clojure-opennlp",
+    "url": "https://github.com/dakrone/clojure-opennlp",
+    "contributors": 17
+  },
+  {
+    "name": "drake",
+    "url": "https://github.com/Factual/drake",
+    "contributors": 16
+  },
+  {
+    "name": "quiescent",
+    "url": "https://github.com/levand/quiescent",
+    "contributors": 15
+  },
+  {
+    "name": "play-clj",
+    "url": "https://github.com/oakes/play-clj",
+    "contributors": 15
+  },
+  {
+    "name": "specter",
+    "url": "https://github.com/nathanmarz/specter",
+    "contributors": 14
+  },
+  {
+    "name": "code-maat",
+    "url": "https://github.com/adamtornhill/code-maat",
+    "contributors": 13
+  },
+  {
+    "name": "criterium",
+    "url": "https://github.com/hugoduncan/criterium",
+    "contributors": 13
+  },
+  {
+    "name": "klipse",
+    "url": "https://github.com/viebel/klipse",
+    "contributors": 13
+  },
+  {
+    "name": "core.async",
+    "url": "https://github.com/clojure/core.async",
+    "contributors": 13
+  },
+  {
+    "name": "om",
+    "url": "https://github.com/omcljs/om",
+    "contributors": 13
+  },
+  {
+    "name": "environ",
+    "url": "https://github.com/weavejester/environ",
+    "contributors": 12
+  },
+  {
+    "name": "hitchhiker-tree",
+    "url": "https://github.com/datacrypt-project/hitchhiker-tree",
+    "contributors": 12
+  },
+  {
+    "name": "logic-tutorial",
+    "url": "https://github.com/swannodette/logic-tutorial",
+    "contributors": 12
+  },
+  {
+    "name": "eastwood",
+    "url": "https://github.com/jonase/eastwood",
+    "contributors": 11
+  },
+  {
+    "name": "core.match",
+    "url": "https://github.com/clojure/core.match",
+    "contributors": 11
+  },
+  {
+    "name": "garden",
+    "url": "https://github.com/noprompt/garden",
+    "contributors": 11
+  },
+  {
+    "name": "ultra",
+    "url": "https://github.com/venantius/ultra",
+    "contributors": 11
+  },
+  {
+    "name": "Nightcode",
+    "url": "https://github.com/oakes/Nightcode",
+    "contributors": 11
+  },
+  {
+    "name": "lein-droid",
+    "url": "https://github.com/clojure-android/lein-droid",
+    "contributors": 10
+  },
+  {
+    "name": "carmine",
+    "url": "https://github.com/ptaoussanis/carmine",
+    "contributors": 10
+  },
+  {
+    "name": "icepick",
+    "url": "https://github.com/frankiesardo/icepick",
+    "contributors": 10
+  },
+  {
+    "name": "tesser",
+    "url": "https://github.com/aphyr/tesser",
+    "contributors": 9
+  },
+  {
+    "name": "javelin",
+    "url": "https://github.com/hoplon/javelin",
+    "contributors": 8
+  },
+  {
+    "name": "lux",
+    "url": "https://github.com/LuxLang/lux",
+    "contributors": 7
+  },
+  {
+    "name": "auto-parcel",
+    "url": "https://github.com/frankiesardo/auto-parcel",
+    "contributors": 7
+  },
+  {
+    "name": "transit-format",
+    "url": "https://github.com/cognitect/transit-format",
+    "contributors": 7
+  },
+  {
+    "name": "cljs-devtools",
+    "url": "https://github.com/binaryage/cljs-devtools",
+    "contributors": 6
+  },
+  {
+    "name": "clojurec",
+    "url": "https://github.com/schani/clojurec",
+    "contributors": 6
+  },
+  {
+    "name": "markright",
+    "url": "https://github.com/dvcrn/markright",
+    "contributors": 5
+  },
+  {
+    "name": "parinfer",
+    "url": "https://github.com/shaunlebron/parinfer",
+    "contributors": 5
+  },
+  {
+    "name": "frak",
+    "url": "https://github.com/noprompt/frak",
+    "contributors": 3
+  },
+  {
+    "name": "atea",
+    "url": "https://github.com/pkamenarsky/atea",
+    "contributors": 2
+  },
+  {
+    "name": "Nightlight",
+    "url": "https://github.com/oakes/Nightlight",
+    "contributors": 2
+  },
+  {
+    "name": "Arcadia",
+    "url": "https://github.com/arcadia-unity/Arcadia",
+    "contributors": 2
+  },
+  {
+    "name": "component",
+    "url": "https://github.com/stuartsierra/component",
+    "contributors": 1
+  }
+]
