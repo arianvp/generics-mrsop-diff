@@ -71,7 +71,7 @@ c' :: Almu Singl CodesStmt Stmt' Stmt'
 c' = Ins CZ (T (NA_K (SString "y")) (H b' NP0))
 
 merged :: Almu Singl CodesStmt Stmt' Stmt'
-merged = fromJust $ mergeAlmu c c'
+merged = undefined $ mergeAlmu c c'
 
 
 \end{code}

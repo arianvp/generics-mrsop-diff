@@ -56,7 +56,7 @@ data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
   -- | When stuff can't be figured out, we just delete subtree and insert subtree.  Stupid diff is stupid
   -- This might not be the best approach right now, but we can always
   -- later look for an embedding  Fix i -> Fix j -> Almu i j
-  Stiff ::  Fix ki codes ix -> Fix ki codes iy -> Almu ki codes ix yi
+  Stiff :: (IsNat ix, IsNat iy) => Fix ki codes ix -> Fix ki codes iy -> Almu ki codes ix iy
   Spn
     :: (IsNat ix) 
     => Spine ki codes (Lkup ix codes)
