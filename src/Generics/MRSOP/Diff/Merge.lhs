@@ -13,9 +13,6 @@ data MergeError = Failed | DelDel | InsIns deriving Show
 maybeToEither :: a -> Maybe b -> Either a b
 maybeToEither = flip maybe Right . Left
 
-data Merged (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) :: * where
-  Merged :: Almu ki codes ix iy -> Merged ki codes ix
-
 -- assumes that this alignment is simply an NP
 -- should return a descriptive error message in the future
 -- for debugging purposes
@@ -31,66 +28,11 @@ makeIdAt :: NA ki (Fix ki codes) a -> At ki codes a
 makeIdAt (NA_I _) = AtFix (Spn Scp)
 makeIdAt (NA_K k) = AtSet (Trivial k k)
 
-{-mergeAtCtx
-  :: NP (At ki codes) xs
-  -> Ctx ki codes (Almu ki codes) ix xs
-  -> Either [MergeError] (Ctx ki codes (Almu ki codes) ix xs)
-mergeAtCtx (AtFix a :* as) (H almu rest) =
-  -- TODO: This is _very_ nasty 
-  -- xs ~  'I 
-  H <$> _ a almu <*> pure rest
-  -- H <$> mergeAlmu a almu <*> pure rest
-mergeAtCtx (AtFix a :* as) (T a' ctx) = T a' <$> mergeAtCtx as ctx
-mergeAtCtx (AtSet a :* as) (T a' ctx) = T a' <$> mergeAtCtx as ctx
-
-mergeCtxAt 
-  :: Ctx ki codes (Almu ki codes) ix xs
-  -> NP (At ki codes) xs
-  -> Either [MergeError] (Almu ki codes ix ix)
-mergeCtxAt (H almu rest) (AtFix a :* as) = mergeAlmu almu a
-mergeCtxAt (T a' ctx) (AtFix a :* as) = mergeCtxAt ctx as
-mergeCtxAt (T a' ctx) (AtSet a :* as) = mergeCtxAt ctx as
--}
-
 getTarget :: forall ki codes ix iy. (IsNat iy) => Almu ki codes ix iy -> SNat iy
 getTarget = sNatFixIdx
 
 getSource :: forall ki codes ix iy. (IsNat ix) => Almu ki codes ix iy -> SNat ix
 getSource _ = getSNat (Proxy :: Proxy ix)
-
--- TODO: Very Skeptical about this approach
-{-mergeCtxAlmu
-  :: (IsNat ix, IsNat iy)
-  => Constr (Lkup ix codes) c
-  -> InsCtx ki codes ix (Lkup c (Lkup ix codes))
-  -> Almu ki codes ix iy
-  -> Either [MergeError] (NP (At ki codes) (Lkup c (Lkup ix codes)))
-mergeCtxAlmu c (H almu' xs) almu =
-  case testEquality (getSource almu) (getTarget almu') of
-    Just Refl -> do
-      x <- mergeAlmu almu almu'
-      let xs' = mapNP makeIdAt xs
-      pure $ AtFix x :* xs'
-    Left [Failed] -> Left [Failed]
-mergeCtxAlmu c (T a ctx) almu = do
-  let a' =  makeIdAt a 
-  xs' <- mergeCtxAlmu  ctx almu 
-  pure $ a' :* xs'
-
-mergeAlmuCtx
-  :: (IsNat ix, IsNat iy)
-  => Almu ki codes ix iy
-  -> InsCtx ki codes ix xs
-  -> Either [MergeError] (InsCtx ki codes ix xs)
-mergeAlmuCtx almu (H almu' rest) =
-  case testEquality (sNatFixIdx almu) (sNatFixIdx almu') of
-    Just Refl -> do
-      almu'' <- mergeAlmu almu almu'
-      pure $ H almu'' rest
-    Left [Failed] -> Left [Failed]
-mergeAlmuCtx almu (T a ctx) = T a <$> mergeAlmuCtx almu ctx
--}
-
 
 mergeAlAt
   :: Eq1 ki
@@ -187,6 +129,26 @@ sNatCtx _ = getSNat (Proxy :: Proxy ix)
 \end{code}
 
 
+\begin{code}
+
+mergeCtxAlmu
+  :: IsNat ix
+  => IsNat iy
+  => Eq1 ki
+  => InsCtx ki codes ix  xs
+  -> Almu ki codes ix iy
+  -> Either [MergeError] (NP (At ki codes) xs)
+mergeCtxAlmu (H almu' xs) almu = do
+  Refl <- maybeToEither [Failed] $ testEquality (sNatFixIdx almu') (sNatFixIdx almu)
+  almu'' <- mergeAlmu almu' almu
+  pure $ AtFix almu'' :* (mapNP makeIdAt xs)
+mergeCtxAlmu (T a ctx) almu =  do
+  let at = makeIdAt a
+  xs <- mergeCtxAlmu ctx almu
+  pure $ at :* xs
+\end{code}
+
+
 \subsection{Merging Almus}
 
 We want the following diagram:
@@ -206,38 +168,70 @@ mergeAlmu
   -> Either [MergeError] (Almu ki codes iy iy)
 \end{code}
 
+Merging two spines is trivial
+\begin{code}
+mergeAlmu (Spn s1)      (Spn s2) = Spn <$> mergeSpine s1 s2 
+\end{code}
+
 Because we pattern match in |Spn|, we catually learn 
 that |ix ~ iy| and the type of |mergeAlmu| becomes easier to deal with.
 It infact forces the type to be homogenous, and we know that merging
 homogenous patches is possible.
-\begin{spec}
-mergeAlmu :: Almu iy iy -> Almu iy iy -> Either [MergeError] (Almu iy iy)
-\end{spec}
+
+
+
+TODO talk about the intricasies
 \begin{code}
-mergeAlmu (Ins c ctx)   (Spn s) =
-  doCtxSpn c ctx s
-    where
-      doCtxSpn
-        :: Constr (Lkup iy codes) c
-        -> InsCtx ki codes iy (Lkup c (Lkup iy codes))
-        -> Spine ki codes (Lkup iy codes)
-        -> Either [MergeError] (Almu ki codes iy iy)
-      doCtxSpn = undefined
+mergeAlmu x@(Spn s)       (Ins c ctx) =
+  Spn . sCns c <$> mergeCtxAlmu ctx x
+mergeAlmu (Ins c ctx)   y@(Spn s)     =
+  Spn . sCns c <$> mergeCtxAlmu ctx y
 \end{code}
+
+Copies and Deletions are trivially disjoint
 \begin{code}
-mergeAlmu (Del c ctx)   (Spn s) =
-  doCtxSpn c ctx s
-    where
-      doCtxSpn
-        :: Constr (Lkup iy codes) c
-        -> DelCtx ki codes iy (Lkup c (Lkup iy codes))
-        -> Spine ki codes (Lkup iy codes)
-        -> Either [MergeError] (Almu ki codes iy iy)
-      doCtxSpn = undefined
-mergeAlmu (Spn s)       (Ins c ctx) = undefined 
-mergeAlmu (Spn s)       (Del c ctx) = _
-mergeAlmu (Spn s1)      (Spn s2) = Spn <$> mergeSpine s1 s2 
+mergeAlmu (Spn Scp)     y@(Del _ _)   = pure y
+mergeAlmu x@(Del _ _)   (Spn Scp)     = pure x
 \end{code}
+
+\begin{code}
+mergeAlmu (Spn (Schg c1 c2 al)) (Del c3 s2) = do
+  Refl <- maybeToEither [Failed] $ testEquality c1 c2
+  Refl <- maybeToEither [Failed] $ testEquality c1 c3
+  ats <- assumeNP al
+  Del c1 <$> mergeAtCtx ats s2
+  where
+    mergeAtCtx
+      :: NP (At ki codes) xs
+      -> DelCtx ki codes iy xs
+      -> Either [MergeError] (DelCtx ki codes iy xs)
+    mergeAtCtx NP0 _ = Left [Failed]
+    mergeAtCtx (AtFix i :* as) (H (AlmuMin almu) rest) = do
+      Refl <- maybeToEither [Failed] $ testEquality (sNatFixIdx i) (sNatFixIdx almu) 
+      H . AlmuMin <$> mergeAlmu i almu <*> pure rest
+    mergeAtCtx (_ :* as) (T a' ctx) = T a' <$> mergeAtCtx as ctx
+
+    
+mergeAlmu (Del c1 s1) (Spn (Schg c2 c3 al)) = do
+  Refl <- maybeToEither [Failed] $ testEquality c2 c3
+  Refl <- maybeToEither [Failed] $ testEquality c1 c2
+  ats <- assumeNP al
+  mergeCtxAt s1 ats
+  where
+    mergeCtxAt
+      :: DelCtx ki codes iy xs
+      -> NP (At ki codes) xs
+      -> Either [MergeError] (Almu ki codes iy iy)
+    mergeCtxAt _ NP0 = Left [Failed]
+    mergeCtxAt (H (AlmuMin almu) rest) (AtFix a :* _) = do
+      Refl <- maybeToEither [Failed] $ testEquality (sNatFixIdx a) (sNatFixIdx almu)
+      mergeAlmu almu a
+    mergeCtxAt (T a' ctx) (_ :* as) = mergeCtxAt ctx as
+
+\end{code}
+
+
+
 Now we arrive at the more difficult part.  We have 
 \begin{spec}
    x :: Almu ix iy
@@ -273,7 +267,26 @@ ix|c1|a|b|*|d|    |                iy|c2|e|f|g|*|        |
 
 \begin{code}
 mergeAlmu (Ins c1 ctx1) y@(Del c2 ctx2) =
-  Del c1 <$> mergeInsDel y ctx1
+  -- why do we 'change' the patch?
+  Spn . sCns c1 <$> mergeCtxAlmu ctx1 y
+  {-Del c1 <$> mergeInsDel y ctx1
+
+  In the thesis, explain why.
+  Namely, we need to adapt the DelCtx to whatever the Ins inserted.
+
+  This helps us with proving commutativity
+           
+          Del
+     P ---------->B
+     |            |
+     |            |
+     |            |   Del(ins) = Ins
+ins  |            |
+     |            |
+     |            v
+     B  --------->
+           ins(del) = scns
+
   where
     mergeInsDel
       :: Almu ki codes ix iy
@@ -285,26 +298,7 @@ mergeAlmu (Ins c1 ctx1) y@(Del c2 ctx2) =
       almu'' <- mergeAlmu almu almu'
       pure $ H (AlmuMin almu'') xs
     mergeInsDel almu (T a ctx) = T a <$> mergeInsDel almu ctx
-{-
-mergeAlmu (Ins c1 ctx1) y@(Del c2 ctx2) =
-  -- TODO Why not the dual here?   Del $ Ins ?
-  -- why do we 'change' the patch?
-  Spn . sCns c1 <$> mergeCtxAlmu ctx1 y
-  where
-    mergeCtxAlmu
-      :: InsCtx ki codes ix  xs
-      -> Almu ki codes ix iy
-      -> Either [MergeError] (NP (At ki codes) xs)
-    mergeCtxAlmu (H almu' xs) almu = do
-      -- THE IMPORTANT BIT
-      Refl <- maybeToEither [Failed] $ testEquality (sNatFixIdx almu') (sNatFixIdx almu)
-      almu'' <- mergeAlmu almu' almu
-      pure $ AtFix almu'' :* (mapNP makeIdAt xs)
-    mergeCtxAlmu (T a ctx) almu =  do
-      let at = makeIdAt a
-      xs <- mergeCtxAlmu ctx almu
-      pure $ at :* xs
--}
+    -}
 \end{code}
 
 \begin{code}
