@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 dir=$1
+
+# Diffs that take longer than 30s are cancelled
 timeout="30s"
+
 mrdiff="./dist/build/mrdiff/mrdiff"
 
-# limit to 8GiBs of memory
+# limit to 8GiBs of memory per process
 ulimit -v 8589934592
-
-# ls $dir/*/ | parallel --memfree 4G echo :::
-# find $dir -type d | parallel --memfree 4G ./run-result.sh A 30s {}
 
 for d in $dir/* ; do
   a_or_b="A"
