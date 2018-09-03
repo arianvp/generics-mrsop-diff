@@ -4,6 +4,7 @@ in
   generics-mrsop-diff.env.overrideAttrs (pkg : {
     nativeBuildInputs = pkg.nativeBuildInputs ++ [
       pkgs.haskellPackages.ghcid
+      pkgs.cabal-install
       pkgs.graphviz
     ];
   })

@@ -30,63 +30,10 @@ import Generics.MRSOP.Diff2
 import Generics.MRSOP.Util hiding (Cons, Nil)
 import Unsafe.Coerce (unsafeCoerce)
 
--- | If a given subtree has no more copies, we can only resort
---   to Schg to produce a patch; We call this the stiff patch.
---   In the sense that it completely fixes one element in the
---   domain and one in the image of the application function.
---   This is the worst patch to transform an x into a y.
+-- | Stiff diff is the worst diff we can make from ix to iy
 --
---   One option would be to fall back to the diff algorithm that enumerates
---   all possibilities and choose the one with the least cost.
-stiff ::
-     (TestEquality ki, IsNat ix)
-  => Fix ki codes ix
-  -> Fix ki codes ix
-  -> Almu ki codes ix
-stiff (Fix x) (Fix y) = Spn (stiffS x y)
+-- We do this by deleting   ix, and inserting iy
 
-stiffS ::
-     TestEquality ki
-  => Rep ki (Fix ki codes) xs
-  -> Rep ki (Fix ki codes) xs
-  -> Spine ki codes xs
-stiffS x y =
-  case (sop x, sop y) of
-    (Tag c1 poa1, Tag c2 poa2) ->
-      case testEquality c1 c2 of
-        (Just Refl) ->
-          sCns c1 (mapNP (\(a :*: b) -> stiffAt a b) (zipNP poa1 poa2))
-        Nothing -> Schg c1 c2 $ stiffAl poa1 poa2
-
-stiffAt ::
-     TestEquality ki
-  => NA ki (Fix ki codes) a
-  -> NA ki (Fix ki codes) a
-  -> At ki codes a
-stiffAt (NA_K k1) (NA_K k2) = AtSet (Trivial k1 k2)
-stiffAt (NA_I i1) (NA_I i2) = AtFix $ stiff i1 i2
-
-stiffAl ::
-     TestEquality ki
-  => PoA ki (Fix ki codes) xs
-  -> PoA ki (Fix ki codes) ys
-  -> Al ki codes xs ys
-stiffAl NP0 NP0 = A0 NP0 NP0
-stiffAl (x :* xs) NP0 =
-  case stiffAl xs NP0 of
-    A0 dels inss -> A0 (x :* dels) inss
-    AX dels inss at al -> AX (x :* dels) inss at al
-stiffAl NP0 (y :* ys) =
-  case stiffAl NP0 ys of
-    A0 dels inss -> A0 dels (y :* inss)
-    AX dels inss at al -> AX dels (y :* inss) at al
-stiffAl (x :* xs) (y :* ys) =
-  case testEquality x y of
-    Just Refl -> AX NP0 NP0 (stiffAt x y) (stiffAl xs ys)
-    Nothing ->
-      case stiffAl xs ys of
-        A0 dels inss -> A0 (x :* dels) (y :* inss)
-        AX dels inss at al -> AX (x :* dels) (y :* inss) at al
 
 -- utility function to extract an annotation 
 extractAnn :: NA ki (AnnFix ki codes phi) ('I ix) -> phi ix
@@ -192,10 +139,6 @@ diffSpine s1 s2 =
                  sCns c1 (mapNP (\(a :*: b) -> diffAt a b) (zipNP p1 p2))
                Nothing -> Schg c1 c2 (diffAl p1 p2)
 
-{-
-copiesAlgebra (Const Copy) = (Const 1 <>) . monoidAlgebra
-copiesAlgebra _ = monoidAlgebra
--}
 -- annotates the tree with how many copies are underneath each node
 -- (inclusive with self)
 -- copies Copy = 1 + copies children
@@ -213,17 +156,14 @@ countCopies ::
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
 countCopies = synthesizeAnn copiesAlgebra
 
-data CtxInsDel
-  = CtxIns
-  | CtxDel
-  deriving Show
 
-diffCtx ::
-     forall ki ix codes xs. (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
-  => CtxInsDel
+diffCtx
+  :: forall ki codes p ix xs.  
+     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix) => 
+     InsOrDel ki codes p
   -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
   -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
-  -> Ctx ki codes ix xs
+  -> Ctx ki codes p ix xs
 diffCtx cid x xs
  = 
   let maxIdx = fst max
@@ -233,54 +173,19 @@ diffCtx cid x xs
       drop' ::
            Int
         -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
-        -> Ctx ki codes ix ys
+        -> Ctx ki codes p ix ys
       drop' n NP0 = error "We should've found it"
-      drop' 0 (y :* ys) =
-        -- TODO: there is a bug here.
-        --
-        -- At first, I converted  ALmu to a homogenous form by using
-        -- normal form contexts. However, I went back to the old definition
-        -- of Almu such that the code here was easily portable from Agda.
-        -- As it's kind a difficult to build up Ctxs stack programatically, or
-        -- at least, I didn't find it straightforward.  However, when doing so
-        -- I forgot to make Almu heterogenous agian, making it impossible to
-        -- change the _index_ into the family. Hence we can not diff 
-        -- an Expr with a Stmt at the moment. Which is a bug :)
-        case (testEquality (NA_I x) y, y) of
-          (Just Refl, NA_I y) ->
-            H (case cid of
-                 CtxIns -> diffAlmu x y
-                 CtxDel -> diffAlmu y x)
-            (mapNP forgetAnn' ys)
-          (Nothing, NA_I _) ->
-            error $ "we want to change  " ++ show (extractNat (NA_I x)) ++ " into " ++ show (extractNat y)
-                  
+      drop' 0 (NA_I y :* ys) =
+        case cid of
+          CtxIns ->
+            H (diffAlmu x y) (mapNP forgetAnn' ys)
+          CtxDel ->
+            H (AlmuMin (diffAlmu y x)) (mapNP forgetAnn' ys)
       drop' n (y :* ys) = T (forgetAnn' y) (drop' (n - 1) ys)
    in drop' maxIdx xs
 
 extractNat :: forall ki phi n. NA ki phi (I n) -> Integer
 extractNat (NA_I _) = getNat (Proxy :: Proxy n)
-
-diffIns ::
-     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
-  => AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
-  -> Almu ki codes ix
-diffIns x rep =
-  case sop rep of
-    -- Euh what happens if xs is NP0 here, i.e. a leaf
-    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
-    Tag c xs -> Ins c (diffCtx CtxIns x xs)
-
-diffDel ::
-     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix)
-  => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) (Lkup ix codes)
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> Almu ki codes ix
-diffDel rep x =
-  case sop rep of
-    Tag c NP0 -> stiff (forgetAnn x) (Fix (mapRep forgetAnn rep))
-    Tag c xs -> Del c (diffCtx CtxDel x xs)
 
 getAnn' :: (Const (Sum Int, First Ann) ix) -> Maybe Ann
 getAnn' (Const (_, First x)) = x
@@ -290,19 +195,23 @@ hasCopies (AnnFix (Const (Sum x, _)) _) = x > 0
 
 -- | Takes two annotated trees, and produces a patch
 diffAlmu ::
-     (Show1 ki, Eq1 ki, IsNat ix, TestEquality ki)
+     (Show1 ki, Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
   => AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> Almu ki codes ix
+  -> AnnFix ki codes (Const (Sum Int, First Ann)) iy
+  -> Almu ki codes ix iy
 diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
   case (fromJust $ getAnn' $ ann1, fromJust $ getAnn' $ ann2) of
-    (Copy, Copy) -> Spn (diffSpine rep1 rep2)
+    (Copy, Copy) ->
+      case testEquality (sNatFixIdx x) (sNatFixIdx y) of
+        Just Refl -> Spn (diffSpine rep1 rep2)
+        Nothing -> error "should never happen"
     (Copy, Modify) -> 
-      if hasCopies y
-        then diffIns x rep2
-        else stiff (forgetAnn x) (forgetAnn y)
-    (Modify, Copy) -> diffDel rep1 y
+      if hasCopies y then diffIns x rep2 else Stiff (forgetAnn x) (forgetAnn y)
+    (Modify, Copy) ->
+      if hasCopies x then diffDel rep1 y else Stiff (forgetAnn x) (forgetAnn y)
     (Modify, Modify) ->
-      if hasCopies x
-        then diffDel rep1 y
-        else stiff (forgetAnn x) (forgetAnn y)
+      if hasCopies x then diffDel rep1 y else Stiff (forgetAnn x) (forgetAnn y)
+    where
+      diffIns x rep = case sop rep of Tag c xs -> Ins c (diffCtx CtxIns x xs)
+      diffDel rep x = case sop rep of Tag c xs -> Del c (diffCtx CtxDel x xs)
+

@@ -367,7 +367,7 @@ local char_func_map = {
   [ "9" ] = parse_number,
   [ "-" ] = parse_number,
   [ "t" ] = parse_literal,
-  [ "f" ] = parse_literal,
+  [ "f" ] = parse_literals,
   [ "n" ] = parse_literal,
   [ "[" ] = parse_array,
   [ "{" ] = parse_object,
@@ -388,7 +388,7 @@ function json.decodes(str)
   if type(str) ~= "string" then
     error("expected argument of type string, got " .. type(str))
   end
-  local res, idx = parse(str, next_char(str, 1, space_chars, true))
+  local res, idx = parses(str, next_char(str, 1, space_chars, true))
   idx = next_char(str, idx, space_chars, true)
   if idx <= #str then
     decode_error(str, idx, "trailing garbage")
