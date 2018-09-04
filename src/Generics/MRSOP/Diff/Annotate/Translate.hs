@@ -30,6 +30,12 @@ import Generics.MRSOP.Diff2
 import Generics.MRSOP.Util hiding (Cons, Nil)
 import Unsafe.Coerce (unsafeCoerce)
 
+-- | TODO make something nicer, maybe a table
+showDatatypeName :: DatatypeName -> String
+showDatatypeName (Name str) = str
+showDatatypeName (x :@: y) =
+  showDatatypeName x ++ "(" ++ showDatatypeName y ++ ")"
+
 -- | Stiff diff is the worst diff we can make from ix to iy
 --
 -- We do this by deleting   ix, and inserting iy
@@ -46,7 +52,7 @@ forgetAnn' = mapNA id forgetAnn
 -- it's the First Semigroup, not the First Monoid. But haskell doesn't distinguish between
 -- the two. We could add our own datatype later.
 diffAl ::
-     (Show1 ki, Eq1 ki, TestEquality ki)
+     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki)
   => PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) ys
   -> Al ki codes xs ys
@@ -116,7 +122,7 @@ diffAl (x :* xs) (y :* ys) =
             AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
 
 diffAt ::
-     (Show1 ki, Eq1 ki, TestEquality ki)
+     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki)
   => NA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) a
   -> NA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) a
   -> At ki codes a
@@ -124,7 +130,7 @@ diffAt (NA_K x) (NA_K y) = AtSet (Trivial x y)
 diffAt (NA_I x) (NA_I y) = AtFix $ diffAlmu x y
 
 diffSpine ::
-     (TestEquality ki, Show1 ki, Eq1 ki)
+     (HasDatatypeInfo ki fam codes, TestEquality ki, Show1 ki, Eq1 ki)
   => Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> Spine ki codes xs
@@ -156,8 +162,8 @@ countCopies = synthesizeAnn (productAnn copiesAlgebra const)
 
 --
 diffCtx
-  :: forall ki codes p ix xs.  
-     (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix) => 
+  :: forall ki fam codes p ix xs.  
+     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki, IsNat ix) => 
      InsOrDel ki codes p
   -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
   -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
@@ -194,8 +200,8 @@ getAnn' (Pair _ (Const b)) = b
 hasCopies :: AnnFix ki codes (Product (Const (Sum Int)) chi) ix -> Bool
 hasCopies (AnnFix (Pair (Const (Sum x)) _) _) = x > 0 -- | Takes two annotated trees, and produces a patch
 
-diffAlmu ::
-     (Show1 ki, Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
+diffAlmu :: forall ki fam codes ix iy.
+     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
   => AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
   -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) iy
   -> Almu ki codes ix iy
@@ -205,7 +211,23 @@ diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
       case testEquality (sNatFixIdx x) (sNatFixIdx y) of
         Just Refl -> Spn (diffSpine rep1 rep2)
         -- TODO: It does happen
-        Nothing -> error $ "should never happen. at : " ++ show (show1 $ ann1, show1 $ ann2)
+        Nothing ->
+          case (sop rep1, sop rep2) of
+            (Tag c1 _, Tag c2 _) -> 
+              let i1 = datatypeInfo @ki @fam @codes (Proxy :: Proxy fam) (sNatFixIdx x)
+                  ci1 = constrInfoLkup c1 i1
+                  cn1 = constructorName ci1
+                  dn1 = showDatatypeName (datatypeName i1)
+                  i2 = datatypeInfo (Proxy :: Proxy fam) (sNatFixIdx y)
+                  ci2 = constrInfoLkup c2 i2
+                  cn2 = constructorName ci2
+                  dn2 = showDatatypeName (datatypeName i2)
+              in
+                error $ fold
+                  [ "Copy Copy with different universes happened\n"
+                  , "left = " ++ cn1 ++ " :: " ++ dn1 ++ " :: " ++ show (snat2int (sNatFixIdx x)) ++ "\n"
+                  , "right = " ++ cn2 ++ " :: " ++ dn2 ++ " :: " ++ show (snat2int (sNatFixIdx y)) ++ "\n"
+                  ]
     (Copy, Modify) -> 
       if hasCopies y then diffIns x rep2 else Stiff (forgetAnn x) (forgetAnn y)
     (Modify, Copy) ->
