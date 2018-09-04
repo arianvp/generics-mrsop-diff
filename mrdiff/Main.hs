@@ -131,25 +131,27 @@ diffClj :: V -> FilePath -> FilePath -> IO ()
 diffClj v fp1 fp2 = do
   x <-
     getCompose $ do
-      x <- Compose . Language.Clojure.Parser.parseFile $ fp1
-      y <- Compose . Language.Clojure.Parser.parseFile $ fp2
-      pure (deep @FamExpr x, deep @FamExpr y)
+      x <- Compose . Language.Lua.Parser.parseFile $ fp1
+      y <- Compose . Language.Lua.Parser.parseFile $ fp2
+      pure (deep @FamBlock x, deep @FamBlock y)
   case x of
     Left er -> fail (show er)
     Right (left, right) ->
       case v of
         N -> do
           let d = GDiff.diff' left right
-          print d
-          {-let l = Annotate.annSrc left d
+          let l = Annotate.annSrc left d
           let r = Annotate.annDest right d
           let s = Translate.diffAlmu 
                     (Translate.countCopies l)
                     (Translate.countCopies r)
-          let x = GraphViz.visualizeAlmu s
-          Text.putStrLn . GraphViz.dotToText "yo" $ x
-          -}
-        O -> print (GDiffOld.diff' left right)
+          case Diff.applyAlmu s left of
+            Just x ->
+              if eq1 x right
+                then pure ()
+                else fail "generated diff was inconsistent"
+            Nothing -> fail "generated diff  didn't apply"
+        O -> undefined
              
 diffLua :: V -> FilePath -> FilePath -> IO ()
 diffLua v fp1 fp2 = do
@@ -162,8 +164,20 @@ diffLua v fp1 fp2 = do
     Left er -> fail (show er)
     Right (left, right) ->
       case v of
-        N -> print (GDiff.diff' left right)
-        O -> print (GDiffOld.diff' left right)
+        N -> do
+          let d = GDiff.diff' left right
+          let l = Annotate.annSrc left d
+          let r = Annotate.annDest right d
+          let s = Translate.diffAlmu 
+                    (Translate.countCopies l)
+                    (Translate.countCopies r)
+          case Diff.applyAlmu s left of
+            Just x ->
+              if eq1 x right
+                then pure ()
+                else fail "generated diff was inconsistent"
+            Nothing -> fail "generated diff  didn't apply"
+        O -> undefined
              
 
 mergeClj :: FilePath -> FilePath -> FilePath -> IO ()
@@ -208,7 +222,37 @@ mergeClj a o b =  do
 
 
 mergeLua :: FilePath -> FilePath -> FilePath -> IO ()
-mergeLua a o b =  undefined
+mergeLua a o b =  do
+  x <-
+    getCompose $ do
+      x <- Compose . Language.Lua.Parser.parseFile $ a
+      y <- Compose . Language.Lua.Parser.parseFile $ o
+      z <- Compose . Language.Lua.Parser.parseFile $ b
+      pure (deep @FamBlock x, deep @FamBlock y, deep @FamBlock z)
+  case x of
+    Left err -> fail (show err)
+    Right (a', o', b') -> do
+      let es_oa   = GDiff.diff' o' a'
+      let es_ob   = GDiff.diff' o' b'
+      let es_oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
+      let es_oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
+      let es_ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
+      let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
+      let oa      = Translate.diffAlmu es_oa_o es_oa_a
+      let ob      = Translate.diffAlmu es_ob_o es_ob_b
+      let m'       = Merge.mergeAlmu oa ob
+      case m' of
+        Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
+        Right m -> 
+          case Diff.applyAlmu m a' of
+            Nothing -> fail "MA failed to apply"
+            Just res1 ->
+              case Diff.applyAlmu m  b' of
+                Nothing -> fail "MB failed to apply"
+                Just res2 ->
+                  if eq1 res1 res2
+                  then pure ()
+                  else fail "MA != MB"
 
 command :: Cmd -> IO ()
 command x =
