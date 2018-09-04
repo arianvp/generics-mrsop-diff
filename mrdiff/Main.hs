@@ -51,6 +51,8 @@ import Language.Clojure.AST (FamExpr)
 import qualified Language.Clojure.Parser
 import qualified Language.Lua.Parser
 
+
+
 data Language = Lua | Clj
   deriving (Eq)
 
@@ -102,8 +104,8 @@ parseCmd =
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
 
-printCLJAST :: FilePath -> IO ()
-printCLJAST fp = do
+printClj :: FilePath -> IO ()
+printClj fp = do
   x <- Language.Clojure.Parser.parseFile fp
   case x of
     Left er -> fail (show er)
@@ -114,8 +116,9 @@ printCLJAST fp = do
       AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra .
       deep @FamExpr $
       block
-printAST :: FilePath -> IO ()
-printAST fp = do
+
+printLua :: FilePath -> IO ()
+printLua fp = do
   x <- Language.Lua.Parser.parseFile fp
   case x of
     Left er -> fail (show er)
@@ -131,9 +134,9 @@ diffClj :: V -> FilePath -> FilePath -> IO ()
 diffClj v fp1 fp2 = do
   x <-
     getCompose $ do
-      x <- Compose . Language.Lua.Parser.parseFile $ fp1
-      y <- Compose . Language.Lua.Parser.parseFile $ fp2
-      pure (deep @FamBlock x, deep @FamBlock y)
+      x <- Compose . Language.Clojure.Parser.parseFile $ fp1
+      y <- Compose . Language.Clojure.Parser.parseFile $ fp2
+      pure (deep @FamExpr x, deep @FamExpr y)
   case x of
     Left er -> fail (show er)
     Right (left, right) ->
@@ -213,14 +216,6 @@ mergeClj a o b =  do
                   then pure ()
                   else fail "MA != MB"
 
-
-          
-
-
-      
-      
-
-
 mergeLua :: FilePath -> FilePath -> FilePath -> IO ()
 mergeLua a o b =  do
   x <-
@@ -259,8 +254,8 @@ command x =
   case x of
     AST file ->
       case getLanguage file of
-        Just Lua -> printAST file
-        Just Clj -> printCLJAST file
+        Just Lua -> printLua file
+        Just Clj -> printClj file
         Nothing -> fail "Not a supported language"
     Diff v left right -> do
       let lang = do
