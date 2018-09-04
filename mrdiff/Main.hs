@@ -29,7 +29,9 @@ import Options.Applicative (Parser, ParserInfo)
 
 import qualified Generics.MRSOP.AG as AG
 import Generics.MRSOP.Base
+import qualified Generics.MRSOP.Diff2 as Diff
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
+import qualified Generics.MRSOP.Diff.Merge as Merge
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
 import qualified Generics.MRSOP.GDiff as GDiff
 import qualified Generics.MRSOP.GDiffCopyExperiment as GDiffOld
@@ -95,7 +97,7 @@ parseCmd =
              Options.Applicative.progDesc description)
         parser = Options.Applicative.helper <*> cmdParser
     mergeParser =
-      Merge <$> argument "origin" <*> argument "left" <*> argument "right"
+      Merge <$> argument "left" <*> argument "origin" <*> argument "right"
     diffParser v = Diff v <$> argument "left" <*> argument "right"
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
@@ -164,6 +166,50 @@ diffLua v fp1 fp2 = do
         O -> print (GDiffOld.diff' left right)
              
 
+mergeClj :: FilePath -> FilePath -> FilePath -> IO ()
+mergeClj a o b =  do
+  x <-
+    getCompose $ do
+      x <- Compose . Language.Clojure.Parser.parseFile $ a
+      y <- Compose . Language.Clojure.Parser.parseFile $ o
+      z <- Compose . Language.Clojure.Parser.parseFile $ b
+      pure (deep @FamExpr x, deep @FamExpr y, deep @FamExpr z)
+  case x of
+    Left err -> fail (show err)
+    Right (a', o', b') -> do
+      let es_oa   = GDiff.diff' o' a'
+      let es_ob   = GDiff.diff' o' b'
+      let es_oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
+      let es_oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
+      let es_ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
+      let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
+      let oa      = Translate.diffAlmu es_oa_o es_oa_a
+      let ob      = Translate.diffAlmu es_ob_o es_ob_b
+      let m'       = Merge.mergeAlmu oa ob
+      case m' of
+        Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
+        Right m -> 
+          case Diff.applyAlmu m a' of
+            Nothing -> fail "MA failed to apply"
+            Just res1 ->
+              case Diff.applyAlmu m  b' of
+                Nothing -> fail "MB failed to apply"
+                Just res2 ->
+                  if eq1 res1 res2
+                  then pure ()
+                  else fail "MA != MB"
+
+
+          
+
+
+      
+      
+
+
+mergeLua :: FilePath -> FilePath -> FilePath -> IO ()
+mergeLua a o b =  undefined
+
 command :: Cmd -> IO ()
 command x =
   case x of
@@ -182,15 +228,16 @@ command x =
         Just Lua -> diffLua v left right
         Just Clj -> diffClj v left right
         Nothing -> fail "Languages differ or unsupported"
-    Merge origin left right -> do
+    Merge left origin right -> do
       let lang = do
-            lorigin <- getLanguage origin
             lleft <- getLanguage left
+            lorigin <- getLanguage origin
             lright <- getLanguage right
             guard $ lleft == lright && lleft == lorigin
             pure lleft
       case lang of
-        Just Lua -> undefined
+        Just Lua -> mergeLua left origin right
+        Just Clj -> mergeClj left origin right
         Nothing -> fail "Languages differ or unsupported"
 
 main :: IO ()
