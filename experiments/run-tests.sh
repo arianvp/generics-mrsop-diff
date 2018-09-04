@@ -5,7 +5,7 @@ dir=$1
 # Diffs that take longer than 30s are cancelled
 timeout="30s"
 
-mrdiff="./dist/build/mrdiff/mrdiff"
+mrdiff="../dist/build/mrdiff/mrdiff"
 
 # limit to 8GiBs of memory per process
 ulimit -v 8589934592
