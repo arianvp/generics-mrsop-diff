@@ -14,7 +14,7 @@
 module Main where
 
 import Control.Applicative ((<|>))
-import Control.Monad (guard)
+import Control.Monad (guard, when)
 import Data.Functor.Compose (Compose(Compose, getCompose))
 import Data.Functor.Const (Const(..))
 
@@ -58,8 +58,10 @@ data Language = Lua | Clj
 
 data Cmd
   = AST FilePath
-  | Diff V FilePath
+  | Diff FilePath
          FilePath
+         Bool
+         Bool
   | Merge FilePath
           FilePath
           FilePath
@@ -78,12 +80,10 @@ parserInfoCmd =
     (Options.Applicative.progDesc "Tree-based diff and merge tool" <>
      Options.Applicative.fullDesc)
 
-data V = O | N
 
 parseCmd :: Parser Cmd
 parseCmd =
-  subcommand "diff" "Diff two files" (diffParser N) <|>
-  subcommand "olddiff" "Diff two files" (diffParser O) <|>
+  subcommand "diff" "Diff two files and return 0 if it succeeded" diffParser <|>
   subcommand "ast" "show ast of file" astParser <|>
   subcommand "merge" "Merge two files, given their common ancestor" mergeParser
   where
@@ -100,7 +100,11 @@ parseCmd =
         parser = Options.Applicative.helper <*> cmdParser
     mergeParser =
       Merge <$> argument "left" <*> argument "origin" <*> argument "right"
-    diffParser v = Diff v <$> argument "left" <*> argument "right"
+    diffParser  =
+      Diff  <$>  argument "left" 
+            <*> argument "right" 
+            <*> Options.Applicative.switch (Options.Applicative.long "show-left" <> Options.Applicative.help "show annotated dotgraph of lhs")
+            <*> Options.Applicative.switch (Options.Applicative.long "show-right" <> Options.Applicative.help "show annotated dotgraph of rhs")
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
 
@@ -130,8 +134,8 @@ printLua fp = do
       deep @FamBlock $
       block
 
-diffClj :: V -> FilePath -> FilePath -> IO ()
-diffClj v fp1 fp2 = do
+diffClj ::  FilePath -> FilePath -> Bool -> Bool -> IO ()
+diffClj fp1 fp2 lhs rhs = do
   x <-
     getCompose $ do
       x <- Compose . Language.Clojure.Parser.parseFile $ fp1
@@ -139,25 +143,24 @@ diffClj v fp1 fp2 = do
       pure (deep @FamExpr x, deep @FamExpr y)
   case x of
     Left er -> fail (show er)
-    Right (left, right) ->
-      case v of
-        N -> do
-          let d = GDiff.diff' left right
-          let l = Annotate.annSrc left d
-          let r = Annotate.annDest right d
-          let s = Translate.diffAlmu 
-                    (Translate.countCopies l)
-                    (Translate.countCopies r)
-          case Diff.applyAlmu s left of
-            Just x ->
-              if eq1 x right
-                then pure ()
-                else fail "generated diff was inconsistent"
-            Nothing -> fail "generated diff  didn't apply"
-        O -> undefined
+    Right (left, right) -> do
+      let d = GDiff.diff' left right
+      let l = Translate.countCopies $ Annotate.annSrc left d
+      let r = Translate.countCopies $ Annotate.annDest right d
+      let s = Translate.diffAlmu  l r
+      when lhs $ do
+        Text.putStrLn . GraphViz.dotToText fp1 . GraphViz.visualizeFix $ l
+      when rhs $ do
+        Text.putStrLn . GraphViz.dotToText fp2 . GraphViz.visualizeFix $ r
+      case Diff.applyAlmu s left of
+        Just x ->
+          if eq1 x right
+            then pure ()
+            else fail "generated diff was inconsistent"
+        Nothing -> fail "generated diff  didn't apply"
              
-diffLua :: V -> FilePath -> FilePath -> IO ()
-diffLua v fp1 fp2 = do
+diffLua :: FilePath -> FilePath -> Bool -> Bool -> IO ()
+diffLua fp1 fp2 lhs rhs = do
   x <-
     getCompose $ do
       x <- Compose . Language.Lua.Parser.parseFile $ fp1
@@ -165,22 +168,21 @@ diffLua v fp1 fp2 = do
       pure (deep @FamBlock x, deep @FamBlock y)
   case x of
     Left er -> fail (show er)
-    Right (left, right) ->
-      case v of
-        N -> do
-          let d = GDiff.diff' left right
-          let l = Annotate.annSrc left d
-          let r = Annotate.annDest right d
-          let s = Translate.diffAlmu 
-                    (Translate.countCopies l)
-                    (Translate.countCopies r)
-          case Diff.applyAlmu s left of
-            Just x ->
-              if eq1 x right
-                then pure ()
-                else fail "generated diff was inconsistent"
-            Nothing -> fail "generated diff  didn't apply"
-        O -> undefined
+    Right (left, right) -> do
+      let d = GDiff.diff' left right
+      let l = Translate.countCopies $ Annotate.annSrc left d
+      let r = Translate.countCopies $ Annotate.annDest right d
+      let s = Translate.diffAlmu  l r
+      when lhs $ do
+        Text.putStrLn . GraphViz.dotToText fp1 . GraphViz.visualizeFix $ l
+      when rhs $ do
+        Text.putStrLn . GraphViz.dotToText fp2 . GraphViz.visualizeFix $ r
+      case Diff.applyAlmu s left of
+        Just x ->
+          if eq1 x right
+            then pure ()
+            else fail "generated diff was inconsistent"
+        Nothing -> fail "generated diff  didn't apply"
              
 
 mergeClj :: FilePath -> FilePath -> FilePath -> IO ()
@@ -257,15 +259,15 @@ command x =
         Just Lua -> printLua file
         Just Clj -> printClj file
         Nothing -> fail "Not a supported language"
-    Diff v left right -> do
+    Diff left right showLeft showRight -> do
       let lang = do
             lleft <- getLanguage left
             lright <- getLanguage right
             guard $ lleft == lright
             pure lleft
       case lang of
-        Just Lua -> diffLua v left right
-        Just Clj -> diffClj v left right
+        Just Lua -> diffLua left right showLeft showRight
+        Just Clj -> diffClj left right showLeft showRight
         Nothing -> fail "Languages differ or unsupported"
     Merge left origin right -> do
       let lang = do

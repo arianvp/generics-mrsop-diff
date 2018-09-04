@@ -228,3 +228,5 @@ applyAlmu almu f@(Fix x) =
     Spn spine -> Fix <$> applySpine spine x
     Ins c ctx -> Fix . inj c <$> insCtx ctx f
     Del c ctx -> delCtx ctx <=< match c $ x
+    Stiff x y -> pure y
+    

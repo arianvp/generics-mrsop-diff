@@ -12,6 +12,7 @@ import Generics.MRSOP.Opaque
 
 \end{code}
 
+
 Our very small statement based language
 \begin{code}
 data Stmt

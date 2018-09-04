@@ -23,7 +23,7 @@ import Data.Monoid
   )
 import Data.Semigroup (Max(Max, getMax), (<>))
 import Data.Type.Equality
-import Generics.MRSOP.AG (mapAnn, monoidAlgebra, synthesizeAnn)
+import Generics.MRSOP.AG (mapAnn, monoidAlgebra, synthesizeAnn, productAnn)
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff.Annotate
 import Generics.MRSOP.Diff2
@@ -47,8 +47,8 @@ forgetAnn' = mapNA id forgetAnn
 -- the two. We could add our own datatype later.
 diffAl ::
      (Show1 ki, Eq1 ki, TestEquality ki)
-  => PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
-  -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
+  => PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
+  -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) ys
   -> Al ki codes xs ys
 diffAl NP0 NP0 = A0 NP0 NP0
 diffAl NP0 (y :* ys) =
@@ -68,7 +68,7 @@ diffAl (x :* xs) (y :* ys) =
         AX dels inss at al ->
           AX (forgetAnn' x :* dels) (forgetAnn' y :* inss) at al
     (NA_K k1, NA_I i2, Nothing) ->
-      case fromJust . getAnn' . extractAnn $ y of
+      case getAnn' . extractAnn $ y of
         Modify ->
           case diffAl (x :* xs) ys of
             A0 dels inss -> A0 dels (forgetAnn' y :* inss)
@@ -78,7 +78,7 @@ diffAl (x :* xs) (y :* ys) =
             A0 dels inss -> A0 (forgetAnn' x :* dels) inss
             AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
     (NA_I i1, NA_K k2, Nothing) ->
-      case fromJust . getAnn' . extractAnn $ x of
+      case getAnn' . extractAnn $ x of
         Modify ->
           case diffAl xs (y :* ys) of
             A0 dels inss -> A0 (forgetAnn' x :* dels) inss
@@ -88,8 +88,7 @@ diffAl (x :* xs) (y :* ys) =
             A0 dels inss -> A0 dels (forgetAnn' y :* inss)
             AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
     (NA_I i1, NA_I i2, Just Refl) ->
-      case ( fromJust . getAnn' . extractAnn $ x
-           , fromJust . getAnn' . extractAnn $ y) of
+      case ( getAnn' . extractAnn $ x , getAnn' . extractAnn $ y) of
         (Modify, _) ->
           case diffAl xs (y :* ys) of
             A0 dels inss -> A0 (forgetAnn' x :* dels) inss
@@ -104,9 +103,9 @@ diffAl (x :* xs) (y :* ys) =
     (NA_I i1, NA_K k2, Just a) -> error "absurd.  This is a contradiction. NA_I != NA_K"
     (NA_K k1, NA_I i2, Just b) -> error "absurd. This is a contradiction. NA_K != NA_I"
     (NA_I i1, NA_I i2, Nothing) ->
-      case ( fromJust . getAnn' . extractAnn $ x
-           , fromJust . getAnn' . extractAnn $ y) of
-        (Copy, Copy) -> error "HELP HELP. I don't know if this ever occurs"
+      case ( getAnn' . extractAnn $ x , getAnn' . extractAnn $ y) of
+        -- TODO: Narator voice. It did
+        (Copy, Copy) -> error $ "HELP HELP. I don't know if this ever occurs at: " ++ show (show1 $ extractAnn x, show1 $ extractAnn y)
         (Modify, _) ->
           case diffAl xs (y :* ys) of
             A0 dels inss -> A0 (forgetAnn' x :* dels) inss
@@ -118,16 +117,16 @@ diffAl (x :* xs) (y :* ys) =
 
 diffAt ::
      (Show1 ki, Eq1 ki, TestEquality ki)
-  => NA ki (AnnFix ki codes (Const (Sum Int, First Ann))) a
-  -> NA ki (AnnFix ki codes (Const (Sum Int, First Ann))) a
+  => NA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) a
+  -> NA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) a
   -> At ki codes a
 diffAt (NA_K x) (NA_K y) = AtSet (Trivial x y)
 diffAt (NA_I x) (NA_I y) = AtFix $ diffAlmu x y
 
 diffSpine ::
      (TestEquality ki, Show1 ki, Eq1 ki)
-  => Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
-  -> Rep ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  => Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
+  -> Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> Spine ki codes xs
 diffSpine s1 s2 =
   if (eq1 `on` mapRep forgetAnn) s1 s2
@@ -139,40 +138,39 @@ diffSpine s1 s2 =
                  sCns c1 (mapNP (\(a :*: b) -> diffAt a b) (zipNP p1 p2))
                Nothing -> Schg c1 c2 (diffAl p1 p2)
 
+copiesAlgebra
+  :: Const Ann ix
+  -> Rep ki (Const (Sum Int)) xs
+  -> Const (Sum Int) ix
+copiesAlgebra (Const Copy) = (Const 1 <>) . monoidAlgebra
+copiesAlgebra (Const Modify) = monoidAlgebra
+
 -- annotates the tree with how many copies are underneath each node
 -- (inclusive with self)
 -- copies Copy = 1 + copies children
 -- copies Modify = copies children
-copiesAlgebra ::
-     Const Ann iy
-  -> Rep ki (Const (Sum Int, First Ann)) xs
-  -> Const (Sum Int, First Ann) iy
-copiesAlgebra (Const Copy) = (Const (1, First $ Just Copy) <>) . monoidAlgebra
-copiesAlgebra (Const Modify) =
-  (Const (mempty, First $ Just $ Modify) <>) . monoidAlgebra
+countCopies
+  :: AnnFix ki codes (Const Ann) ix
+  -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
+countCopies = synthesizeAnn (productAnn copiesAlgebra const)
 
-countCopies ::
-     AnnFix ki codes (Const Ann) ix
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-countCopies = synthesizeAnn copiesAlgebra
-
-
+--
 diffCtx
   :: forall ki codes p ix xs.  
      (Show1 ki, Eq1 ki, TestEquality ki, IsNat ix) => 
      InsOrDel ki codes p
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) xs
+  -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
+  -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> Ctx ki codes p ix xs
 diffCtx cid x xs
  = 
   let maxIdx = fst max
       max = maximumBy (comparing snd) zipped
       zipped = zip [0 .. ] elimmed
-      elimmed = elimNP (elimNA (const 0) (getSum . fst . getConst . getAnn)) xs
+      elimmed = elimNP (elimNA (const 0) (getCopies . getAnn)) xs
       drop' ::
            Int
-        -> PoA ki (AnnFix ki codes (Const (Sum Int, First Ann))) ys
+        -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) ys
         -> Ctx ki codes p ix ys
       drop' n NP0 = error "We should've found it"
       drop' 0 (NA_I y :* ys) =
@@ -187,24 +185,27 @@ diffCtx cid x xs
 extractNat :: forall ki phi n. NA ki phi (I n) -> Integer
 extractNat (NA_I _) = getNat (Proxy :: Proxy n)
 
-getAnn' :: (Const (Sum Int, First Ann) ix) -> Maybe Ann
-getAnn' (Const (_, First x)) = x
+getCopies :: Product (Const (Sum Int)) chi ix -> Int
+getCopies (Pair (Const (Sum a)) _) = a
 
-hasCopies :: AnnFix ki codes (Const (Sum Int, First Ann)) ix -> Bool
-hasCopies (AnnFix (Const (Sum x, _)) _) = x > 0
+getAnn' :: Product phi (Const Ann) ix -> Ann
+getAnn' (Pair _ (Const b)) = b
 
--- | Takes two annotated trees, and produces a patch
+hasCopies :: AnnFix ki codes (Product (Const (Sum Int)) chi) ix -> Bool
+hasCopies (AnnFix (Pair (Const (Sum x)) _) _) = x > 0 -- | Takes two annotated trees, and produces a patch
+
 diffAlmu ::
      (Show1 ki, Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
-  => AnnFix ki codes (Const (Sum Int, First Ann)) ix
-  -> AnnFix ki codes (Const (Sum Int, First Ann)) iy
+  => AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
+  -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) iy
   -> Almu ki codes ix iy
 diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
-  case (fromJust $ getAnn' $ ann1, fromJust $ getAnn' $ ann2) of
+  case (getAnn' ann1, getAnn' ann2) of
     (Copy, Copy) ->
       case testEquality (sNatFixIdx x) (sNatFixIdx y) of
         Just Refl -> Spn (diffSpine rep1 rep2)
-        Nothing -> error "should never happen"
+        -- TODO: It does happen
+        Nothing -> error $ "should never happen. at : " ++ show (show1 $ ann1, show1 $ ann2)
     (Copy, Modify) -> 
       if hasCopies y then diffIns x rep2 else Stiff (forgetAnn x) (forgetAnn y)
     (Modify, Copy) ->
