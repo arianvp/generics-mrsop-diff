@@ -6,15 +6,15 @@ module Language.Clojure.Parser
     , parse
     , parseFile
     , parseTest
-    , parseAsExprList
+    , parseAsOldExprList
 
     -- AST
-    , Expr(..)
+    , OldExpr(..)
     , FormTy(..)
     , CollTy(..)
     , Term(..)
     , Tag(..)
-    , SepExprList(..)
+    , SepOldExprList(..)
     , Sep(..)
     ) where
 
@@ -32,25 +32,25 @@ lexer = makeTokenParser javaStyle
   , identLetter = alphaNum <|> oneOf ":_.'-/^?!><*#\"\\" <|> satisfy isSymbol
   }
 
-parseSeq :: Parsec String () Expr
+parseSeq :: Parsec String () OldExpr
 parseSeq = do
-  p1 <- parseExpr
+  p1 <- parseOldExpr
   whiteSpace lexer
   p2 <- (try parseSeq <|> parseEmptyProgram)
   return $ Seq p1 p2 
 
 parseTop = whiteSpace lexer *> (try parseSeq <|> parseEmptyProgram) <* eof
 
-parseAsExprList = do
+parseAsOldExprList = do
   top <- parseTop
   return $ walkSeq top
-  -- whiteSpace lexer *> (many parseSingleExpr) <* whiteSpace lexer <* eof
+  -- whiteSpace lexer *> (many parseSingleOldExpr) <* whiteSpace lexer <* eof
 walkSeq (Seq a (Empty )) = a : []
 walkSeq (Seq a b ) = a : walkSeq b
 walkSeq (Empty ) = [Empty ]
 walkSeq e = error $ "nowalk" ++ show e
 
-parseExpr = choice
+parseOldExpr = choice
   [ try parseSpecial
   , try parseDispatch
   , parseCollection
@@ -69,7 +69,7 @@ parseCollection = choice [ parseParens, parseVec, parseSet ]
 
 parseSpecial = do
   ident <- parseSpecialIdent
-  expr <- parseExpr
+  expr <- parseOldExpr
   return $ Special ident expr 
 
 parseSpecialIdent = choice
@@ -88,7 +88,7 @@ parseDispatch = do
   return $ Dispatch disp
   where
     parseDispatchable = choice
-      [ parseExpr
+      [ parseOldExpr
       , parseRegExp
       , parseTaggedLit
       ]
@@ -125,27 +125,27 @@ brackets p = between (symbol lexer "[") (string "]") p
 
 
 parseSet = do
-  contents <- braces parseSepExprList
+  contents <- braces parseSepOldExprList
   end <- getPosition
   return $ Collection Set contents 
 
 parseVec = do
-  contents <- brackets parseSepExprList
+  contents <- brackets parseSepOldExprList
   return $ Collection Vec contents 
 
 parseParens = do
-  contents <- parens parseSepExprList
+  contents <- parens parseSepOldExprList
   return $ Collection Parens contents 
 
-parseSepExprList = parseSepExprList1 <|> parseEmptyList
+parseSepOldExprList = parseSepOldExprList1 <|> parseEmptyList
 
 parseEmptyList = do
   return $ Nil 
 
-parseSepExprList1 = do
-  x <- parseExpr
+parseSepOldExprList1 = do
+  x <- parseOldExpr
   sep <- parseSep
-  xs <- parseSepExprList
+  xs <- parseSepOldExprList
   return $ Cons x sep xs 
 
 parseSep = choice
@@ -176,6 +176,9 @@ identifier = do
 
 
 parseFile :: FilePath -> IO (Either ParseError Expr)
-parseFile fname = do 
+parseFile f = fmap cannonTopLevel <$> parseFileOld f
+
+parseFileOld :: FilePath -> IO (Either ParseError OldExpr)
+parseFileOld fname = do 
   input <- readFile fname
   return (runParser parseTop () fname input)

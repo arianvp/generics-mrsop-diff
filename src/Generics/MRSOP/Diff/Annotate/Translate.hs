@@ -51,7 +51,7 @@ forgetAnn' = mapNA id forgetAnn
 -- TODO / NOTE: fromJust because we know copiesAlgebra always Annotates leaves with a First.
 -- it's the First Semigroup, not the First Monoid. But haskell doesn't distinguish between
 -- the two. We could add our own datatype later.
-diffAl ::
+diffAl :: forall ki fam codes xs ys.
      (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki)
   => PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) ys
@@ -108,10 +108,26 @@ diffAl (x :* xs) (y :* ys) =
     -- Haskell doesn't allow us to discharge contradictions unfortunately, so it gets confused
     (NA_I i1, NA_K k2, Just a) -> error "absurd.  This is a contradiction. NA_I != NA_K"
     (NA_K k1, NA_I i2, Just b) -> error "absurd. This is a contradiction. NA_K != NA_I"
-    (NA_I i1, NA_I i2, Nothing) ->
+    (NA_I i1@(AnnFix _ rep1), NA_I i2@(AnnFix _ rep2), Nothing) ->
       case ( getAnn' . extractAnn $ x , getAnn' . extractAnn $ y) of
         -- TODO: Narator voice. It did
-        (Copy, Copy) -> error $ "HELP HELP. I don't know if this ever occurs at: " ++ show (show1 $ extractAnn x, show1 $ extractAnn y)
+        (Copy, Copy) ->
+          case (sop rep1, sop rep2) of
+            (Tag c1 _, Tag c2 _) -> 
+              let i1' = datatypeInfo @ki @fam @codes (Proxy :: Proxy fam) (sNatFixIdx i1)
+                  ci1 = constrInfoLkup c1 i1'
+                  cn1 = constructorName ci1
+                  dn1 = showDatatypeName (datatypeName i1')
+                  i2' = datatypeInfo (Proxy :: Proxy fam) (sNatFixIdx i2)
+                  ci2 = constrInfoLkup c2 i2'
+                  cn2 = constructorName ci2
+                  dn2 = showDatatypeName (datatypeName i2')
+              in
+                error $ fold
+                  [ "Copy Copy with different universes happened\n"
+                  , "left = " ++ cn1 ++ " :: " ++ dn1 ++ " :: " ++ show (snat2int (sNatFixIdx i1)) ++ "\n"
+                  , "right = " ++ cn2 ++ " :: " ++ dn2 ++ " :: " ++ show (snat2int (sNatFixIdx i2)) ++ "\n"
+                  ]
         (Modify, _) ->
           case diffAl xs (y :* ys) of
             A0 dels inss -> A0 (forgetAnn' x :* dels) inss
@@ -160,7 +176,9 @@ countCopies
   -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
 countCopies = synthesizeAnn (productAnn copiesAlgebra const)
 
---
+-- TODO: Discuss with Victor
+-- A maximum path of copies  should always in the same index, correct?
+-- We alternative until we get there. However, this is not the case now :(
 diffCtx
   :: forall ki fam codes p ix xs.  
      (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki, IsNat ix) => 
