@@ -74,7 +74,7 @@ data FormTy = Quote | SQuote | UnQuote | DeRef | Meta deriving (Show, Eq)
 data CollTy = TopLevel | Vec | Set | Parens deriving (Show, Eq)
 
 data Term = TaggedString !Tag !Text 
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Tag = String | Var  deriving (Show, Eq)
 
@@ -83,15 +83,25 @@ data Tag = String | Var  deriving (Show, Eq)
 data ConflictResult a = NoConflict | ConflictAt a
   deriving (Show, Eq)
 
-data CljKon = CljText
+data CljKon = CljText | CljFormTy |CljCollTy | CljTerm | CljTag | CljSep
 data CljSingl (kon :: CljKon) :: * where
   SCljText :: Text -> CljSingl CljText
+  SCljFormTy :: FormTy -> CljSingl CljFormTy
+  SCljCollTy :: CollTy -> CljSingl CljCollTy
+  SCljTerm :: Term -> CljSingl CljTerm
+  SCljTag :: Tag -> CljSingl CljTag
+  SCljSep :: Sep -> CljSingl CljSep
 
 instance Digestible Text where
   digest = hash . encodeUtf8
 
 instance Digestible1 CljSingl where
   digest1 (SCljText text) = digest text
+  digest1 (SCljFormTy a) = digest (pack $ show a)
+  digest1 (SCljCollTy a) = digest (pack $ show a)
+  digest1 (SCljTerm a) = digest (pack $ show a)
+  digest1 (SCljTag a) = digest (pack $ show a)
+  digest1 (SCljSep a) = digest (pack $ show a)
   
 
 deriving instance Show (CljSingl k)
@@ -101,6 +111,12 @@ instance Eq1 CljSingl where eq1 = (==)
 
 instance TestEquality CljSingl where
   testEquality (SCljText _) (SCljText _) = Just Refl
+  testEquality (SCljFormTy _) (SCljFormTy _) = Just Refl
+  testEquality (SCljCollTy _) (SCljCollTy _) = Just Refl
+  testEquality (SCljTerm _) (SCljTerm _) = Just Refl
+  testEquality (SCljTag _) (SCljTag _) = Just Refl
+  testEquality (SCljSep _) (SCljSep _) = Just Refl
+  testEquality _ _ = Nothing
 
 
 deriveFamilyWith ''CljSingl [t| Expr |]
