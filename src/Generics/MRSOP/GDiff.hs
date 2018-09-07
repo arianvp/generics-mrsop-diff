@@ -466,33 +466,30 @@ diffT' Nil (Cons isys) NP0 (y :* ys) =
         i' = getDiff i 
      in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
 diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
-  case (hashEq x y, xs, ys) of
-    -- if two subtrees are equal, we just copy it directly
-    (Just Refl, NP0, NP0) ->
-      cpyTreeT x
-    _ -> 
-      matchConstructor x $ \cx isxs' xs' ->
-        matchConstructor y $ \cy isys' ys' ->
-          let i = extendi isxs' isxs cx c
-              d = extendd isys' isys cy c
-              -- NOTE, c is shared to calculate i and d!
-              c =
-                diffT'
-                  (appendIsListLemma isxs' isxs)
-                  (appendIsListLemma isys' isys)
-                  (appendNP xs' xs)
-                  (appendNP ys' ys)
-           in cc
-                isxs
-                isxs'
-                isys
-                isys'
-                cx
-                cy
-                (bestDiffT cx cy isxs isxs' isys isys' i d c)
-                i
-                d
-                c
+  -- if two subtrees are equal, we just copy it directly
+  -- (Just Refl, NP0, NP0) ->
+    matchConstructor x $ \cx isxs' xs' ->
+      matchConstructor y $ \cy isys' ys' ->
+        let i = extendi isxs' isxs cx c
+            d = extendd isys' isys cy c
+            -- NOTE, c is shared to calculate i and d!
+            c =
+              diffT'
+                (appendIsListLemma isxs' isxs)
+                (appendIsListLemma isys' isys)
+                (appendNP xs' xs)
+                (appendNP ys' ys)
+         in cc
+              isxs
+              isxs'
+              isys
+              isys'
+              cx
+              cy
+              (bestDiffT cx cy isxs isxs' isys isys' i d c)
+              i
+              d
+              c
 
 extendd ::
      (Eq1 ki, TestEquality ki)
