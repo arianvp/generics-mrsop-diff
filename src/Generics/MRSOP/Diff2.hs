@@ -12,6 +12,9 @@ import Control.Monad (guard, (<=<))
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
 
+maybeToEither :: a -> Maybe b -> Either a b
+maybeToEither = flip maybe Right . Left
+
 newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
 
 type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
@@ -71,6 +74,13 @@ data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
     -> DelCtx ki codes iy (Lkup c (Lkup ix codes))
     -> Almu ki codes ix iy
 
+-- HOT IDEA NUMBER 2.. Make the spine change the type
+data Spine2 (ki :: kon -> *) (codes :: [[[Atom kon]]]) (ix :: Nat) (iy :: Nat) :: * where
+  SScp  :: Spine2 ki codes ix ix
+  SSchg :: Constr (Lkup ix codes) n1
+        -> Constr (Lkup iy codes) n2
+        -> Al ki codes (Lkup n1 (Lkup ix codes)) (Lkup n2 (Lkup iy codes))
+        -> Spine2 ki codes ix iy
 
 data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) (sum :: [[Atom kon]]) :: * where
   Scp :: Spine ki codes sum
@@ -160,10 +170,11 @@ applyAt ::
      Eq1 ki
   => At ki codes a
   -> NA ki (Fix ki codes) a
-  -> Maybe (NA ki (Fix ki codes) a)
+  -> Either String (NA ki (Fix ki codes) a)
 applyAt (AtSet (Trivial k1 k2)) (NA_K k3) = do
-  guard $ eq1 k1 k3
+  -- TODO hack
   pure $ NA_K k2
+  -- kelse Left $ "k1 != k3"
 applyAt (AtFix almu) (NA_I f) = NA_I <$> applyAlmu almu f
 
 -- TODO not sure yet if this is correct, however it seems correct :)
@@ -172,8 +183,8 @@ applyAl ::
      Eq1 ki
   => Al ki codes xs ys
   -> PoA ki (Fix ki codes) xs
-  -> Maybe (PoA ki (Fix ki codes) ys)
-applyAl (A0 NP0 inss) NP0 = Just inss
+  -> Either String (PoA ki (Fix ki codes) ys)
+applyAl (A0 NP0 inss) NP0 = pure inss
 applyAl (A0 (_ :* dels) inss) (x :* xs) = applyAl (A0 dels inss) xs
 applyAl (AX (_ :* dels) inss at al') (x :* xs) =
   applyAl (AX dels inss at al') xs
@@ -185,14 +196,14 @@ applySpine ::
      Eq1 ki
   => Spine ki codes sum
   -> Rep ki (Fix ki codes) sum
-  -> Maybe (Rep ki (Fix ki codes) sum)
+  -> Either String (Rep ki (Fix ki codes) sum)
 applySpine spn r =
   case spn of
     Scp -> pure r
     Schg c1 c2 al ->
       case sop r of
         Tag c3 poa -> do
-          x <- testEquality c1 c3
+          x <- maybeToEither "c1 != c3" $ testEquality c1 c3
           case x of
             Refl -> inj c2 <$> applyAl al poa
 
@@ -205,7 +216,7 @@ insCtx
   :: (IsNat ix, Eq1 ki)
   => InsCtx ki codes ix xs
   -> Fix ki codes ix
-  -> Maybe (PoA ki (Fix ki codes) xs)
+  -> Either String (PoA ki (Fix ki codes) xs)
 insCtx (H x x2) x1 = (\x -> NA_I x :* x2) <$> applyAlmu x x1
 insCtx (T x x2) x1 = (x :*) <$> insCtx x2 x1
 
@@ -214,7 +225,7 @@ delCtx
   :: (Eq1 ki, IsNat ix)
   => DelCtx ki codes ix xs
   -> PoA ki (Fix ki codes) xs
-  -> Maybe (Fix ki codes ix)
+  -> Either String (Fix ki codes ix)
 delCtx (H spu atmus) (NA_I x :* p) = applyAlmu (unAlmuMin spu) x
 delCtx (T atmu al) (at :* p) = delCtx al p
 
@@ -222,11 +233,11 @@ applyAlmu ::
      (IsNat ix, Eq1 ki)
   => Almu ki codes ix iy
   -> Fix ki codes ix
-  -> Maybe (Fix ki codes iy)
+  -> Either String (Fix ki codes iy)
 applyAlmu almu f@(Fix x) =
   case almu of
     Spn spine -> Fix <$> applySpine spine x
     Ins c ctx -> Fix . inj c <$> insCtx ctx f
-    Del c ctx -> delCtx ctx <=< match c $ x
+    Del c ctx -> delCtx ctx <=< maybeToEither "no match" . match c $ x
     Stiff x y -> pure y
     
