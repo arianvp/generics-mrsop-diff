@@ -172,7 +172,8 @@ copiesAlgebra (Const Modify) = monoidAlgebra
 -- copies Copy = 1 + copies children
 -- copies Modify = copies children
 countCopies
-  :: AnnFix ki codes (Const Ann) ix
+  :: IsNat ix
+  => AnnFix ki codes (Const Ann) ix
   -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
 countCopies = synthesizeAnn (productAnn copiesAlgebra const)
 
