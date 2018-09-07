@@ -145,6 +145,7 @@ diffClj fp1 fp2 lhs rhs = do
     Left er -> fail (show er)
     Right (left, right) -> do
       let d = GDiff.diff' left right
+      print d
       let l = Translate.countCopies $ Annotate.annSrc left d
       let r = Translate.countCopies $ Annotate.annDest right d
       let s = Translate.diffAlmu  l r
@@ -233,16 +234,19 @@ mergeLua a o b =  do
     Right (a', o', b') -> do
       let es_oa   = GDiff.diff' o' a'
       let es_ob   = GDiff.diff' o' b'
-      let es_oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
-      let es_oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
-      let es_ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
-      let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
-      let oa      = Translate.diffAlmu es_oa_o es_oa_a
-      let ob      = Translate.diffAlmu es_ob_o es_ob_b
+      let oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
+      let oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
+      let ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
+      let ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
+      let oa      = Translate.diffAlmu oa_o oa_a
+      let ob      = Translate.diffAlmu ob_o ob_b
       let m'       = Merge.mergeAlmu oa ob
+      -- Forces the two edit scripts. Hope this helps memory consumption
+      print es_oa
+      print es_ob
       case m' of
         Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
-        Right m -> 
+        Right m ->
           case Diff.applyAlmu m a' of
             Left ma -> fail $ "MA failed to apply : " ++  ma
             Right res1 ->
