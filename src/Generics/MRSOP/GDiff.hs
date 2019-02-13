@@ -398,7 +398,7 @@ diffPoA ::
 diffPoA = diffT
 
 diffT ::
-     forall xs ys ki codes. ( Eq1 ki, TestEquality ki, L2 xs ys)
+     forall xs ys ki codes phi. ( Eq1 ki, TestEquality ki, L2 xs ys)
   => PoA ki (AnnFix ki codes phi ) xs
   -> PoA ki (AnnFix ki codes phi ) ys
   -> EST ki codes xs ys
