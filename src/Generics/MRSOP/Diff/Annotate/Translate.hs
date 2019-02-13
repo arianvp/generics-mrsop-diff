@@ -123,11 +123,9 @@ diffAl (x :* xs) (y :* ys) =
                   cn2 = constructorName ci2
                   dn2 = showDatatypeName (datatypeName i2')
               in
-                error $ fold
-                  [ "Copy Copy with different universes happened\n"
-                  , "left = " ++ cn1 ++ " :: " ++ dn1 ++ " :: " ++ show (snat2int (sNatFixIdx i1)) ++ "\n"
-                  , "right = " ++ cn2 ++ " :: " ++ dn2 ++ " :: " ++ show (snat2int (sNatFixIdx i2)) ++ "\n"
-                  ]
+                case diffAl xs ys of
+                  A0 dels inss -> A0 (forgetAnn' x :* dels) (forgetAnn' y :* inss)
+                  AX dels inss at al -> AX (forgetAnn' x :* dels) (forgetAnn' y :* inss) at al
         (Modify, _) ->
           case diffAl xs (y :* ys) of
             A0 dels inss -> A0 (forgetAnn' x :* dels) inss
@@ -242,11 +240,12 @@ diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
                   cn2 = constructorName ci2
                   dn2 = showDatatypeName (datatypeName i2)
               in
-                error $ fold
+                Stiff (forgetAnn x) (forgetAnn y)
+                {-error $ fold
                   [ "Copy Copy with different universes happened\n"
                   , "left = " ++ cn1 ++ " :: " ++ dn1 ++ " :: " ++ show (snat2int (sNatFixIdx x)) ++ "\n"
                   , "right = " ++ cn2 ++ " :: " ++ dn2 ++ " :: " ++ show (snat2int (sNatFixIdx y)) ++ "\n"
-                  ]
+                  ]-}
     (Copy, Modify) -> 
       if hasCopies y then diffIns x rep2 else Stiff (forgetAnn x) (forgetAnn y)
     (Modify, Copy) ->
