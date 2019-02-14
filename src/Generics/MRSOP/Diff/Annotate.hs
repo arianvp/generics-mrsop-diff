@@ -33,7 +33,7 @@ injCofAnn ::
   -> Const ann ix
   -> PoA ki (AnnFix ki codes (Const ann)) (Tyof codes c)
   -> NA ki (AnnFix ki codes (Const ann)) a
-injCofAnn (ConstrI c) ann xs =
+injCofAnn (ConstrI c _) ann xs =
     -- And here we are stuck
     --
     -- We have an ann :: Const ann ix
@@ -56,12 +56,12 @@ injCofAnn (ConstrK k) ann xs = NA_K k
 insCofAnn ::
      Cof ki codes a c
   -> Const ann ix
-  -> ListPrf (Tyof codes c)
   -> PoA ki (AnnFix ki codes (Const ann)) (Tyof codes c :++: as)
   -> PoA ki (AnnFix ki codes (Const ann)) (a ': as)
-insCofAnn c ann prf xs =
+insCofAnn (ConstrK k) ann  xs = NA_K k :* xs
+insCofAnn (ConstrI c prf) ann xs =
   let (xs0, xs1) = split prf xs
-   in injCofAnn c ann xs0 :* xs1
+   in  NA_I (AnnFix (coerce ann) $ inj c xs0) :* xs1
 
 {-
  - In Agda, it would be the following. However, I'm not sure
@@ -107,13 +107,13 @@ annSrc' ::
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) xs
 annSrc' xs ES0 = NP0
-annSrc' xs (Ins isys ispoa _ c es) = annSrc' xs es
-annSrc' (x :* xs) (Del isxs ispoa _ c es) =
+annSrc' xs (Ins _ c es) = annSrc' xs es
+annSrc' (x :* xs) (Del _ c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Modify) ispoa (annSrc' (appendNP poa xs) es)
-annSrc' (x :* xs) (Cpy isxs isys ispoa _ c es) =
+   in insCofAnn c (Const Modify) (annSrc' (appendNP poa xs) es)
+annSrc' (x :* xs) (Cpy _ c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Copy) ispoa (annSrc' (appendNP poa xs) es)
+   in insCofAnn c (Const Copy) (annSrc' (appendNP poa xs) es)
 
 annDest' ::
      Eq1 ki
@@ -121,11 +121,11 @@ annDest' ::
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) ys
 annDest' xs ES0 = NP0
-annDest' xs (Del isxs ispoa _ c es) = annDest' xs es
-annDest' (x :* xs) (Ins isys ispoa _ c es)
+annDest' xs (Del _ c es) = annDest' xs es
+annDest' (x :* xs) (Ins _ c es)
  =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Modify) ispoa (annDest' (appendNP poa xs) es)
-annDest' (x :* xs) (Cpy isxs isys ispoa _ c es) =
+   in insCofAnn c (Const Modify) (annDest' (appendNP poa xs) es)
+annDest' (x :* xs) (Cpy _ c es) =
   let poa = fromJust $ matchCof c x
-   in insCofAnn c (Const Copy) ispoa (annDest' (appendNP poa xs) es)
+   in insCofAnn c (Const Copy) (annDest' (appendNP poa xs) es)

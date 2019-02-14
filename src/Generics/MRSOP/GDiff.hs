@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.GDiff where
@@ -33,23 +34,36 @@ data SinglCof
   | CofK
 
 
+type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
+  -- we wanted Lkup c . Lkup ix but haskell complains
+  -- jTyof (f ': codes) (CofI Z      c) = Lkup c f
+  -- Tyof (f ': codes) (CofI (S ix) c) = Tyof codes (CofI ix c)
+ where
+  Tyof codes (CofI ix c) = Lkup c (Lkup ix codes)
+  Tyof codes CofK = '[]
 
-data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) (a :: Atom kon) (c :: SinglCof) where
-  ConstrI
-    :: (IsNat c, IsNat n)
-    => Constr (Lkup n codes) c
-    -> Cof ki codes (I n) (CofI n c)
+
+-- | Either a type index and constructor index, OR a constant
+data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> SinglCof -> * where
+  -- ^ A constructor tells us the type of its arguments and which type in the family it constructs
+  ConstrI :: (IsNat c, IsNat n) => Constr (Lkup n codes) c -> ListPrf (Lkup c (Lkup n codes)) -> Cof ki codes (I n) (CofI n c)
+
+  -- ^ Requires no arguments to complete
   ConstrK :: ki k -> Cof ki codes (K k) CofK
+
+
+
+
 
 cofWitnessI :: Cof ki codes (I n) (CofI n c) -> Proxy n
 cofWitnessI _ = Proxy
-
+  
 heqCof ::
      (Eq1 ki, TestEquality ki)
   => Cof ki codes a cx
   -> Cof ki codes b cy
   -> Maybe (a :~: b, cx :~: cy)
-heqCof cx@(ConstrI x) cy@(ConstrI y) =
+heqCof cx@(ConstrI x _) cy@(ConstrI y _) =
   case testEquality (getSNat (cofWitnessI cx)) (getSNat (cofWitnessI cy)) of
     Nothing -> Nothing
     Just Refl ->
@@ -65,83 +79,82 @@ heqCof (ConstrK x) (ConstrK y) =
     Nothing -> Nothing
 heqCof _ _ = Nothing
 
-type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
-  -- we wanted Lkup c . Lkup ix but haskell complains
-  -- jTyof (f ': codes) (CofI Z      c) = Lkup c f
-  -- Tyof (f ': codes) (CofI (S ix) c) = Tyof codes (CofI ix c)
- where
-  Tyof codes (CofI ix c) = Lkup c (Lkup ix codes)
-  Tyof codes CofK = '[]
+    
 
 data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   ES0 :: ES ki codes '[] '[]
-  Ins
-    :: ListPrf j
-    -> ListPrf (Tyof codes c)
-    -> Int
-    -> Cof ki codes a c
-    -> ES ki codes i (Tyof codes c :++: j)
-    -> ES ki codes i (a ': j)
-  Del
-    :: ListPrf i
-    -> ListPrf (Tyof codes c)
-    -> Int
-    -> Cof ki codes a c
-    -> ES ki codes (Tyof codes c :++: i) j
-    -> ES ki codes (a ': i) j
-  Cpy
-    :: ListPrf i
-    -> ListPrf j
-    -> ListPrf (Tyof codes c)
-    -> Int
-    -> Cof ki codes a c
-    -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
-    -> ES ki codes (a ': i) (a ': j)
+  Ins :: Int -> Cof ki codes a c -> ES ki codes i          (Tyof codes c :++: j) -> ES ki codes i        (a ': j)
+  Del :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) j          -> ES ki codes (a ': i) j
+  Cpy :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j) -> ES ki codes (a ': i) (a ': j)
 
--- When Showing, we do not know what the family that we're showing is,
--- as edit scripts are not parameterised over the family.
--- hence, we can not get the datatype info
-showCof ::
-     (HasDatatypeInfo ki fam codes, Show1 ki) => Cof ki codes a c -> String
-showCof (ConstrK k) = show1 k
-showCof (ConstrI c) = show c
 
-instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
-         Show (ES ki codes xs ys) where
-  show ES0 = "ES0"
-  show (Ins _ _ _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
-  show (Del _ _ _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
-  show (Cpy _ _ _ _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
+-- {-# INLINE cost #-}
+--
+--  IDEA: Instead of calculating cost every time (Expensive)
+--  build up cost by construction (We get it for free)
+cost :: ES ki codes txs tys -> Int
+cost ES0 = 0
+cost (Ins k c es) = k
+cost (Del k c es) = k
+cost (Cpy k c es) = k
 
--- Smart constructors 
--- TODO this is incorrect. I should only pass  ListPrf (Tyof codes c) and ListPrf j
-ins ::
-     ListPrf j
-  -> ListPrf (Tyof codes c)
-  -> Int
-  -> Cof ki codes a c
-  -> ES ki codes i (Tyof codes c :++: j)
-  -> ES ki codes i (a ': j)
-ins = Ins
+-- {-# INLINE meet #-}
+meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
+meet d1 d2 =
+  if cost d1 <= cost d2
+    then d1
+    else d2
 
-del ::
-     ListPrf i
-  -> ListPrf (Tyof codes c)
-  -> Int
-  -> Cof ki codes a c
-  -> ES ki codes (Tyof codes c :++: i) j
-  -> ES ki codes (a ': i) j
-del = Del
+data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
+  NN :: ES ki codes '[] '[] 
+     -> EST ki codes '[] '[]
+  NC :: Cof ki codes y c
+     -> ES ki codes '[] (y ': tys)
+     -> EST ki codes '[] (Tyof codes c :++: tys)
+     -> EST ki codes '[] (y ': tys)
+  CN :: Cof ki codes x c
+     -> ES ki codes (x ': txs) '[]
+     -> EST ki codes (Tyof codes c :++: txs) '[]
+     -> EST ki codes (x ': txs) '[]
+  CC :: Cof ki codes x c1
+     -> Cof ki codes y c2
+     -> ES ki codes (x ': txs) (y ': tys)
+     -> EST ki codes (x ': txs) (Tyof codes c2 :++: tys)
+     -> EST ki codes (Tyof codes c1 :++: txs) (y ': tys)
+     -> EST ki codes (Tyof codes c1 :++: txs) (Tyof codes c2 :++: tys)
+     -> EST ki codes (x ': txs) (y ': tys)
 
-cpy ::
-     ListPrf i
-  -> ListPrf j
-  -> ListPrf (Tyof codes c)
-  -> Int
-  -> Cof ki codes a c
-  -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j)
-  -> ES ki codes (a ': i) (a ': j)
-cpy = Cpy
+
+getDiff :: EST ki codes rxs rys -> ES ki codes rxs rys
+getDiff (NN x) = x
+getDiff (NC _ x _) = x
+getDiff (CN _ x _) = x
+getDiff (CC _ _ x _ _ _) = x
+
+
+diffT 
+  :: (Eq1 ki, TestEquality ki)
+  => PoA ki (AnnFix ki codes phi) xs
+  -> PoA ki (AnnFix ki codes phi) ys
+  -> EST ki codes xs ys
+diffT NP0 NP0 = NN ES0
+diffT (NA_I (AnnFix _ (sop -> Tag c poa)) :* xs) NP0 =
+  CN (ConstrI c (listPrfNP poa)) (Del (1 + cost (getDiff d)) (ConstrI c (listPrfNP poa)) (getDiff d)) d
+  where
+    d = diffT (appendNP poa xs) NP0
+diffT (NA_K k :* xs) NP0 =
+  CN (ConstrK k) (Del (1 + cost (getDiff d)) (ConstrK k) (getDiff d)) d
+  where
+    d = diffT xs NP0
+diffT NP0 (NA_I (AnnFix _ (sop -> Tag c poa)) :* ys) =
+  NC (ConstrI c (listPrfNP poa)) (Ins (1 + cost (getDiff i)) (ConstrI c (listPrfNP poa)) (getDiff i)) i
+  where
+    i = diffT NP0 (appendNP poa ys)
+diffT NP0 (NA_K k :* ys) =
+  NC (ConstrK k) (Ins (1 + cost (getDiff i)) (ConstrK k) (getDiff i)) i
+  where
+    i = diffT NP0 ys
+diffT (x :* xs) (y :* ys) = undefined
 
 -- In Agda this would be:
 -- ++⁻ : {A : Set}
@@ -164,32 +177,25 @@ split (Cons p) (x :* rs) =
   let (xs, rest) = split p rs
    in (x :* xs, rest)
 
-injCof ::
-     Cof ki codes a c
-  -> PoA ki (Fix ki codes) (Tyof codes c)
-  -> NA ki (Fix ki codes) a
-injCof (ConstrI c) xs = NA_I (Fix $ inj c xs)
-injCof (ConstrK k) xs = NA_K k
 
 matchCof ::
      (Eq1 ki)
   => Cof ki codes a c
   -> NA ki (Fix ki codes) a
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
-matchCof (ConstrI c1) (NA_I (Fix x)) = match c1 x
+matchCof (ConstrI c1 prf) (NA_I (Fix x)) = match c1 x
 matchCof (ConstrK k) (NA_K k2) = guard (eq1 k k2) >> Just NP0
 
 -- we need to give Haskell a bit of a hint that Tyof codes c reduces to an IsList
 -- insCof is also really the only place where we _need_ IsList I think
 insCof 
-  :: ListPrf xs 
-  -> ListPrf (Tyof codes c)
-  -> Cof ki codes a c
+  :: Cof ki codes a c
   -> PoA ki (Fix ki codes) (Tyof codes c :++: xs)
   -> PoA ki (Fix ki codes) (a ': xs)
-insCof isxs ispoa c xs =
-  let (args, rest) = split ispoa xs
-   in injCof c args :* rest
+insCof (ConstrI c ispoa) xs =
+  let (poa, xs') = split ispoa xs
+   in NA_I (Fix $ inj c poa) :* xs'
+insCof (ConstrK k) xs = NA_K k :* xs 
 
 delCof ::
      Eq1 ki
@@ -198,30 +204,6 @@ delCof ::
   -> Maybe (PoA ki (Fix ki codes) (Tyof codes c :++: xs))
 delCof c (x :* xs) = flip appendNP xs <$> matchCof c x
 
-
-
-diff :: forall fam ki codes ix1 ix2 ty1 ty2.
-     ( Family ki fam codes
-     , ix1 ~ Idx ty1 fam
-     , ix2 ~ Idx ty2 fam
-     , Lkup ix1 fam ~ ty1
-     , Lkup ix2 fam ~ ty2
-     , IsNat ix1
-     , IsNat ix2
-     ,  Eq1 ki
-     , TestEquality ki
-     )
-  => ty1
-  -> ty2
-  -> ES ki codes '[ 'I ix1] '[ 'I ix2]
-diff a b = diff' (deep a) (deep b)
-
-diff' ::
-     ( Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
-  => Fix ki codes ix1
-  -> Fix ki codes ix2
-  -> ES ki codes '[ 'I ix1] '[ 'I ix2]
-diff' a b = getDiff $ diff'' a b
 
 apply ::
      forall ki fam codes ty1 ty2 ix1 ix2.
@@ -261,94 +243,52 @@ applyES ::
   -> PoA ki (Fix ki codes) xs
   -> Maybe (PoA ki (Fix ki codes) ys)
 applyES ES0 x = Just NP0
-applyES (Ins isys ispoa _ c es) xs = insCof isys ispoa c <$> applyES es xs
-applyES (Del isxs ispoa _ c es) xs = delCof c xs >>= applyES es
-applyES (Cpy isxs isys ispoa _ c es) xs = insCof isys ispoa c <$> (delCof c xs >>= applyES es)
+applyES (Ins _ c es) xs = insCof c <$> applyES es xs
+applyES (Del _ c es) xs = delCof c xs >>= applyES es
+applyES (Cpy _ c es) xs = insCof c <$> (delCof c xs >>= applyES es)
 
--- {-# INLINE cost #-}
---
---  IDEA: Instead of calculating cost every time (Expensive)
---  build up cost by construction (We get it for free)
-cost :: ES ki codes txs tys -> Int
-cost ES0 = 0
-cost (Ins _ _ k c es) = k
-cost (Del _ _ k c es) = k
-cost (Cpy _ _ _ k c es) = k
 
--- {-# INLINE meet #-}
-meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
-meet d1 d2 =
-  if cost d1 <= cost d2
-    then d1
-    else d2
+{-
+-- When Showing, we do not know what the family that we're showing is,
+-- as edit scripts are not parameterised over the family.
+-- hence, we can not get the datatype info
+showCof ::
+     (HasDatatypeInfo ki fam codes, Show1 ki) => Cof ki codes a c -> String
+showCof (ConstrK k) = show1 k
+showCof (ConstrI c) = show c
 
--- ********* MEMOIZATION **************
-data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
-  NN :: ES ki codes '[] '[] -> EST ki codes '[] '[]
-  NC
-    :: ListPrf tys
-    -> ListPrf (Tyof codes c)
-    -> Cof ki codes y c
-    -> ES ki codes '[] (y ': tys)
-    -> EST ki codes '[] (Tyof codes c :++: tys)
-    -> EST ki codes '[] (y ': tys)
-  CN
-   :: ListPrf txs
-   -> ListPrf (Tyof codes c)
-   -> Cof ki codes x c
-   -> ES ki codes (x ': txs) '[]
-   -> EST ki codes (Tyof codes c :++: txs) '[]
-   -> EST ki codes (x ': txs) '[]
-  CC
-    :: ListPrf txs
-    -> ListPrf (Tyof codes cx)
-    -> ListPrf tys
-    -> ListPrf (Tyof codes cy)
-    -> Cof ki codes x cx
-    -> Cof ki codes y cy
-    -> ES ki codes (x ': txs) (y ': tys)
-    -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
-    -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
-    -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
-    -> EST ki codes (x ': txs) (y ': tys)
+instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
+         Show (ES ki codes xs ys) where
+  show ES0 = "ES0"
+  show (Ins _ _ _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
+  show (Del _ _ _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
+  show (Cpy _ _ _ _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 
-nc ::
-     ListPrf tys
-  -> ListPrf (Tyof codes c)
-  -> Cof ki codes y c
-  -> ES ki codes '[] (y ': tys)
-  -> EST ki codes '[] (Tyof codes c :++: tys)
-  -> EST ki codes '[] (y ': tys)
-nc = NC
 
-cn
-  :: ListPrf txs
-  -> ListPrf (Tyof codes c)
-  -> Cof ki codes x c
-  -> ES ki codes (x ': txs) '[]
-  -> EST ki codes (Tyof codes c :++: txs) '[]
-  -> EST ki codes (x ': txs) '[]
-cn = CN
 
-cc 
-  :: ListPrf txs
-  -> ListPrf (Tyof codes cx)
-  -> ListPrf tys
-  -> ListPrf (Tyof codes cy)
-  -> Cof ki codes x cx
-  -> Cof ki codes y cy
-  -> ES ki codes (x ': txs) (y ': tys)
-  -> EST ki codes (x ': txs) (Tyof codes cy :++: tys)
-  -> EST ki codes (Tyof codes cx :++: txs) (y ': tys)
-  -> EST ki codes (Tyof codes cx :++: txs) (Tyof codes cy :++: tys)
-  -> EST ki codes (x ': txs) (y ': tys)
-cc = CC
+diff :: forall fam ki codes ix1 ix2 ty1 ty2.
+     ( Family ki fam codes
+     , ix1 ~ Idx ty1 fam
+     , ix2 ~ Idx ty2 fam
+     , Lkup ix1 fam ~ ty1
+     , Lkup ix2 fam ~ ty2
+     , IsNat ix1
+     , IsNat ix2
+     ,  Eq1 ki
+     , TestEquality ki
+     )
+  => ty1
+  -> ty2
+  -> ES ki codes '[ 'I ix1] '[ 'I ix2]
+diff a b = diff' (deep a) (deep b)
 
-getDiff :: forall ki codes rxs rys. EST ki codes rxs rys -> ES ki codes rxs rys
-getDiff (NN x) = x
-getDiff (NC _ _ _ x _) = x
-getDiff (CN _ _ _ x _) = x
-getDiff (CC _ _ _ _ _ _ x _ _ _) = x
+diff' ::
+     ( Eq1 ki, IsNat ix1, IsNat ix2, TestEquality ki)
+  => Fix ki codes ix1
+  -> Fix ki codes ix2
+  -> ES ki codes '[ 'I ix1] '[ 'I ix2]
+diff' a b = getDiff $ diff'' a b
+
 
 -- in order to match a constructor of an Atom
 -- we will try all possible constructors, and once we find one that
@@ -397,37 +337,6 @@ diffPoA ::
   -> EST ki codes '[ x] '[ y]
 diffPoA = diffT
 
-diffT ::
-     forall xs ys ki codes phi. ( Eq1 ki, TestEquality ki, L2 xs ys)
-  => PoA ki (AnnFix ki codes phi ) xs
-  -> PoA ki (AnnFix ki codes phi ) ys
-  -> EST ki codes xs ys
-diffT = diffT' (listPrf :: ListPrf xs) (listPrf :: ListPrf ys)
-
-cpyTreeT
-  :: (Eq1 ki, TestEquality ki)
-  => NA ki (AnnFix ki codes phi) a
-  -> EST ki codes '[ a ] '[ a ]
-cpyTreeT x = cpyTreeT' (Cons Nil) (x :* NP0)
-
-cpyTreeT'
-  :: (Eq1 ki, TestEquality ki)
-  => ListPrf xs
-  -> PoA ki (AnnFix ki codes phi) xs
-  -> EST ki codes xs xs
-cpyTreeT' Nil NP0 = NN ES0
-cpyTreeT' (Cons isxs) (x :* xs) = 
-  matchConstructor x $ \c ispoa poa ->
-    let
-      c' = cpyTreeT' (appendIsListLemma ispoa isxs) (appendNP poa xs)
-    in
-      cc 
-        isxs ispoa isxs ispoa c c (cpy isxs isxs ispoa 0 c (getDiff c')) 
-        -- TODO faster version of extendi that only considers cpy 
-        -- and thus does not call bestDiffT
-        (extendi ispoa isxs c c')
-        (extendd ispoa isxs c c')
-        c'
 
 diffT' ::
      ( Eq1 ki, TestEquality ki)
@@ -612,3 +521,5 @@ bestDiffT cx cy isxs isxs' isys isys' i d c =
       let i' = getDiff i
           d' = getDiff d
       in meet (ins isys isys' (1 + cost i') cy i') (del isxs isxs' (1 + cost d') cx d')
+
+      -}
