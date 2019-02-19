@@ -43,6 +43,14 @@ type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
   Tyof codes CofK = '[]
 
 
+-- Tells us the type of the atom, and amount we need to consume from the edit script to consume it
+-- Note to self: This is an easier to handle Cof, as we do not need the separate type family and SinglCof
+-- NOICE
+data Lol (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> [Atom kon] -> * where
+  TagI :: IsNat n => Constr (Lkup n codes) c -> ListPrf (Lkup c (Lkup n codes)) -> Lol ki codes ('I n) (Lkup c (Lkup n codes))
+  TagK :: ki kon -> Lol ki codes ('K k) '[]
+  
+
 -- | Either a type index and constructor index, OR a constant
 data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> SinglCof -> * where
   -- ^ A constructor tells us the type of its arguments and which type in the family it constructs
@@ -51,7 +59,42 @@ data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> SinglCof -> *
   -- ^ Requires no arguments to complete
   ConstrK :: ki k -> Cof ki codes (K k) CofK
 
+data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
+  ES0 :: ES ki codes '[] '[]
+  {-InsI
+    :: Constr (Lkup n codes) c                         -- the constructor
+    -> ListPrf (Lkup c (Lkup n codes))                 -- the type of its arguments
+    -> ES ki codes i (Lkup c (Lkup n codes) :++: j)    -- pop off the types
+    -> ES ki codes i ('I n ': j)                       -- and create the vale
+  InsK 
+    :: ki k -- the constant to insert
+    -> ES ki codes i j  -- nothing needed from the source
+    -> ES ki codes i ('K k ': j) -- and the constant is injected in the dest
+  DelI
+    :: Constr (Lkup n codes) c                         -- the constructor
+    -> ListPrf (Lkup c (Lkup n codes))                 -- the type of its arguments
+    -> ES ki codes (Lkup c (Lkup n codes) :++: i) j    -- pop off the types
+    -> ES ki codes ('I n ': i) j                     -- and create the vale
+  DelK 
+    :: ki k -- the constant to insert
+    -> ES ki codes i j  -- nothing needed from the source
+    -> ES ki codes ('K k ': i) j -- and the constant is injected in the dest
 
+  CopyI
+    :: Constr (Lkup n codes) c
+    -> ListPrf (Lkup c (Lkup n codes))
+    -> ES ki codes (Lkup c (Lkup n codes) :++: i) (Lkup c (Lkup n codes) :++: j)    
+    -> ES ki codes ('I n ': i) ('I n ': j)
+  -}
+
+  Ins' :: Lol ki codes a t -> ES ki codes i (t :++: j) -> ES ki codes i (a ': j)
+
+  Ins :: Int -> Cof ki codes a c -> ES ki codes i          (Tyof codes c :++: j) -> ES ki codes i        (a ': j)
+  Del :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) j          -> ES ki codes (a ': i) j
+  Cpy :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j) -> ES ki codes (a ': i) (a ': j)
+
+  -- optimization, Copy over an atom in its entirety because we know they're deeply equal
+  CpyTree :: Int -> ES ki codes i j -> ES ki codes (a ': i) (a ': j)
 
 
 
@@ -81,13 +124,6 @@ heqCof _ _ = Nothing
 
     
 
-data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
-  ES0 :: ES ki codes '[] '[]
-  Ins :: Int -> Cof ki codes a c -> ES ki codes i          (Tyof codes c :++: j) -> ES ki codes i        (a ': j)
-  Del :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) j          -> ES ki codes (a ': i) j
-  Cpy :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j) -> ES ki codes (a ': i) (a ': j)
-
-
 -- {-# INLINE cost #-}
 --
 --  IDEA: Instead of calculating cost every time (Expensive)
@@ -97,13 +133,16 @@ cost ES0 = 0
 cost (Ins k c es) = k
 cost (Del k c es) = k
 cost (Cpy k c es) = k
+cost (CpyTree k es) = k
 
+{-
 -- {-# INLINE meet #-}
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
 meet d1 d2 =
   if cost d1 <= cost d2
     then d1
     else d2
+-}
 
 data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES ki codes '[] '[] 
@@ -132,12 +171,26 @@ getDiff (CN _ x _) = x
 getDiff (CC _ _ x _ _ _) = x
 
 
+-- Changes an NA into its constructor + the type of its arguments
+{-naToCof :: NA ki (Fix ki codes) a ->  Lol ki codes a 
+naToCof (NA_I (AnnFix _ (sop -> Tag c poa))) = 
+  TagI c (listPrfNP poa)
+naToCof (NA_K k) =  (TagK k)
+-}
+
 diffT 
   :: (Eq1 ki, TestEquality ki)
   => PoA ki (AnnFix ki codes phi) xs
   -> PoA ki (AnnFix ki codes phi) ys
   -> EST ki codes xs ys
 diffT NP0 NP0 = NN ES0
+diffT (x :* xs) NP0 =
+  undefined
+  {-CN c (Del (1 + cost (getDiff d)) c (getDiff d)) d
+  where
+    c = naToCof x
+    d = diffT (appendNP poa xs) NP0-}
+{-
 diffT (NA_I (AnnFix _ (sop -> Tag c poa)) :* xs) NP0 =
   CN (ConstrI c (listPrfNP poa)) (Del (1 + cost (getDiff d)) (ConstrI c (listPrfNP poa)) (getDiff d)) d
   where
@@ -154,8 +207,19 @@ diffT NP0 (NA_K k :* ys) =
   NC (ConstrK k) (Ins (1 + cost (getDiff i)) (ConstrK k) (getDiff i)) i
   where
     i = diffT NP0 ys
-diffT (x :* xs) (y :* ys) = undefined
-
+diffT (x@(NA_I (AnnFix _ (sop -> Tag c1 poa1))) :* xs) 
+      (y@(NA_I (AnnFix _ (sop -> Tag c2 poa2))) :* ys) =
+  
+  --- testEquality to find out they're the same universe O(1)
+  case testEquality x y of
+    -- TODO check if they have the same subtree O(n) 
+    -- (or O(1) if hashEq))
+    Just Refl ->  
+      CC (ConstrI c1 (listPrfNP poa1))
+         (ConstrI c2 (listPrfNP poa2))
+         (CpyTree 0 _) _ _ _ 
+    Nothing -> undefined
+    -}
 -- In Agda this would be:
 -- ++⁻ : {A : Set}
 --       {P : A -> Set}
