@@ -87,8 +87,6 @@ data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
     -> ES ki codes ('I n ': i) ('I n ': j)
   -}
 
-  Ins' :: Lol ki codes a t -> ES ki codes i (t :++: j) -> ES ki codes i (a ': j)
-
   Ins :: Int -> Cof ki codes a c -> ES ki codes i          (Tyof codes c :++: j) -> ES ki codes i        (a ': j)
   Del :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) j          -> ES ki codes (a ': i) j
   Cpy :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j) -> ES ki codes (a ': i) (a ': j)
@@ -178,48 +176,63 @@ naToCof (NA_I (AnnFix _ (sop -> Tag c poa))) =
 naToCof (NA_K k) =  (TagK k)
 -}
 
+matchConstructor ::
+     NA ki (AnnFix ki codes phi) a
+  -> (forall c. Cof ki codes a c -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
+  -> r
+matchConstructor (NA_K k) f = f (ConstrK k) NP0
+matchConstructor (NA_I (AnnFix _ rep)) f =
+  case sop rep of
+    Tag c poa -> f (ConstrI c (listPrfNP poa)) poa
+
+newtype Oracle phi = Oracle (forall ix. phi ix -> phi ix -> Bool)
+
 diffT 
   :: (Eq1 ki, TestEquality ki)
-  => PoA ki (AnnFix ki codes phi) xs
+  => Maybe (Oracle phi)
+  -> PoA ki (AnnFix ki codes phi) xs
   -> PoA ki (AnnFix ki codes phi) ys
   -> EST ki codes xs ys
-diffT NP0 NP0 = NN ES0
-diffT (x :* xs) NP0 =
-  undefined
-  {-CN c (Del (1 + cost (getDiff d)) c (getDiff d)) d
-  where
-    c = naToCof x
-    d = diffT (appendNP poa xs) NP0-}
-{-
-diffT (NA_I (AnnFix _ (sop -> Tag c poa)) :* xs) NP0 =
-  CN (ConstrI c (listPrfNP poa)) (Del (1 + cost (getDiff d)) (ConstrI c (listPrfNP poa)) (getDiff d)) d
-  where
-    d = diffT (appendNP poa xs) NP0
-diffT (NA_K k :* xs) NP0 =
-  CN (ConstrK k) (Del (1 + cost (getDiff d)) (ConstrK k) (getDiff d)) d
-  where
-    d = diffT xs NP0
-diffT NP0 (NA_I (AnnFix _ (sop -> Tag c poa)) :* ys) =
-  NC (ConstrI c (listPrfNP poa)) (Ins (1 + cost (getDiff i)) (ConstrI c (listPrfNP poa)) (getDiff i)) i
-  where
-    i = diffT NP0 (appendNP poa ys)
-diffT NP0 (NA_K k :* ys) =
-  NC (ConstrK k) (Ins (1 + cost (getDiff i)) (ConstrK k) (getDiff i)) i
-  where
-    i = diffT NP0 ys
-diffT (x@(NA_I (AnnFix _ (sop -> Tag c1 poa1))) :* xs) 
-      (y@(NA_I (AnnFix _ (sop -> Tag c2 poa2))) :* ys) =
-  
-  --- testEquality to find out they're the same universe O(1)
-  case testEquality x y of
-    -- TODO check if they have the same subtree O(n) 
-    -- (or O(1) if hashEq))
-    Just Refl ->  
-      CC (ConstrI c1 (listPrfNP poa1))
-         (ConstrI c2 (listPrfNP poa2))
-         (CpyTree 0 _) _ _ _ 
-    Nothing -> undefined
-    -}
+diffT o NP0 NP0 = NN ES0
+diffT o (x :* xs) NP0 =
+  matchConstructor x $ \c poa ->
+    let d = diffT o (appendNP poa xs) NP0
+    in CN c (Del (1 + cost (getDiff d)) c (getDiff d)) d
+diffT o NP0 (y :* ys) =
+  matchConstructor y $ \c poa ->
+    let i = diffT o NP0 (appendNP poa ys)
+    in NC c (Ins (1 + cost (getDiff i)) c (getDiff i)) i
+diffT o (x :* xs) (y :* ys) =
+  matchConstructor x $ \c1 poa1 -> matchConstructor y $ \c2 poa2 ->
+    let 
+      i = extendi c1 c
+      d = extendd c2 c
+      c = diffT o (appendNP poa1 xs) (appendNP poa2 ys)
+      es = bestDiffT c1 c2 i d c
+    in CC c1 c2 es i d c
+
+extendi 
+  :: Cof ki codes x c
+  -> EST ki codes (Tyof codes c :++: xs) ys
+  -> EST ki codes (x ': xs) ys
+extendi = _
+
+extendd
+  :: Cof ki codes y c
+  -> EST ki codes xs (Tyof codes c :++: ys)
+  -> EST ki codes xs (y ': ys)
+extendd = _
+
+bestDiffT
+  :: (Eq1 ki, TestEquality ki)
+  => Cof ki codes x cx
+  -> Cof ki codes y cy
+  -> EST ki codes (x ': xs) (Tyof codes cy :++: ys)
+  -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
+  -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
+  -> ES ki codes (x ': xs) (y ': ys)
+bestDiffT = _
+        
 -- In Agda this would be:
 -- ++⁻ : {A : Set}
 --       {P : A -> Set}
