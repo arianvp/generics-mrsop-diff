@@ -3,7 +3,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
@@ -28,75 +27,26 @@ import Generics.MRSOP.Util (Nat, Eq1(eq1), IsNat, (:++:), Lkup, Show1(show1), Id
 
 import qualified Generics.MRSOP.AG as AG
 
-data SinglCof
-  = CofI Nat
-         Nat -- type index and constructor index within the type
-  | CofK
-
-
-type family Tyof (codes :: [[[Atom kon]]]) (c :: SinglCof) :: [Atom kon]
-  -- we wanted Lkup c . Lkup ix but haskell complains
-  -- jTyof (f ': codes) (CofI Z      c) = Lkup c f
-  -- Tyof (f ': codes) (CofI (S ix) c) = Tyof codes (CofI ix c)
- where
-  Tyof codes (CofI ix c) = Lkup c (Lkup ix codes)
-  Tyof codes CofK = '[]
-
-
--- Tells us the type of the atom, and amount we need to consume from the edit script to consume it
--- Note to self: This is an easier to handle Cof, as we do not need the separate type family and SinglCof
--- NOICE
-data Lol (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> [Atom kon] -> * where
-  TagI :: IsNat n => Constr (Lkup n codes) c -> ListPrf (Lkup c (Lkup n codes)) -> Lol ki codes ('I n) (Lkup c (Lkup n codes))
-  TagK :: ki kon -> Lol ki codes ('K k) '[]
-  
-
 -- | Either a type index and constructor index, OR a constant
-data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> SinglCof -> * where
+data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> [Atom kon] -> * where
   -- ^ A constructor tells us the type of its arguments and which type in the family it constructs
-  ConstrI :: (IsNat c, IsNat n) => Constr (Lkup n codes) c -> ListPrf (Lkup c (Lkup n codes)) -> Cof ki codes (I n) (CofI n c)
+  ConstrI :: (IsNat c, IsNat n) => Constr (Lkup n codes) c -> ListPrf (Lkup c (Lkup n codes)) -> Cof ki codes (I n) (Lkup c (Lkup n codes))
 
   -- ^ Requires no arguments to complete
-  ConstrK :: ki k -> Cof ki codes (K k) CofK
+  ConstrK :: ki k -> Cof ki codes (K k) '[]
 
 data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   ES0 :: ES ki codes '[] '[]
-  {-InsI
-    :: Constr (Lkup n codes) c                         -- the constructor
-    -> ListPrf (Lkup c (Lkup n codes))                 -- the type of its arguments
-    -> ES ki codes i (Lkup c (Lkup n codes) :++: j)    -- pop off the types
-    -> ES ki codes i ('I n ': j)                       -- and create the vale
-  InsK 
-    :: ki k -- the constant to insert
-    -> ES ki codes i j  -- nothing needed from the source
-    -> ES ki codes i ('K k ': j) -- and the constant is injected in the dest
-  DelI
-    :: Constr (Lkup n codes) c                         -- the constructor
-    -> ListPrf (Lkup c (Lkup n codes))                 -- the type of its arguments
-    -> ES ki codes (Lkup c (Lkup n codes) :++: i) j    -- pop off the types
-    -> ES ki codes ('I n ': i) j                     -- and create the vale
-  DelK 
-    :: ki k -- the constant to insert
-    -> ES ki codes i j  -- nothing needed from the source
-    -> ES ki codes ('K k ': i) j -- and the constant is injected in the dest
-
-  CopyI
-    :: Constr (Lkup n codes) c
-    -> ListPrf (Lkup c (Lkup n codes))
-    -> ES ki codes (Lkup c (Lkup n codes) :++: i) (Lkup c (Lkup n codes) :++: j)    
-    -> ES ki codes ('I n ': i) ('I n ': j)
-  -}
-
-  Ins :: Int -> Cof ki codes a c -> ES ki codes i          (Tyof codes c :++: j) -> ES ki codes i        (a ': j)
-  Del :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) j          -> ES ki codes (a ': i) j
-  Cpy :: Int -> Cof ki codes a c -> ES ki codes (Tyof codes c :++: i) (Tyof codes c :++: j) -> ES ki codes (a ': i) (a ': j)
+  Ins :: Int -> Cof ki codes a t -> ES ki codes i          (t :++: j) -> ES ki codes i        (a ': j)
+  Del :: Int -> Cof ki codes a t -> ES ki codes (t :++: i) j          -> ES ki codes (a ': i) j
+  Cpy :: Int -> Cof ki codes a t -> ES ki codes (t :++: i) (t :++: j) -> ES ki codes (a ': i) (a ': j)
 
   -- optimization, Copy over an atom in its entirety because we know they're deeply equal
   CpyTree :: Int -> ES ki codes i j -> ES ki codes (a ': i) (a ': j)
 
 
 
-cofWitnessI :: Cof ki codes (I n) (CofI n c) -> Proxy n
+cofWitnessI :: Cof ki codes (I n) t -> Proxy n
 cofWitnessI _ = Proxy
   
 heqCof ::
@@ -143,20 +93,20 @@ meet d1 d2 =
 data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES ki codes '[] '[] 
      -> EST ki codes '[] '[]
-  NC :: Cof ki codes y c
+  NC :: Cof ki codes y t
      -> ES ki codes '[] (y ': tys)
-     -> EST ki codes '[] (Tyof codes c :++: tys)
+     -> EST ki codes '[] (t :++: tys)
      -> EST ki codes '[] (y ': tys)
-  CN :: Cof ki codes x c
+  CN :: Cof ki codes x t
      -> ES ki codes (x ': txs) '[]
-     -> EST ki codes (Tyof codes c :++: txs) '[]
+     -> EST ki codes (t :++: txs) '[]
      -> EST ki codes (x ': txs) '[]
-  CC :: Cof ki codes x c1
-     -> Cof ki codes y c2
+  CC :: Cof ki codes x t1
+     -> Cof ki codes y t2
      -> ES ki codes (x ': txs) (y ': tys)
-     -> EST ki codes (x ': txs) (Tyof codes c2 :++: tys)
-     -> EST ki codes (Tyof codes c1 :++: txs) (y ': tys)
-     -> EST ki codes (Tyof codes c1 :++: txs) (Tyof codes c2 :++: tys)
+     -> EST ki codes (x ': txs) (t2 :++: tys)
+     -> EST ki codes (t1 :++: txs) (y ': tys)
+     -> EST ki codes (t1:++: txs) (t2 :++: tys)
      -> EST ki codes (x ': txs) (y ': tys)
 
 
@@ -169,7 +119,7 @@ getDiff (CC _ _ x _ _ _) = x
 
 -- existential version of Cof, that hides c
 data Match ki phi codes a where
-  Match :: Cof ki codes a c -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> Match ki phi codes a
+  Match :: Cof ki codes a t -> PoA ki (AnnFix ki codes phi) t -> Match ki phi codes a
 
 -- | Non-CC version of matchConstructor
 --
@@ -203,8 +153,8 @@ diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
 
 extendi 
   :: (Eq1 ki, TestEquality ki)
-  => Cof ki codes x cx
-  -> EST ki codes (Tyof codes cx :++: xs) ys
+  => Cof ki codes x t
+  -> EST ki codes (t :++: xs) ys
   -> EST ki codes (x ': xs) ys
 extendi = undefined
 
@@ -214,18 +164,18 @@ extendi = undefined
 
 
 extendd
-  :: Cof ki codes y c
-  -> EST ki codes xs (Tyof codes c :++: ys)
+  :: Cof ki codes y t
+  -> EST ki codes xs (t :++: ys)
   -> EST ki codes xs (y ': ys)
 extendd = undefined
 
 bestDiffT
   :: (Eq1 ki, TestEquality ki)
-  => Cof ki codes x cx
-  -> Cof ki codes y cy
-  -> EST ki codes (x ': xs) (Tyof codes cy :++: ys)
-  -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
-  -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
+  => Cof ki codes x t1
+  -> Cof ki codes y t2
+  -> EST ki codes (x ': xs) (t2 :++: ys)
+  -> EST ki codes (t1 :++: xs) (y ': ys)
+  -> EST ki codes (t1 :++: xs) (t2 :++: ys)
   -> ES ki codes (x ': xs) (y ': ys)
 bestDiffT cx cy i d c =
   case heqCof cx cy of
@@ -264,17 +214,17 @@ split (Cons p) (x :* rs) =
 
 matchCof ::
      (Eq1 ki)
-  => Cof ki codes a c
+  => Cof ki codes a t
   -> NA ki (Fix ki codes) a
-  -> Maybe (PoA ki (Fix ki codes) (Tyof codes c))
+  -> Maybe (PoA ki (Fix ki codes) t)
 matchCof (ConstrI c1 prf) (NA_I (Fix x)) = match c1 x
 matchCof (ConstrK k) (NA_K k2) = guard (eq1 k k2) >> Just NP0
 
 -- we need to give Haskell a bit of a hint that Tyof codes c reduces to an IsList
 -- insCof is also really the only place where we _need_ IsList I think
 insCof 
-  :: Cof ki codes a c
-  -> PoA ki (Fix ki codes) (Tyof codes c :++: xs)
+  :: Cof ki codes a t
+  -> PoA ki (Fix ki codes) (t :++: xs)
   -> PoA ki (Fix ki codes) (a ': xs)
 insCof (ConstrI c ispoa) xs =
   let (poa, xs') = split ispoa xs
@@ -283,9 +233,9 @@ insCof (ConstrK k) xs = NA_K k :* xs
 
 delCof ::
      Eq1 ki
-  => Cof ki codes a c
+  => Cof ki codes a t
   -> PoA ki (Fix ki codes) (a ': xs)
-  -> Maybe (PoA ki (Fix ki codes) (Tyof codes c :++: xs))
+  -> Maybe (PoA ki (Fix ki codes) (t :++: xs))
 delCof c (x :* xs) = flip appendNP xs <$> matchCof c x
 
 

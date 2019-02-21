@@ -29,9 +29,9 @@ data Ann = Modify | Copy deriving Show
 
 
 injCofAnn ::
-     Cof ki codes a c
+     Cof ki codes a t
   -> Const ann ix
-  -> PoA ki (AnnFix ki codes (Const ann)) (Tyof codes c)
+  -> PoA ki (AnnFix ki codes (Const ann)) t
   -> NA ki (AnnFix ki codes (Const ann)) a
 injCofAnn (ConstrI c _) ann xs =
     -- And here we are stuck
@@ -54,9 +54,9 @@ injCofAnn (ConstrK k) ann xs = NA_K k
 -- lemma needed for inserting an annotation at the place of 
 -- a constructor
 insCofAnn ::
-     Cof ki codes a c
+     Cof ki codes a t
   -> Const ann ix
-  -> PoA ki (AnnFix ki codes (Const ann)) (Tyof codes c :++: as)
+  -> PoA ki (AnnFix ki codes (Const ann)) (t :++: as)
   -> PoA ki (AnnFix ki codes (Const ann)) (a ': as)
 insCofAnn (ConstrK k) ann  xs = NA_K k :* xs
 insCofAnn (ConstrI c prf) ann xs =
