@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -51,9 +52,9 @@ cofWitnessI _ = Proxy
   
 heqCof ::
      (Eq1 ki, TestEquality ki)
-  => Cof ki codes a cx
-  -> Cof ki codes b cy
-  -> Maybe (a :~: b, cx :~: cy)
+  => Cof ki codes a t1
+  -> Cof ki codes b t2
+  -> Maybe (a :~: b, t1 :~: t2)
 heqCof cx@(ConstrI x _) cy@(ConstrI y _) =
   case testEquality (getSNat (cofWitnessI cx)) (getSNat (cofWitnessI cy)) of
     Nothing -> Nothing
@@ -117,7 +118,7 @@ getDiff (CN _ x _) = x
 getDiff (CC _ _ x _ _ _) = x
 
 
--- existential version of Cof, that hides c
+-- existential version of Cof, that hides its type
 data Match ki phi codes a where
   Match :: Cof ki codes a t -> PoA ki (AnnFix ki codes phi) t -> Match ki phi codes a
 
@@ -127,6 +128,22 @@ data Match ki phi codes a where
 matchC :: NA ki (AnnFix ki codes phi) a -> Match ki phi codes a
 matchC (NA_K k) = Match (ConstrK k) NP0
 matchC (NA_I (AnnFix _ (sop -> Tag c poa))) = Match (ConstrI c (listPrfNP poa)) poa
+
+-- | Useful view
+data DES ki codes a xs ys where 
+  DES :: Cof ki codes a t -> ES ki codes (a ': xs) ys -> EST ki codes (t :++: xs) ys -> DES ki codes a xs ys
+
+data IES ki codes a xs ys where 
+  IES :: Cof ki codes a t -> ES ki codes xs (a ': ys)-> EST ki codes xs (t :++: ys) -> IES ki codes a xs ys
+
+extractd :: EST ki codes (a ': xs) ys -> DES ki codes a xs ys
+extractd (CC f _ e _ i _) = DES f e i
+extractd (CN g d i) = DES g d i
+
+extracti :: EST ki codes xs (a ': ys) -> IES ki codes a xs ys
+extracti (CC _ g e i _ _) = IES g e i
+extracti (NC  g d i) = IES g d i
+
 
 newtype Oracle phi = Oracle (forall ix. phi ix -> phi ix -> Bool)
 
@@ -145,8 +162,8 @@ diffT o NP0 ((matchC -> Match c poa) :* ys) =
   in NC c (Ins (1 + cost (getDiff i)) c (getDiff i)) i
 diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
   let 
-    i = extendi c1 c
-    d = extendd c2 c
+    i = extendi c1 (listPrfNP xs) c
+    d = extendd c2 (listPrfNP ys) c
     c = diffT o (appendNP poa1 xs) (appendNP poa2 ys)
     es = bestDiffT c1 c2 i d c
   in CC c1 c2 es i d c
@@ -154,20 +171,28 @@ diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
 extendi 
   :: (Eq1 ki, TestEquality ki)
   => Cof ki codes x t
+  -> ListPrf xs
   -> EST ki codes (t :++: xs) ys
   -> EST ki codes (x ': xs) ys
 extendi = undefined
 
 
 
-
-
-
 extendd
-  :: Cof ki codes y t
+  :: (TestEquality ki, Eq1 ki) => Cof ki codes y t
+  -> ListPrf ys
   -> EST ki codes xs (t :++: ys)
   -> EST ki codes xs (y ': ys)
-extendd = undefined
+extendd c1 _ i@(NN d) = NC c1 (Ins (1 + cost d) c1 d) i
+extendd c1 _ i@(NC _ d _) = NC c1 (Ins (1 + cost d) c1 d) i
+extendd c1 _ i@(CN _ _ _) =
+  case extractd i of
+    
+    DES c2 b c -> 
+      let d = extendd c1 undefined c
+      in CC c2 c1 (bestDiffT c2 c1 i d c) i d c
+
+
 
 bestDiffT
   :: (Eq1 ki, TestEquality ki)
@@ -282,22 +307,20 @@ applyES (Del _ c es) xs = delCof c xs >>= applyES es
 applyES (Cpy _ c es) xs = insCof c <$> (delCof c xs >>= applyES es)
 
 
-{-
 -- When Showing, we do not know what the family that we're showing is,
 -- as edit scripts are not parameterised over the family.
 -- hence, we can not get the datatype info
 showCof ::
      (HasDatatypeInfo ki fam codes, Show1 ki) => Cof ki codes a c -> String
 showCof (ConstrK k) = show1 k
-showCof (ConstrI c) = show c
+showCof (ConstrI c _) = show c
 
 instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
          Show (ES ki codes xs ys) where
   show ES0 = "ES0"
-  show (Ins _ _ _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
-  show (Del _ _ _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
-  show (Cpy _ _ _ _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
-
+  show (Ins _ c d) = "Ins " ++ showCof c ++ " $ " ++ show d
+  show (Del _ c d) = "Del " ++ showCof c ++ " $ " ++ show d
+  show (Cpy _ c d) = "Cpy " ++ showCof c ++ " $ " ++ show d
 
 
 diff :: forall fam ki codes ix1 ix2 ty1 ty2.
@@ -324,28 +347,6 @@ diff' ::
 diff' a b = getDiff $ diff'' a b
 
 
--- in order to match a constructor of an Atom
--- we will try all possible constructors, and once we find one that
--- matches, we tell you which constructor it was,
--- and a proof that that it's indeed of the correct type
---
---
---   The gdiff lib wants a   ListPrf (tyof codes c)
---   but we have a NP p (Tyof codes c)
---
---   however, we can't make a function   NP p xs -> ListPrf xs
---   as the constructors of NP don't carry the List proof
---
-
-matchConstructor ::
-     NA ki (AnnFix ki codes phi) a
-  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
-  -> r
-matchConstructor (NA_K k) f = f (ConstrK k) Nil NP0
-matchConstructor (NA_I (AnnFix _ rep)) f =
-  case sop rep of
-    Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
-
 -- | Given two deep representations, we get the diff.
 -- Here I simply wrap in a List of Atoms, to use diffT, but I'm not sure if I'm right to do so
 -- TODO: ask victor
@@ -371,7 +372,30 @@ diffPoA ::
   => PoA ki (AnnFix ki codes phi) '[ x]
   -> PoA ki (AnnFix ki codes phi) '[ y]
   -> EST ki codes '[ x] '[ y]
-diffPoA = diffT
+diffPoA = diffT Nothing
+
+-- in order to match a constructor of an Atom
+-- we will try all possible constructors, and once we find one that
+-- matches, we tell you which constructor it was,
+-- and a proof that that it's indeed of the correct type
+--
+--
+--   The gdiff lib wants a   ListPrf (tyof codes c)
+--   but we have a NP p (Tyof codes c)
+--
+--   however, we can't make a function   NP p xs -> ListPrf xs
+--   as the constructors of NP don't carry the List proof
+--
+
+{-
+matchConstructor ::
+     NA ki (AnnFix ki codes phi) a
+  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
+  -> r
+matchConstructor (NA_K k) f = f (ConstrK k) Nil NP0
+matchConstructor (NA_I (AnnFix _ rep)) f =
+  case sop rep of
+    Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
 
 
 diffT' ::
@@ -501,17 +525,6 @@ cofToListPrf ::
      IsList (Tyof codes cy) => Cof ki codes y cy -> ListPrf (Tyof codes cy)
 cofToListPrf _ = listPrf
 
--- Most time is now spent around marshalling list proofs
--- Question: Do we actually need these list proofs?
-sourceTail :: ES ki codes (x ': xs) ys -> ListPrf xs
-sourceTail (Ins x y _ _ d) = sourceTail d
-sourceTail (Del x y _ _ _) = x
-sourceTail (Cpy x y z _ _ _) = x
-
-targetTail :: ES ki codes xs (y ': ys) -> ListPrf ys
-targetTail (Ins x y _ _ d) = x
-targetTail (Del x y _ _ d) = targetTail d
-targetTail (Cpy x y z _ _ _) = y
 
 extracti ::
      (Eq1 ki, TestEquality ki)
