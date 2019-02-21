@@ -133,14 +133,12 @@ cost (Del k c es) = k
 cost (Cpy k c es) = k
 cost (CpyTree k es) = k
 
-{-
 -- {-# INLINE meet #-}
 meet :: ES ki codes txs tys -> ES ki codes txs tys -> ES ki codes txs tys
 meet d1 d2 =
   if cost d1 <= cost d2
     then d1
     else d2
--}
 
 data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES ki codes '[] '[] 
@@ -169,21 +167,16 @@ getDiff (CN _ x _) = x
 getDiff (CC _ _ x _ _ _) = x
 
 
--- Changes an NA into its constructor + the type of its arguments
-{-naToCof :: NA ki (Fix ki codes) a ->  Lol ki codes a 
-naToCof (NA_I (AnnFix _ (sop -> Tag c poa))) = 
-  TagI c (listPrfNP poa)
-naToCof (NA_K k) =  (TagK k)
--}
+-- existential version of Cof, that hides c
+data Match ki phi codes a where
+  Match :: Cof ki codes a c -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> Match ki phi codes a
 
-matchConstructor ::
-     NA ki (AnnFix ki codes phi) a
-  -> (forall c. Cof ki codes a c -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
-  -> r
-matchConstructor (NA_K k) f = f (ConstrK k) NP0
-matchConstructor (NA_I (AnnFix _ rep)) f =
-  case sop rep of
-    Tag c poa -> f (ConstrI c (listPrfNP poa)) poa
+-- | Non-CC version of matchConstructor
+--
+-- A version of sop but over NA instead of Rep
+matchC :: NA ki (AnnFix ki codes phi) a -> Match ki phi codes a
+matchC (NA_K k) = Match (ConstrK k) NP0
+matchC (NA_I (AnnFix _ (sop -> Tag c poa))) = Match (ConstrI c (listPrfNP poa)) poa
 
 newtype Oracle phi = Oracle (forall ix. phi ix -> phi ix -> Bool)
 
@@ -194,34 +187,37 @@ diffT
   -> PoA ki (AnnFix ki codes phi) ys
   -> EST ki codes xs ys
 diffT o NP0 NP0 = NN ES0
-diffT o (x :* xs) NP0 =
-  matchConstructor x $ \c poa ->
-    let d = diffT o (appendNP poa xs) NP0
-    in CN c (Del (1 + cost (getDiff d)) c (getDiff d)) d
-diffT o NP0 (y :* ys) =
-  matchConstructor y $ \c poa ->
-    let i = diffT o NP0 (appendNP poa ys)
-    in NC c (Ins (1 + cost (getDiff i)) c (getDiff i)) i
-diffT o (x :* xs) (y :* ys) =
-  matchConstructor x $ \c1 poa1 -> matchConstructor y $ \c2 poa2 ->
-    let 
-      i = extendi c1 c
-      d = extendd c2 c
-      c = diffT o (appendNP poa1 xs) (appendNP poa2 ys)
-      es = bestDiffT c1 c2 i d c
-    in CC c1 c2 es i d c
+diffT o ((matchC -> Match c poa) :* xs) NP0 =
+  let d = diffT o (appendNP poa xs) NP0
+  in CN c (Del (1 + cost (getDiff d)) c (getDiff d)) d
+diffT o NP0 ((matchC -> Match c poa) :* ys) =
+  let i = diffT o NP0 (appendNP poa ys)
+  in NC c (Ins (1 + cost (getDiff i)) c (getDiff i)) i
+diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
+  let 
+    i = extendi c1 c
+    d = extendd c2 c
+    c = diffT o (appendNP poa1 xs) (appendNP poa2 ys)
+    es = bestDiffT c1 c2 i d c
+  in CC c1 c2 es i d c
 
 extendi 
-  :: Cof ki codes x c
-  -> EST ki codes (Tyof codes c :++: xs) ys
+  :: (Eq1 ki, TestEquality ki)
+  => Cof ki codes x cx
+  -> EST ki codes (Tyof codes cx :++: xs) ys
   -> EST ki codes (x ': xs) ys
-extendi = _
+extendi = undefined
+
+
+
+
+
 
 extendd
   :: Cof ki codes y c
   -> EST ki codes xs (Tyof codes c :++: ys)
   -> EST ki codes xs (y ': ys)
-extendd = _
+extendd = undefined
 
 bestDiffT
   :: (Eq1 ki, TestEquality ki)
@@ -231,7 +227,18 @@ bestDiffT
   -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
   -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
   -> ES ki codes (x ': xs) (y ': ys)
-bestDiffT = _
+bestDiffT cx cy i d c =
+  case heqCof cx cy of
+    Just (Refl, Refl) ->
+      let c' = getDiff c
+      in Cpy (cost c') cx c'
+    Nothing -> 
+      let
+        i' = getDiff i
+        d' = getDiff d
+      in
+        meet (Ins (1 + cost i') cy i') (Del (1 + cost d') cx d')
+          
         
 -- In Agda this would be:
 -- ++⁻ : {A : Set}
@@ -378,6 +385,8 @@ diff' a b = getDiff $ diff'' a b
 --
 --   however, we can't make a function   NP p xs -> ListPrf xs
 --   as the constructors of NP don't carry the List proof
+--
+
 matchConstructor ::
      NA ki (AnnFix ki codes phi) a
   -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
