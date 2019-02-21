@@ -146,6 +146,7 @@ diffClj fp1 fp2 lhs rhs = do
     Right (left, right) -> do
       let d = GDiff.diff' left right
       print d
+      {-
       let l = Translate.countCopies $ Annotate.annSrc left d
       let r = Translate.countCopies $ Annotate.annDest right d
       let s = Translate.diffAlmu  l r
@@ -159,6 +160,7 @@ diffClj fp1 fp2 lhs rhs = do
             then pure ()
             else fail "generated diff was inconsistent"
         Left x -> fail $ "generated diff  didn't apply : " ++ x
+      -}
              
 diffLua :: FilePath -> FilePath -> Bool -> Bool -> IO ()
 diffLua fp1 fp2 lhs rhs = do
@@ -171,7 +173,8 @@ diffLua fp1 fp2 lhs rhs = do
     Left er -> fail (show er)
     Right (left, right) -> do
       let d = GDiff.diff' left right
-      let l = Translate.countCopies $ Annotate.annSrc left d
+      print d
+      {-let l = Translate.countCopies $ Annotate.annSrc left d
       let r = Translate.countCopies $ Annotate.annDest right d
       let s = Translate.diffAlmu  l r
       when lhs $ do
@@ -184,6 +187,7 @@ diffLua fp1 fp2 lhs rhs = do
             then pure ()
             else fail "generated diff was inconsistent"
         Left x -> fail $ "generated diff  didn't apply : " ++ x
+      -}
              
 
 mergeClj :: FilePath -> FilePath -> FilePath -> IO ()

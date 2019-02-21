@@ -162,8 +162,8 @@ diffT o NP0 ((matchC -> Match c poa) :* ys) =
   in NC c (Ins (1 + cost (getDiff i)) c (getDiff i)) i
 diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
   let 
-    i = extendi c1 (listPrfNP xs) c
-    d = extendd c2 (listPrfNP ys) c
+    i = extendi c1 c
+    d = extendd c2 c
     c = diffT o (appendNP poa1 xs) (appendNP poa2 ys)
     es = bestDiffT c1 c2 i d c
   in CC c1 c2 es i d c
@@ -171,28 +171,38 @@ diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
 extendi 
   :: (Eq1 ki, TestEquality ki)
   => Cof ki codes x t
-  -> ListPrf xs
   -> EST ki codes (t :++: xs) ys
   -> EST ki codes (x ': xs) ys
-extendi = undefined
-
-
-
+extendi c1 i@(NN d) = CN c1 (Del (1 + cost d) c1 d) i
+extendi c1 i@(CN _ d _) =  CN c1 (Del (1 + cost d) c1 d) i
+extendi c1 d@NC{} =
+  case extracti d of
+    IES c2 b c -> 
+      let i = extendi c1 c
+      in CC c1 c2 (bestDiffT c1 c2 i d c) i d c
+extendi c1 d@CC{} =
+  case extracti d of
+    IES c2 b c -> 
+      let i = extendi c1 c
+      in CC c1 c2 (bestDiffT c1 c2 i d c) i d c
+  
 extendd
-  :: (TestEquality ki, Eq1 ki) => Cof ki codes y t
-  -> ListPrf ys
+  :: (TestEquality ki, Eq1 ki) 
+  => Cof ki codes y t
   -> EST ki codes xs (t :++: ys)
   -> EST ki codes xs (y ': ys)
-extendd c1 _ i@(NN d) = NC c1 (Ins (1 + cost d) c1 d) i
-extendd c1 _ i@(NC _ d _) = NC c1 (Ins (1 + cost d) c1 d) i
-extendd c1 _ i@(CN _ _ _) =
+extendd c1 i@(NN d) = NC c1 (Ins (1 + cost d) c1 d) i
+extendd c1 i@(NC _ d _) = NC c1 (Ins (1 + cost d) c1 d) i
+extendd c1 i@CN{} =
   case extractd i of
-    
     DES c2 b c -> 
-      let d = extendd c1 undefined c
+      let d = extendd c1 c 
       in CC c2 c1 (bestDiffT c2 c1 i d c) i d c
-
-
+extendd c1 i@CC{} =
+  case extractd i of
+    DES c2 b c -> 
+      let d = extendd c1 c
+      in CC c2 c1 (bestDiffT c2 c1 i d c) i d c
 
 bestDiffT
   :: (Eq1 ki, TestEquality ki)
