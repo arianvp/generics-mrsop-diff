@@ -21,6 +21,7 @@ import Data.Functor.Const (Const(..))
 import Data.Semigroup ((<>))
 import Data.Text (Text)
 import Data.Monoid (Sum(..))
+import Data.Coerce
 
 import Data.Text.Lazy as Text
 import Data.Text.Lazy.IO as Text
@@ -52,25 +53,54 @@ import qualified Language.Clojure.Parser
 import qualified Language.Lua.Parser
 
 
+data Language :: * where
+  Language :: 
+    (HasDatatypeInfo ki fam codes,
+    Eq1 ki,
+    Show1 ki,
+    IsNat ix,
+    TestEquality ki) =>
+    (FilePath -> IO (Fix ki codes ix)) -> Language
 
-data Language = Lua | Clj
-  deriving (Eq)
+{-data Language = Lua | Clj
+  deriving (Eq)-}
+
+parseLua x = do
+  x <- Language.Lua.Parser.parseFile x
+  case x of
+    Left y -> fail (show y)
+    Right x -> return x
+
+parseClj x = do
+  x <- Language.Clojure.Parser.parseFile x
+  case x of
+    Left y -> fail (show y)
+    Right x -> return x
+
+data DiffMode 
+  = ES      -- the edit script:w
+  | STDiff  -- dot-graph of the stdiff patch
+  | DiffStats   -- CSV-formatted statistics
+
+
+data MergeMode
+  = MergeConflicts -- dot graph of the merge conflict
+  | MergeStats
 
 data Cmd
   = AST FilePath
-  | Diff FilePath
-         FilePath
-         Bool
-         Bool
+  | Diff FilePath FilePath
   | Merge FilePath
           FilePath
           FilePath
 
+
+
 getLanguage :: FilePath -> Maybe Language
-getLanguage fp =
+getLanguage fp = 
   case System.FilePath.takeExtension fp of
-    ".lua" -> Just Lua
-    ".clj" -> Just Clj
+    ".lua" -> Just (Language  (\fp -> deep @FamBlock <$> parseLua fp))
+    ".clj" -> Just (Language (\fp -> deep @FamExpr <$> parseClj fp))
     _ -> Nothing
 
 parserInfoCmd :: ParserInfo Cmd
@@ -103,193 +133,90 @@ parseCmd =
     diffParser  =
       Diff  <$>  argument "left" 
             <*> argument "right" 
-            <*> Options.Applicative.switch (Options.Applicative.long "show-left" <> Options.Applicative.help "show annotated dotgraph of lhs")
-            <*> Options.Applicative.switch (Options.Applicative.long "show-right" <> Options.Applicative.help "show annotated dotgraph of rhs")
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
 
-printClj :: FilePath -> IO ()
-printClj fp = do
-  x <- Language.Clojure.Parser.parseFile fp
-  case x of
-    Left er -> fail (show er)
-    Right block ->
-      Text.putStrLn .
-      GraphViz.dotToText fp .
-      GraphViz.visualizeFix . 
-      AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra .
-      deep @FamExpr $
-      block
 
-printLua :: FilePath -> IO ()
-printLua fp = do
-  x <- Language.Lua.Parser.parseFile fp
-  case x of
-    Left er -> fail (show er)
-    Right block ->
-      Text.putStrLn .
-      GraphViz.dotToText fp .
-      GraphViz.visualizeFix . 
-      AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra .
-      deep @FamBlock $
-      block
+printLanguage :: Language -> FilePath -> IO ()
+printLanguage (Language parseFile) fp = do
+  x  <- parseFile fp
+  Text.putStrLn .
+    GraphViz.dotToText fp .
+    GraphViz.visualizeFix . 
+    AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra $
+    x
 
-diffClj ::  FilePath -> FilePath -> Bool -> Bool -> IO ()
-diffClj fp1 fp2 lhs rhs = do
-  x <-
-    getCompose $ do
-      x <- Compose . Language.Clojure.Parser.parseFile $ fp1
-      y <- Compose . Language.Clojure.Parser.parseFile $ fp2
-      pure (deep @FamExpr x, deep @FamExpr y)
-  case x of
-    Left er -> fail (show er)
-    Right (left, right) -> do
-      let d = GDiff.diff' left right
-      print d
-      {-
-      let l = Translate.countCopies $ Annotate.annSrc left d
-      let r = Translate.countCopies $ Annotate.annDest right d
-      let s = Translate.diffAlmu  l r
-      when lhs $ do
-        Text.putStrLn . GraphViz.dotToText fp1 . GraphViz.visualizeFix $ l
-      when rhs $ do
-        Text.putStrLn . GraphViz.dotToText fp2 . GraphViz.visualizeFix $ r
-      case Diff.applyAlmu s left of
-        Right x ->
-          if eq1 x right
-            then pure ()
-            else fail "generated diff was inconsistent"
-        Left x -> fail $ "generated diff  didn't apply : " ++ x
-      -}
-             
-diffLua :: FilePath -> FilePath -> Bool -> Bool -> IO ()
-diffLua fp1 fp2 lhs rhs = do
-  x <-
-    getCompose $ do
-      x <- Compose . Language.Lua.Parser.parseFile $ fp1
-      y <- Compose . Language.Lua.Parser.parseFile $ fp2
-      pure (deep @FamBlock x, deep @FamBlock y)
-  case x of
-    Left er -> fail (show er)
-    Right (left, right) -> do
-      let d = GDiff.diff' left right
-      print d
-      {-let l = Translate.countCopies $ Annotate.annSrc left d
-      let r = Translate.countCopies $ Annotate.annDest right d
-      let s = Translate.diffAlmu  l r
-      when lhs $ do
-        Text.putStrLn . GraphViz.dotToText fp1 . GraphViz.visualizeFix $ l
-      when rhs $ do
-        Text.putStrLn . GraphViz.dotToText fp2 . GraphViz.visualizeFix $ r
-      case Diff.applyAlmu s left of
-        Right x ->
-          if eq1 x right
-            then pure ()
-            else fail "generated diff was inconsistent"
-        Left x -> fail $ "generated diff  didn't apply : " ++ x
-      -}
-             
+diffLanguage :: Language -> FilePath -> FilePath -> IO ()
+diffLanguage (Language parseFile) fp1 fp2 = do
+  left <- parseFile fp1
+  right <- parseFile fp2
+  let leftSize = getSum . getConst .  AG.sizeGeneric $ left
+  let rightSize = getSum . getConst .  AG.sizeGeneric $ right
+  let totalSize = leftSize + rightSize
+  let d = GDiff.diff' left right
+  let l = Translate.countCopies $ Annotate.annSrc left d
+  let r = Translate.countCopies $ Annotate.annDest right d
+  let s = Translate.diffAlmu  l r
+  case Diff.applyAlmu s left of
+    Right x ->
+      if eq1 x right
+        then print "it applied"
+        else fail "generated diff was inconsistent"
+    Left x -> fail $ "generated diff  didn't apply : " ++ x
 
-mergeClj :: FilePath -> FilePath -> FilePath -> IO ()
-mergeClj a o b =  do
-  x <-
-    getCompose $ do
-      x <- Compose . Language.Clojure.Parser.parseFile $ a
-      y <- Compose . Language.Clojure.Parser.parseFile $ o
-      z <- Compose . Language.Clojure.Parser.parseFile $ b
-      pure (deep @FamExpr x, deep @FamExpr y, deep @FamExpr z)
-  case x of
-    Left err -> fail (show err)
-    Right (a', o', b') -> do
-      let es_oa   = GDiff.diff' o' a'
-      let es_ob   = GDiff.diff' o' b'
-      let es_oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
-      let es_oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
-      let es_ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
-      let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
-      let oa      = Translate.diffAlmu es_oa_o es_oa_a
-      let ob      = Translate.diffAlmu es_ob_o es_ob_b
-      let m'       = Merge.mergeAlmu oa ob
-      case m' of
-        Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
-        Right m -> 
-          pure ()
-          -- TODO uncomment after we fix merge
-          {- case Diff.applyAlmu m a' of
-            Left ma -> fail $ "MA failed to apply : " ++  ma
-            Right res1 ->
-              case Diff.applyAlmu m  b' of
-                Left mb -> fail $ "MB failed to apply : " ++ mb
-                Right res2 ->
-                  if eq1 res1 res2
-                  then pure ()
-                  else fail "MA != MB" -}
+mergeLanguage :: Language -> FilePath -> FilePath -> FilePath -> IO ()
+mergeLanguage (Language parseFile) a o b = do
+  a' <- parseFile a
+  o' <- parseFile o
+  b' <- parseFile b
+  let es_oa   = GDiff.diff' o' a'
+  let es_ob   = GDiff.diff' o' b'
+  let es_oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
+  let es_oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
+  let es_ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
+  let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
+  let oa      = Translate.diffAlmu es_oa_o es_oa_a
+  let ob      = Translate.diffAlmu es_ob_o es_ob_b
+  let m'      = Merge.mergeAlmu oa ob
 
-mergeLua :: FilePath -> FilePath -> FilePath -> IO ()
-mergeLua a o b =  do
-  x <-
-    getCompose $ do
-      x <- Compose . Language.Lua.Parser.parseFile $ a
-      y <- Compose . Language.Lua.Parser.parseFile $ o
-      z <- Compose . Language.Lua.Parser.parseFile $ b
-      pure (deep @FamBlock x, deep @FamBlock y, deep @FamBlock z)
-  case x of
-    Left err -> fail (show err)
-    Right (a', o', b') -> do
-      let es_oa   = GDiff.diff' o' a'
-      let es_ob   = GDiff.diff' o' b'
-      let oa_o = Translate.countCopies $ Annotate.annSrc  o' es_oa
-      let oa_a = Translate.countCopies $ Annotate.annDest a' es_oa
-      let ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
-      let ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
-      let oa      = Translate.diffAlmu oa_o oa_a
-      let ob      = Translate.diffAlmu ob_o ob_b
-      let m'       = Merge.mergeAlmu oa ob
-      -- Forces the two edit scripts. Hope this helps memory consumption
-      print es_oa
-      print es_ob
-      case m' of
-        Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
-        Right m ->
-          case Diff.applyAlmu m a' of
-            Left ma -> fail $ "MA failed to apply : " ++  ma
-            Right res1 ->
-              case Diff.applyAlmu m  b' of
-                Left mb -> fail $ "MB failed to apply : " ++ mb
-                Right res2 ->
-                  if eq1 res1 res2
-                  then pure ()
-                  else fail "MA != MB"
+  case m' of
+    Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
+    Right m -> 
+      case Diff.applyAlmu m a' of
+        Left ma -> fail $ "MA failed to apply : " ++  ma
+        Right res1 ->
+          case Diff.applyAlmu m  b' of
+            Left mb -> fail $ "MB failed to apply : " ++ mb
+            Right res2 ->
+              if eq1 res1 res2
+              then pure ()
+              else fail "MA != MB"
+
 
 command :: Cmd -> IO ()
 command x =
   case x of
-    AST file ->
+    AST file -> 
       case getLanguage file of
-        Just Lua -> printLua file
-        Just Clj -> printClj file
-        Nothing -> fail "Not a supported language"
-    Diff left right showLeft showRight -> do
+        Just lang -> printLanguage lang file
+        Nothing -> fail "Unsupported language"
+    Diff left right -> do
       let lang = do
+            guard $ System.FilePath.takeExtension  left == System.FilePath.takeExtension right
             lleft <- getLanguage left
-            lright <- getLanguage right
-            guard $ lleft == lright
             pure lleft
       case lang of
-        Just Lua -> diffLua left right showLeft showRight
-        Just Clj -> diffClj left right showLeft showRight
-        Nothing -> fail "Languages differ or unsupported"
+        Just lang -> diffLanguage lang left right
+        Nothing -> fail "not same extenstion"
     Merge left origin right -> do
       let lang = do
+            guard $ System.FilePath.takeExtension left == System.FilePath.takeExtension right
+                 && System.FilePath.takeExtension left == System.FilePath.takeExtension origin
             lleft <- getLanguage left
-            lorigin <- getLanguage origin
-            lright <- getLanguage right
-            guard $ lleft == lright && lleft == lorigin
             pure lleft
       case lang of
-        Just Lua -> mergeLua left origin right
-        Just Clj -> mergeClj left origin right
-        Nothing -> fail "Languages differ or unsupported"
+        Just lang -> mergeLanguage lang left origin right
+        Nothing -> fail "not same extenstion"
 
 main :: IO ()
 main = command =<< Options.Applicative.execParser parserInfoCmd
