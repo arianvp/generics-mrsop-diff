@@ -22,11 +22,12 @@ import Data.Semigroup ((<>))
 import Data.Text (Text)
 import Data.Monoid (Sum(..))
 import Data.Coerce
+import qualified Data.List as List
 
 import Data.Text.Lazy as Text
 import Data.Text.Lazy.IO as Text
 import Data.Type.Equality
-import Options.Applicative (Parser, ParserInfo)
+import Options.Applicative 
 
 import qualified Generics.MRSOP.AG as AG
 import Generics.MRSOP.Base
@@ -77,10 +78,32 @@ parseClj x = do
     Left y -> fail (show y)
     Right x -> return x
 
+-- different kinds of stats that can be collected
+data Stats
+  = SourceSize
+  | TargetSize
+  | GDiffSize
+  | STDiffSize  
+  | Duration
+  deriving (Bounded, Enum)
+
+allStats :: [Stats]
+allStats = [minBound..maxBound]
+
+allStatsStr :: [String]
+allStatsStr = toStr <$> allStats
+
+toStr :: Stats -> String
+toStr SourceSize = "source-size"
+toStr TargetSize = "target-size"
+toStr GDiffSize = "gdiff-size"
+toStr STDiffSize = "stdiff-size"
+toStr Duration = "duration"
+
 data DiffMode 
   = ES      -- the edit script:w
-  | STDiff  -- dot-graph of the stdiff patch
-  | DiffStats   -- CSV-formatted statistics
+  | Dot  -- dot-graph of the stdiff patch
+  | Stats [Stats] -- CSV-formatted statistics
 
 
 data MergeMode
@@ -89,7 +112,7 @@ data MergeMode
 
 data Cmd
   = AST FilePath
-  | Diff FilePath FilePath
+  | Diff DiffMode FilePath FilePath
   | Merge FilePath
           FilePath
           FilePath
@@ -131,8 +154,13 @@ parseCmd =
     mergeParser =
       Merge <$> argument "left" <*> argument "origin" <*> argument "right"
     diffParser  =
-      Diff  <$>  argument "left" 
+      Diff  <$> diffModeParser
+            <*> argument "left" 
             <*> argument "right" 
+    diffModeParser =
+      flag ES ES  (long "es" <> help "print the gdiff editscript") <|>
+      flag' Dot (long "dot" <> help "print dotgraph of stdiff") <|>
+      Stats <$> option  undefined (long "stats" <> metavar "STATS" <> help ("some of " ++ List.intercalate "," allStatsStr))
     astParser = AST <$> argument "file"
     argument = Options.Applicative.strArgument . Options.Applicative.metavar
 
@@ -146,23 +174,36 @@ printLanguage (Language parseFile) fp = do
     AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra $
     x
 
-diffLanguage :: Language -> FilePath -> FilePath -> IO ()
-diffLanguage (Language parseFile) fp1 fp2 = do
-  left <- parseFile fp1
-  right <- parseFile fp2
-  let leftSize = getSum . getConst .  AG.sizeGeneric $ left
-  let rightSize = getSum . getConst .  AG.sizeGeneric $ right
-  let totalSize = leftSize + rightSize
-  let d = GDiff.diff' left right
-  let l = Translate.countCopies $ Annotate.annSrc left d
-  let r = Translate.countCopies $ Annotate.annDest right d
-  let s = Translate.diffAlmu  l r
-  case Diff.applyAlmu s left of
+diffLanguage :: Language -> DiffMode -> FilePath -> FilePath -> IO ()
+diffLanguage (Language parseFile) mode fp1 fp2 = do
+  source <- parseFile fp1
+  target <- parseFile fp2
+  let sourceSize = getSum . getConst .  AG.sizeGeneric $ left
+  let targetSize = getSum . getConst .  AG.sizeGeneric $ right
+  let gdiff = GDiff.diff' source target
+  let source' = Translate.countCopies $ Annotate.annSrc source gdiff
+  let target' = Translate.countCopies $ Annotate.annDest target gdiff
+  let stdiff = Translate.diffAlmu  source' target'
+  let target' = Diff.applyAlmu stdiff source
+
+  case mode of
+    ES -> print gdiff
+    Dot -> error "TODO but involves stdiff, should fix"
+    Stats stats -> do
+      -- TODO start measure time
+      putStrLn $ intercalate "," results
+
+      -- TODO end measure time
+
+
+
+  {-case Diff.applyAlmu s left of
     Right x ->
       if eq1 x right
         then print "it applied"
         else fail "generated diff was inconsistent"
     Left x -> fail $ "generated diff  didn't apply : " ++ x
+  -}
 
 mergeLanguage :: Language -> FilePath -> FilePath -> FilePath -> IO ()
 mergeLanguage (Language parseFile) a o b = do
@@ -193,14 +234,14 @@ mergeLanguage (Language parseFile) a o b = do
               else fail "MA != MB"
 
 
-command :: Cmd -> IO ()
-command x =
+commandHandler :: Cmd -> IO ()
+commandHandler x =
   case x of
     AST file -> 
       case getLanguage file of
         Just lang -> printLanguage lang file
         Nothing -> fail "Unsupported language"
-    Diff left right -> do
+    Diff opts left right -> do
       let lang = do
             guard $ System.FilePath.takeExtension  left == System.FilePath.takeExtension right
             lleft <- getLanguage left
@@ -219,4 +260,4 @@ command x =
         Nothing -> fail "not same extenstion"
 
 main :: IO ()
-main = command =<< Options.Applicative.execParser parserInfoCmd
+main = commandHandler =<< Options.Applicative.execParser parserInfoCmd
