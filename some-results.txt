@@ -1,0 +1,12 @@
+[arian@ryzen:~/Projects/generics-mrsop-diff/experiments]$ ls conflicts-clj | wc -l
+601
+
+[arian@ryzen:~/Projects/generics-mrsop-diff/experiments]$ ls conflicts-clj_slow | wc -l
+189
+
+[arian@ryzen:~/Projects/generics-mrsop-diff/experiments]$ ls conflicts-lua | wc -l
+463
+
+[arian@ryzen:~/Projects/generics-mrsop-diff/experiments]$ ls conflicts-lua_slow | wc -l
+262
+
