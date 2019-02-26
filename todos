@@ -1,0 +1,18 @@
+- [x] Measure time of diff, and size of nodes
+- [x] Measure node size of slow diffs
+- [ ] Figure out how many didn't parse vs actually being slow.  (Can do this by looking at count of slow diffs in csv, vs count in directory)
+- [ ] Differentiate between  out-of-memroy vs out of time (Need to rerun slow ones)
+- [ ] Figure out pgf scatter plots
+- [ ] Write results section (Diffs)
+- [ ] Fix showing diffs as dotgraphs
+- [ ] Debug merging diffs
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
