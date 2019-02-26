@@ -24,9 +24,9 @@ trap "exit" INT
 
 mkdir -p "${dir}_slow"
 for d in ${dir}/*; do
-  timeout "${timeout}" "${mergetool}" diff --stats duration "${d}"/{O,A}."${lang}"
+  timeout "${timeout}" "${mergetool}" diff --stats no-duration "${d}"/{O,A}."${lang}"
   res_1=$?
-  timeout "${timeout}" "${mergetool}" diff --stats duration "${d}"/{O,B}."${lang}"
+  timeout "${timeout}" "${mergetool}" diff --stats no-duration "${d}"/{O,B}."${lang}"
   res_2=$?
 
 

@@ -53,6 +53,10 @@ import Language.Clojure.AST (FamExpr)
 import qualified Language.Clojure.Parser
 import qualified Language.Lua.Parser
 
+import Criterion.Measurement (measure)
+import Criterion.Types (Measured(measTime))
+import Criterion (nf)
+
 
 data Language :: * where
   Language :: 
@@ -62,9 +66,6 @@ data Language :: * where
     IsNat ix,
     TestEquality ki) =>
     (FilePath -> IO (Fix ki codes ix)) -> Language
-
-{-data Language = Lua | Clj
-  deriving (Eq)-}
 
 parseLua x = do
   x <- Language.Lua.Parser.parseFile x
@@ -80,11 +81,8 @@ parseClj x = do
 
 -- different kinds of stats that can be collected
 data Stats
-  = SourceSize
-  | TargetSize
-  | GDiffSize
-  | STDiffSize  
-  | Duration
+  = WithDuration
+  | WithoutDuration
   deriving (Bounded, Enum)
 
 allStats :: [Stats]
@@ -94,16 +92,18 @@ allStatsStr :: [String]
 allStatsStr = toStr <$> allStats
 
 toStr :: Stats -> String
-toStr SourceSize = "source-size"
-toStr TargetSize = "target-size"
-toStr GDiffSize = "gdiff-size"
-toStr STDiffSize = "stdiff-size"
-toStr Duration = "duration"
+toStr WithDuration = "duration"
+toStr WithoutDuration = "no-duration"
+
+fromStr :: String -> Maybe Stats
+fromStr "duration" = Just WithDuration 
+fromStr "no-duration" = Just WithoutDuration
+fromStr _ = Nothing
 
 data DiffMode 
   = ES      -- the edit script:w
   | Dot  -- dot-graph of the stdiff patch
-  | Stats [Stats] -- CSV-formatted statistics
+  | Stats Stats
 
 
 data MergeMode
@@ -160,9 +160,16 @@ parseCmd =
     diffModeParser =
       flag ES ES  (long "es" <> help "print the gdiff editscript") <|>
       flag' Dot (long "dot" <> help "print dotgraph of stdiff") <|>
-      Stats <$> option  undefined (long "stats" <> metavar "STATS" <> help ("some of " ++ List.intercalate "," allStatsStr))
+      -- TODO parse stats
+      Stats <$> option (statsParser) (long "stats" <> metavar "STATS" <> help ("one of " ++ List.intercalate "," allStatsStr))
+    statsParser = do
+      x <- str
+      case (fromStr x) of
+        Just x -> pure x
+        Nothing -> Options.Applicative.empty
+
     astParser = AST <$> argument "file"
-    argument = Options.Applicative.strArgument . Options.Applicative.metavar
+    argument = strArgument . metavar
 
 
 printLanguage :: Language -> FilePath -> IO ()
@@ -178,9 +185,10 @@ diffLanguage :: Language -> DiffMode -> FilePath -> FilePath -> IO ()
 diffLanguage (Language parseFile) mode fp1 fp2 = do
   source <- parseFile fp1
   target <- parseFile fp2
-  let sourceSize = getSum . getConst .  AG.sizeGeneric $ left
-  let targetSize = getSum . getConst .  AG.sizeGeneric $ right
+  let sourceSize = getSum . getConst .  AG.sizeGeneric $ source
+  let targetSize = getSum . getConst .  AG.sizeGeneric $ target
   let gdiff = GDiff.diff' source target
+  let gdiff' = nf (show . GDiff.diff' source) target
   let source' = Translate.countCopies $ Annotate.annSrc source gdiff
   let target' = Translate.countCopies $ Annotate.annDest target gdiff
   let stdiff = Translate.diffAlmu  source' target'
@@ -189,9 +197,18 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
   case mode of
     ES -> print gdiff
     Dot -> error "TODO but involves stdiff, should fix"
-    Stats stats -> do
-      -- TODO start measure time
-      putStrLn $ intercalate "," results
+    Stats s -> do
+      x <- case s of
+            WithDuration -> fmap (measTime . fst) (measure gdiff' 1)
+            WithoutDuration -> pure (1.0 / 0.0)
+
+      Prelude.putStrLn . List.intercalate "," $ 
+        [ show $ sourceSize
+        , show $ targetSize
+        , show $ x
+        , fp1
+        , fp2
+        ]
 
       -- TODO end measure time
 
@@ -247,7 +264,7 @@ commandHandler x =
             lleft <- getLanguage left
             pure lleft
       case lang of
-        Just lang -> diffLanguage lang left right
+        Just lang -> diffLanguage lang opts left right
         Nothing -> fail "not same extenstion"
     Merge left origin right -> do
       let lang = do
