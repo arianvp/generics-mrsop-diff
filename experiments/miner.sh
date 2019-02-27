@@ -9,9 +9,9 @@ fi
 
 lang="$1"
 dir="$2"
-# data shows that things only run out of memory if
-# they run longer than 20s
-timeout="25s"
+
+# Same timeout as Garufi
+# timeout="60s"
 mergetool="../dist/build/mrdiff/mrdiff"
 
 
@@ -22,19 +22,18 @@ ulimit -v 10000000
 
 trap "exit" INT
 
-mkdir -p "${dir}_slow"
 for d in ${dir}/*; do
-  timeout "${timeout}" "${mergetool}" diff --stats duration "${d}"/{O,A}."${lang}"
+  "${mergetool}" diff --stats duration "${d}"/{O,A}."${lang}"
   res_1=$?
-  timeout "${timeout}" "${mergetool}" diff --stats duration "${d}"/{O,B}."${lang}"
+
+  "${mergetool}" diff --stats duration "${d}"/{O,B}."${lang}"
   res_2=$?
 
+if [[ $res_1 -gt 0  || $res_2 -gt 0 ]]
+then
+  echo "TOO MUCH MEM OR FAIL. ISOLATING $d"
+  mkdir -p  "${dir}_${res_1}_${res_2}"
+  mv "$d" "${dir}_${res_1}_${res_2}"
+fi
 
-
-
-  # if [[ $res_1 -gt 0  || $res_2 -gt 0 ]]
-  # then
-  #   echo "TOO SLOW. ISOLATING $d"
-  #   mv "$d" "${dir}_slow"
-  # fi
 done
