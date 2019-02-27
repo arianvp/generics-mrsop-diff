@@ -30,7 +30,8 @@ executable mrdiff
     optparse-applicative,
     filepath,
     graphviz,
-    text
+    text,
+    criterion
 
 test-suite generics-mrsop-diff-testsuite
   type: detailed-0.9

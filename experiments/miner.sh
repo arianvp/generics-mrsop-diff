@@ -22,7 +22,6 @@ ulimit -v 10000000
 
 trap "exit" INT
 
-<<<<<<< HEAD
 mkdir -p "${dir}_slow"
 for d in ${dir}/*; do
   timeout "${timeout}" "${mergetool}" diff --stats duration "${d}"/{O,A}."${lang}"

@@ -1,6 +1,7 @@
 { mkDerivation, base, Cabal, filepath, generics-mrsop, graphviz
 , hs-digems, hyper, language-c, language-lua, leancheck, mtl
 , optparse-applicative, parsec, semigroupoids, stdenv, text
+, criterion
 }:
 mkDerivation {
   pname = "generics-mrsop-diff";
@@ -14,7 +15,7 @@ mkDerivation {
   ];
   executableHaskellDepends = [
     base filepath generics-mrsop graphviz language-lua
-    optparse-applicative text
+    optparse-applicative text criterion
   ];
   testHaskellDepends = [ base Cabal generics-mrsop leancheck ];
   license = stdenv.lib.licenses.bsd3;
