@@ -91,6 +91,36 @@ meet d1 d2 =
     then d1
     else d2
 
+
+{-data Skip ki codes :: [Atom kon] -> [Atom kon] -> * where
+  CpyS :: Cof ki codes a t -> Skip ki codes (t :++: i) (t :++: j) -> Skip ki codes (a ': i) (a ': j)
+  CpyT :: Skip ki codes i j -> Skip ki codes (a ': i) (a ': j)
+  Table ::  EST ki codes i j -> Skip ki codes i j
+-}
+
+
+-- | Heuristic:
+--
+--    many diffs have largely unchanged heads. Simply skip those
+--
+--    TODO: We can do the same with the tail in an imperative language
+--    however, we cant due to the way our diff structure is a stack,
+--
+--    TODO: We can even emit CpyTree's here, using hashing, but we'll
+--    also have to update the conversion to stdiff
+skipFront 
+  :: (TestEquality ki, Eq1 ki)
+  => PoA ki (Fix ki codes) xs
+  -> PoA ki (Fix ki codes) ys
+  -> ES ki codes xs ys
+skipFront (x@(matchC -> Match cx px) :* xs) (y@(matchC -> Match cy py) :* ys) =
+  case heqCof cx cy of
+    Just (Refl, Refl) ->
+      Cpy 0 cx $ skipFront (appendNP px xs) (appendNP py ys)
+    Nothing -> getDiff $ diffT Nothing (x :* xs) (y :* ys)
+skipFront xs ys = getDiff $ diffT Nothing xs ys
+
+  
 data EST (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   NN :: ES ki codes '[] '[] 
      -> EST ki codes '[] '[]
@@ -146,6 +176,8 @@ extracti (NC  g d i) = IES g d i
 
 
 newtype Oracle phi = Oracle (forall ix. phi ix -> phi ix -> Bool)
+
+
 
 diffT 
   :: (Eq1 ki, TestEquality ki)
@@ -354,7 +386,7 @@ diff' ::
   => Fix ki codes ix1
   -> Fix ki codes ix2
   -> ES ki codes '[ 'I ix1] '[ 'I ix2]
-diff' a b = getDiff $ diff'' a b
+diff' a b = skipFront (NA_I a :* NP0) (NA_I b :* NP0) -- getDiff $ diff'' a b
 
 
 -- | Given two deep representations, we get the diff.
