@@ -201,7 +201,10 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
       x <- case s of
             WithDuration -> fmap (measTime . fst) (measure gdiff' 1)
             WithoutDuration -> pure (1.0 / 0.0)
-
+      case target' of
+        Right target' ->
+          when (not (eq1 target target')) (fail "targets weren't equal")
+        Left x -> fail $ "generated dif didn't apply :" ++ x
       Prelude.putStrLn . List.intercalate "," $ 
         [ show $ sourceSize
         , show $ targetSize
@@ -210,7 +213,6 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
         , fp2
         ]
 
-      -- TODO end measure time
 
 
 
