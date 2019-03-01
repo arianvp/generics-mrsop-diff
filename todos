@@ -10,6 +10,11 @@
 - [x] measure results for that
 - [ ] Plot speeds against eachother
 
+- [x] Figure out how many didn't parse vs actually being slow.  (Can do this by looking at count of slow diffs in csv, vs count in directory)
+- [x] Differentiate between  out-of-memroy vs out of time (Need to rerun slow ones)
+- [x] Figure out pgf scatter plots
+- [x] Write results section (Diffs)
+- [ ] show statistical significance between the two (absolutely)
 - [ ] Fix showing diffs as dotgraphs
 - [ ] Debug merging diffs
 - [ ] Collect data about merges

@@ -31,7 +31,6 @@ for d in ${dir}/*; do
 
 if [[ $res_1 -gt 0  || $res_2 -gt 0 ]]
 then
-  echo "TOO MUCH MEM OR FAIL. ISOLATING $d"
   mkdir -p  "${dir}_${res_1}_${res_2}"
   mv "$d" "${dir}_${res_1}_${res_2}"
 fi
