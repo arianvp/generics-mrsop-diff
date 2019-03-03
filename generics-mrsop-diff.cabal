@@ -46,6 +46,7 @@ library
   exposed-modules: 
     Generics.MRSOP.Diff
     Generics.MRSOP.Diff2
+    Generics.MRSOP.Diff3
     Generics.MRSOP.Diff.Merge
     Generics.MRSOP.Diff.Annotate
     Generics.MRSOP.Diff.Annotate.Translate
