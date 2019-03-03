@@ -2,15 +2,16 @@
 - [x] Measure node size of slow diffs
 - [x] Figure out pgf scatter plots
 - [x] Write section about how data was collected
-- [-] Write results section (Diffs)
-- [o] Figure out how many didn't parse vs actually being slow and remove them from dataset.  (Can do this by looking at count of slow diffs in csv, vs count in directory)
-- [o] Differentiate between out-of-memroy vs out of time (Need to rerun slow ones) (Need to do at home on Ryzen)
+- [x] Write results section (Diffs)
+- [x] Figure out how many didn't parse vs actually being slow and remove them from dataset.  (Can do this by looking at count of slow diffs in csv, vs count in directory)
+- [x] Differentiate between out-of-memroy vs out of time (Need to rerun slow ones) (Need to do at home on Ryzen)
 
 - [x] Implement even faster diff
-- [o] measure results for that
+- [x] measure results for that
+- [ ] Plot speeds against eachother
 
-- [ ] Debug merging diffs
 - [ ] Fix showing diffs as dotgraphs
+- [ ] Debug merging diffs
 - [ ] Collect data about merges
 - [ ] Create tables for merges
 - [ ] Write results section for merges
