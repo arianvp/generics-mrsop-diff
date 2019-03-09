@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -105,11 +106,18 @@ npToCells constrName self xs = do
       pure . LabelCell [Port port] . Text $ [Str " "]
     toCell (Konstant x) = pure . LabelCell [] . Text $ [Str (pack x)]
 
+
+dotAlgebra :: IsNat ix => Rep ki (Const (DotSM NodeId)) xs -> Const (DotSM NodeId) ix
+dotAlgebra (sop -> Tag c prod) = Const $ do
+  self <- preallocateNodeId
+  undefined
+
+  
 visualizeFix ::
      forall ki phi fam codes ix. (Show1 ki, Show1 phi, IsNat ix, HasDatatypeInfo ki fam codes)
   => AnnFix ki codes phi ix
   -> DotSM NodeId
-visualizeFix (AnnFix ann rep) =
+visualizeFix (AnnFix ann rep) = -- getConst . cata dotAlgebra
   case sop rep of
     Tag c prod -> do
       let info = datatypeInfo (Proxy :: Proxy fam) (getSNat (Proxy :: Proxy ix))
@@ -117,6 +125,7 @@ visualizeFix (AnnFix ann rep) =
           constrName = constructorName constrInfo
           dataName = showDatatypeName (datatypeName info)
       npToTable (show1 ann) dataName constrName prod
+
 
 
 

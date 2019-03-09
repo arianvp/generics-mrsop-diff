@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GADTs #-}
 
 module Generics.MRSOP.Diff.Annotate.Translate where
@@ -26,7 +27,7 @@ import Data.Type.Equality
 import Generics.MRSOP.AG (mapAnn, monoidAlgebra, synthesizeAnn, productAnn)
 import Generics.MRSOP.Base
 import Generics.MRSOP.Diff.Annotate
-import Generics.MRSOP.Diff2
+import Generics.MRSOP.Diff3
 import Generics.MRSOP.Util hiding (Cons, Nil)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -52,111 +53,37 @@ forgetAnn' = mapNA id forgetAnn
 -- it's the First Semigroup, not the First Monoid. But haskell doesn't distinguish between
 -- the two. We could add our own datatype later.
 diffAl :: forall ki fam codes xs ys.
-     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki)
+     (Eq1 ki, TestEquality ki)
   => PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) ys
   -> Al ki codes xs ys
-diffAl NP0 NP0 = A0 NP0 NP0
-diffAl NP0 (y :* ys) =
-  case diffAl NP0 ys of
-    A0 dels inss -> A0 dels (forgetAnn' y :* inss)
-    AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
-diffAl (x :* xs) NP0 =
-  case diffAl xs NP0 of
-    A0 dels inss -> A0 (forgetAnn' x :* dels) inss
-    AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
-diffAl (x :* xs) (y :* ys) =
-  case (x, y, testEquality x y) of
-    (NA_K k1, NA_K k2, Just Refl) -> AX NP0 NP0 (diffAt x y) (diffAl xs ys)
-    (NA_K k1, NA_K k2, Nothing) ->
-      case diffAl xs ys of
-        A0 dels inss -> A0 (forgetAnn' x :* dels) (forgetAnn' y :* inss)
-        AX dels inss at al ->
-          AX (forgetAnn' x :* dels) (forgetAnn' y :* inss) at al
-    (NA_K k1, NA_I i2, Nothing) ->
-      case getAnn' . extractAnn $ y of
-        Modify ->
-          case diffAl (x :* xs) ys of
-            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
-            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
-        Copy ->
-          case diffAl xs (y :* ys) of
-            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
-            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
-    (NA_I i1, NA_K k2, Nothing) ->
-      case getAnn' . extractAnn $ x of
-        Modify ->
-          case diffAl xs (y :* ys) of
-            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
-            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
-        Copy ->
-          case diffAl (x :* xs) ys of
-            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
-            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
-    (NA_I i1, NA_I i2, Just Refl) ->
-      case ( getAnn' . extractAnn $ x , getAnn' . extractAnn $ y) of
-        (Modify, _) ->
-          case diffAl xs (y :* ys) of
-            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
-            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
-        (Copy, Modify) ->
-          case diffAl (x :* xs) ys of
-            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
-            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
-        (Copy, Copy) -> AX NP0 NP0 (diffAt x y) (diffAl xs ys)
-
-    -- Haskell doesn't allow us to discharge contradictions unfortunately, so it gets confused
-    (NA_I i1, NA_K k2, Just a) -> error "absurd.  This is a contradiction. NA_I != NA_K"
-    (NA_K k1, NA_I i2, Just b) -> error "absurd. This is a contradiction. NA_K != NA_I"
-    (NA_I i1@(AnnFix _ rep1), NA_I i2@(AnnFix _ rep2), Nothing) ->
-      case ( getAnn' . extractAnn $ x , getAnn' . extractAnn $ y) of
-        -- TODO: Narator voice. It did
-        (Copy, Copy) ->
-          case (sop rep1, sop rep2) of
-            (Tag c1 _, Tag c2 _) -> 
-              let i1' = datatypeInfo @ki @fam @codes (Proxy :: Proxy fam) (sNatFixIdx i1)
-                  ci1 = constrInfoLkup c1 i1'
-                  cn1 = constructorName ci1
-                  dn1 = showDatatypeName (datatypeName i1')
-                  i2' = datatypeInfo (Proxy :: Proxy fam) (sNatFixIdx i2)
-                  ci2 = constrInfoLkup c2 i2'
-                  cn2 = constructorName ci2
-                  dn2 = showDatatypeName (datatypeName i2')
-              in
-                case diffAl xs ys of
-                  A0 dels inss -> A0 (forgetAnn' x :* dels) (forgetAnn' y :* inss)
-                  AX dels inss at al -> AX (forgetAnn' x :* dels) (forgetAnn' y :* inss) at al
-        (Modify, _) ->
-          case diffAl xs (y :* ys) of
-            A0 dels inss -> A0 (forgetAnn' x :* dels) inss
-            AX dels inss at al -> AX (forgetAnn' x :* dels) inss at al
-        (Copy, Modify) ->
-          case diffAl (x :* xs) ys of
-            A0 dels inss -> A0 dels (forgetAnn' y :* inss)
-            AX dels inss at al -> AX dels (forgetAnn' y :* inss) at al
+diffAl  = undefined
 
 diffAt ::
-     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki)
+     (Eq1 ki, TestEquality ki)
   => NA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) a
   -> NA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) a
   -> At ki codes a
 diffAt (NA_K x) (NA_K y) = AtSet (Trivial x y)
 diffAt (NA_I x) (NA_I y) = AtFix $ diffAlmu x y
 
-diffSpine ::
-     (HasDatatypeInfo ki fam codes, TestEquality ki, Show1 ki, Eq1 ki)
-  => Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
-  -> Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
-  -> Spine ki codes xs
-diffSpine s1 s2 =
-  if (eq1 `on` mapRep forgetAnn) s1 s2
-    then Scp
-    else case (sop s1, sop s2) of
-           (Tag c1 p1, Tag c2 p2) ->
-             case testEquality c1 c2 of
-               Just Refl ->
-                 sCns c1 (mapNP (\(a :*: b) -> diffAt a b) (zipNP p1 p2))
-               Nothing -> Schg c1 c2 (diffAl p1 p2)
+diffSpine :: forall ki codes ix iy.
+     (TestEquality ki, Eq1 ki, IsNat ix, IsNat iy)
+  => SNat ix -- needed so we can decide what family we're in
+  -> SNat iy
+  -> Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) (Lkup ix codes)
+  -> Rep ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) (Lkup iy codes)
+  -> Spine ki codes (Lkup ix codes) (Lkup iy codes)
+diffSpine six siy s1@(sop -> Tag c1 p1) s2@(sop -> Tag c2 p2) =
+  case testEquality six siy of
+    Just Refl ->
+      if (eq1 `on` mapRep forgetAnn) s1 s2
+        then Scp
+        else case testEquality c1 c2 of
+                   Just Refl ->
+                     SCns c1 (mapNP (\(a :*: b) -> diffAt a b) (zipNP p1 p2))
+                   Nothing -> SChg c1 c2 (diffAl p1 p2)
+    Nothing -> SChg c1 c2 (diffAl p1 p2)
 
 copiesAlgebra
   :: Const Ann ix
@@ -180,7 +107,7 @@ countCopies = synthesizeAnn (productAnn copiesAlgebra const)
 -- We alternative until we get there. However, this is not the case now :(
 diffCtx
   :: forall ki fam codes p ix xs.  
-     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, TestEquality ki, IsNat ix) => 
+     (Eq1 ki, TestEquality ki, IsNat ix) => 
      InsOrDel ki codes p
   -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
   -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
@@ -217,41 +144,42 @@ getAnn' (Pair _ (Const b)) = b
 hasCopies :: AnnFix ki codes (Product (Const (Sum Int)) chi) ix -> Bool
 hasCopies (AnnFix (Pair (Const (Sum x)) _) _) = x > 0 -- | Takes two annotated trees, and produces a patch
 
+stiffAlmu :: (TestEquality ki, Eq1 ki) => Fix ki codes ix -> Fix ki codes iy -> Almu ki codes ix iy
+stiffAlmu (Fix rep1) (Fix rep2) = Spn (stiffSpine rep1 rep2)
+
+stiffSpine :: (TestEquality ki, Eq1 ki)
+  => Rep ki (Fix ki codes) xs
+  -> Rep ki (Fix ki codes) ys
+  -> Spine ki codes xs ys
+stiffSpine (sop -> Tag c1 p1) (sop -> Tag c2 p2) = SChg c1 c2 (stiffAl p1 p2)
+
+stiffAt :: (TestEquality ki, Eq1 ki) => NA ki (Fix ki codes) x -> NA ki (Fix ki codes) x -> At ki codes x
+stiffAt (NA_K x) (NA_K y) = AtSet (Trivial x y)
+stiffAt (NA_I x) (NA_I y) = AtFix (stiffAlmu x y)
+
+stiffAl :: (TestEquality ki, Eq1 ki) => PoA ki (Fix ki codes) xs -> PoA ki (Fix ki codes) ys -> Al ki codes xs ys
+stiffAl NP0 NP0 = A0
+stiffAl (x :* xs) NP0 = ADel x (stiffAl xs NP0)
+stiffAl NP0 (y :* ys) = AIns y (stiffAl NP0 ys)
+stiffAl (x :* xs) (y :* ys) = 
+  case testEquality x y of
+    Just Refl -> AX (stiffAt x y) (stiffAl xs ys)
+    Nothing -> AIns y (ADel x (stiffAl xs ys))
+
 diffAlmu :: forall ki fam codes ix iy.
-     (HasDatatypeInfo ki fam codes, Show1 ki, Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
+     (Eq1 ki, IsNat ix, IsNat iy, TestEquality ki)
   => AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) ix
   -> AnnFix ki codes (Product (Const (Sum Int)) (Const Ann)) iy
   -> Almu ki codes ix iy
 diffAlmu x@(AnnFix ann1 rep1) y@(AnnFix ann2 rep2) =
   case (getAnn' ann1, getAnn' ann2) of
-    (Copy, Copy) ->
-      case testEquality (sNatFixIdx x) (sNatFixIdx y) of
-        Just Refl -> Spn (diffSpine rep1 rep2)
-        -- TODO: It does happen
-        Nothing ->
-          case (sop rep1, sop rep2) of
-            (Tag c1 _, Tag c2 _) -> 
-              let i1 = datatypeInfo @ki @fam @codes (Proxy :: Proxy fam) (sNatFixIdx x)
-                  ci1 = constrInfoLkup c1 i1
-                  cn1 = constructorName ci1
-                  dn1 = showDatatypeName (datatypeName i1)
-                  i2 = datatypeInfo (Proxy :: Proxy fam) (sNatFixIdx y)
-                  ci2 = constrInfoLkup c2 i2
-                  cn2 = constructorName ci2
-                  dn2 = showDatatypeName (datatypeName i2)
-              in
-                Stiff (forgetAnn x) (forgetAnn y)
-                {-error $ fold
-                  [ "Copy Copy with different universes happened\n"
-                  , "left = " ++ cn1 ++ " :: " ++ dn1 ++ " :: " ++ show (snat2int (sNatFixIdx x)) ++ "\n"
-                  , "right = " ++ cn2 ++ " :: " ++ dn2 ++ " :: " ++ show (snat2int (sNatFixIdx y)) ++ "\n"
-                  ]-}
+    (Copy, Copy) -> Spn (diffSpine (getSNat $ Proxy @ix) (getSNat $ Proxy @iy) rep1 rep2)
     (Copy, Modify) -> 
-      if hasCopies y then diffIns x rep2 else Stiff (forgetAnn x) (forgetAnn y)
+      if hasCopies y then diffIns x rep2 else stiffAlmu (forgetAnn x) (forgetAnn y)
     (Modify, Copy) ->
-      if hasCopies x then diffDel rep1 y else Stiff (forgetAnn x) (forgetAnn y)
+      if hasCopies x then diffDel rep1 y else stiffAlmu (forgetAnn x) (forgetAnn y)
     (Modify, Modify) ->
-      if hasCopies x then diffDel rep1 y else Stiff (forgetAnn x) (forgetAnn y)
+      if hasCopies x then diffDel rep1 y else stiffAlmu (forgetAnn x) (forgetAnn y)
     where
       diffIns x rep = case sop rep of Tag c xs -> Ins c (diffCtx CtxIns x xs)
       diffDel rep x = case sop rep of Tag c xs -> Del c (diffCtx CtxDel x xs)

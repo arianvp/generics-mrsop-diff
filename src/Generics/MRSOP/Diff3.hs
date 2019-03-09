@@ -29,6 +29,8 @@ data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   ADel :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes (x ': xs) ys
   AIns :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes xs (x ': ys)
 
+newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
+
 
 -- | An NP p xs, but there exists an x in xs such that h x
 --
@@ -37,6 +39,25 @@ data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
 -- and that the list is never empty, because it contains at
 -- least the pointed element
 --
+data InsOrDel (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: (Nat -> Nat -> *) -> * where
+  CtxIns :: InsOrDel ki codes (Almu ki codes)
+  CtxDel :: InsOrDel ki codes (AlmuMin ki codes)
+
+
+data Ctx (ki :: kon -> *)
+         (codes :: [[[Atom kon]]]) 
+         (p :: Nat -> Nat -> *)
+         (ix :: Nat) :: [Atom kon] -> * where
+  H :: IsNat iy
+    => p ix iy
+    -> PoA ki (Fix ki codes) xs
+    -> Ctx ki codes p ix ('I iy ': xs)
+  T :: NA ki (Fix ki codes) a
+    -> Ctx ki codes p ix xs
+    -> Ctx ki codes p ix (a ': xs)
+--
+--
+{-
 data Ctx (h :: x -> *) (p :: x -> *) :: [x] -> * where
   H :: h x -> NP p xs -> Ctx h p (x ': xs)
   T :: p x -> Ctx h p xs -> Ctx h p (x ': xs)
@@ -47,25 +68,37 @@ ctxIsNP (T p xs) = p :* ctxIsNP xs
 
 npIsCtx :: NP p (x ': xs) -> Ctx p p (x ': xs)
 npIsCtx (p :* xs) = H p xs
+-}
 
+type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
+type DelCtx ki codes ix xs = Ctx ki codes (AlmuMin ki codes) ix xs
 
 data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
-  Spn :: Spine ki codes ix iy -> Almu ki codes ix iy
+  Spn :: Spine ki codes (Lkup ix codes) (Lkup iy codes) -> Almu ki codes ix iy
+  Ins
+    :: Constr (Lkup iy codes) c
+    -> InsCtx ki codes ix (Lkup c (Lkup iy codes)) -- its an ix with an iy typed-hoed
+    -> Almu ki codes ix iy
+  Del
+    :: IsNat iy
+    => Constr (Lkup ix codes) c
+    -> DelCtx ki codes iy (Lkup c (Lkup ix codes))
+    -> Almu ki codes ix iy
   -- TODO ins del
       
 
 -- OR what about:  ix iy
-data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
-  Scp :: Spine ki codes ix ix
+data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [[Atom kon]] -> [[Atom kon]] -> * where
+  Scp :: Spine ki codes s1 s1
   SCns 
-    :: Constr (Lkup ix codes) c1 
-    -> NP (At ki codes) (Lkup c1 (Lkup ix codes))
-    -> Spine ki codes ix ix
+    :: Constr s1 c1 
+    -> NP (At ki codes) (Lkup c1 s1)
+    -> Spine ki codes s1 s2
   SChg
-    :: Constr (Lkup ix codes) c1
-    -> Constr (Lkup iy codes) c2
-    -> Al ki codes (Lkup c1 (Lkup ix codes)) (Lkup c2 (Lkup iy codes))
-    -> Spine ki codes ix iy
+    :: Constr s1 c1
+    -> Constr s2 c2
+    -> Al ki codes (Lkup c1 s1) (Lkup c2 s2)
+    -> Spine ki codes s1 s2
 
 
 applyAt
@@ -92,13 +125,15 @@ applyAl (ADel x dxs) (x' :* xs) =
 
 applySpine 
   :: Eq1 ki
-  => Spine ki codes ix iy
-  -> Rep ki (Fix ki codes) (Lkup ix codes)
-  -> Maybe (Rep ki (Fix ki codes) (Lkup iy codes))
+  => Spine ki codes s1 s2
+  -> Rep ki (Fix ki codes) s1
+  -> Maybe (Rep ki (Fix ki codes) s2)
 applySpine Scp x = Just x
 applySpine (SCns c1 dxs) (sop -> Tag c2 xs) =  do
+  undefined
+  {- -- TODO check whether they are over the same sum
   Refl <- testEquality c1 c2
-  inj c2 <$> (mapNPM applyAt (zipNP dxs xs))
+  inj c2 <$> (mapNPM applyAt (zipNP dxs xs)) -}
 applySpine (SChg c1 c2 al) (sop -> Tag c3 xs) = do
   Refl <- testEquality c1 c3
   inj c2 <$> applyAl al xs
