@@ -57,7 +57,31 @@ diffAl :: forall ki fam codes xs ys.
   => PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) xs
   -> PoA ki (AnnFix ki codes (Product (Const (Sum Int)) (Const Ann))) ys
   -> Al ki codes xs ys
-diffAl  = undefined
+diffAl NP0 NP0 = A0
+diffAl NP0 (y :* ys) = AIns (mapNA id forgetAnn y) (diffAl NP0 ys)
+diffAl (x :* xs) NP0 = ADel (mapNA id forgetAnn x) (diffAl xs NP0)
+diffAl (x@(NA_K k1) :* xs) (y@(NA_K k2) :* ys) = 
+  case testEquality k1 k2 of
+    Just Refl -> AX (diffAt x y) (diffAl xs ys)
+    Nothing -> AIns (mapNA id forgetAnn y) (ADel (mapNA id forgetAnn x) (diffAl xs ys))
+diffAl (x@(NA_K k1) :* xs) (y@(NA_I i2) :* ys) = 
+  case getAnn' (extractAnn y) of
+    Modify -> AIns (mapNA id forgetAnn y) (diffAl (x :* xs) ys)
+    Copy -> ADel (mapNA id forgetAnn x) (diffAl xs (y :* ys))
+diffAl (x@(NA_I i1) :* xs) (y@(NA_K k2) :* ys) =
+  case getAnn' (extractAnn x) of
+    Modify -> ADel (mapNA id forgetAnn x) (diffAl xs (y :* ys))
+    Copy -> AIns (mapNA id forgetAnn y) (diffAl (x :* xs) ys)
+diffAl (x@(NA_I i1) :* xs) (y@(NA_I i2) :* ys) = 
+  case (getAnn' (extractAnn x), getAnn' (extractAnn y)) of
+    (Modify, _) -> ADel (mapNA id forgetAnn x) (diffAl xs (y :* ys))
+    (Copy, Modify) -> AIns (mapNA id forgetAnn y) (diffAl (x :* xs) ys)
+    (Copy, Copy) -> 
+      case testEquality x y of
+        Just Refl -> AX (diffAt x y) (diffAl xs ys)
+        -- NOTE we added this case
+        Nothing -> AIns (mapNA id forgetAnn y) (ADel (mapNA id forgetAnn x) (diffAl xs ys))
+
 
 diffAt ::
      (Eq1 ki, TestEquality ki)

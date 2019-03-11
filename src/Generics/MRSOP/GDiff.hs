@@ -113,7 +113,7 @@ skipFront
   => PoA ki (Fix ki codes) xs
   -> PoA ki (Fix ki codes) ys
   -> ES ki codes xs ys
-skipFront (x@(matchC -> Match cx px) :* xs) (y@(matchC -> Match cy py) :* ys) =
+skipFront (x@(sopNA -> TagNA cx px) :* xs) (y@(sopNA -> TagNA cy py) :* ys) =
   case heqCof cx cy of
     Just (Refl, Refl) ->
       Cpy 0 cx $ skipFront (appendNP px xs) (appendNP py ys)
@@ -149,15 +149,15 @@ getDiff (CC _ _ x _ _ _) = x
 
 
 -- existential version of Cof, that hides its type
-data Match ki phi codes a where
-  Match :: Cof ki codes a t -> PoA ki (AnnFix ki codes phi) t -> Match ki phi codes a
+data ViewNA ki phi codes a where
+  TagNA :: Cof ki codes a t -> PoA ki (AnnFix ki codes phi) t -> ViewNA ki phi codes a
 
 -- | Non-CC version of matchConstructor
 --
 -- A version of sop but over NA instead of Rep
-matchC :: NA ki (AnnFix ki codes phi) a -> Match ki phi codes a
-matchC (NA_K k) = Match (ConstrK k) NP0
-matchC (NA_I (AnnFix _ (sop -> Tag c poa))) = Match (ConstrI c (listPrfNP poa)) poa
+sopNA :: NA ki (AnnFix ki codes phi) a -> ViewNA ki phi codes a
+sopNA (NA_K k) = TagNA (ConstrK k) NP0
+sopNA (NA_I (AnnFix _ (sop -> Tag c poa))) = TagNA (ConstrI c (listPrfNP poa)) poa
 
 -- | Useful view
 data DES ki codes a xs ys where 
@@ -186,13 +186,13 @@ diffT
   -> PoA ki (AnnFix ki codes phi) ys
   -> EST ki codes xs ys
 diffT o NP0 NP0 = NN ES0
-diffT o ((matchC -> Match c poa) :* xs) NP0 =
+diffT o ((sopNA -> TagNA c poa) :* xs) NP0 =
   let d = diffT o (appendNP poa xs) NP0
   in CN c (Del (1 + cost (getDiff d)) c (getDiff d)) d
-diffT o NP0 ((matchC -> Match c poa) :* ys) =
+diffT o NP0 ((sopNA -> TagNA c poa) :* ys) =
   let i = diffT o NP0 (appendNP poa ys)
   in NC c (Ins (1 + cost (getDiff i)) c (getDiff i)) i
-diffT o ((matchC -> Match c1 poa1) :* xs) ((matchC -> Match c2 poa2) :* ys) =
+diffT o ((sopNA -> TagNA c1 poa1) :* xs) ((sopNA -> TagNA c2 poa2) :* ys) =
   let 
     i = extendi c1 c
     d = extendd c2 c
@@ -277,6 +277,7 @@ split Nil poa = (NP0, poa)
 split (Cons p) (x :* rs) =
   let (xs, rest) = split p rs
    in (x :* xs, rest)
+
 
 
 matchCof ::
@@ -416,201 +417,3 @@ diffPoA ::
   -> EST ki codes '[ x] '[ y]
 diffPoA = diffT Nothing
 
--- in order to match a constructor of an Atom
--- we will try all possible constructors, and once we find one that
--- matches, we tell you which constructor it was,
--- and a proof that that it's indeed of the correct type
---
---
---   The gdiff lib wants a   ListPrf (tyof codes c)
---   but we have a NP p (Tyof codes c)
---
---   however, we can't make a function   NP p xs -> ListPrf xs
---   as the constructors of NP don't carry the List proof
---
-
-{-
-matchConstructor ::
-     NA ki (AnnFix ki codes phi) a
-  -> (forall c. Cof ki codes a c -> ListPrf (Tyof codes c) -> PoA ki (AnnFix ki codes phi) (Tyof codes c) -> r)
-  -> r
-matchConstructor (NA_K k) f = f (ConstrK k) Nil NP0
-matchConstructor (NA_I (AnnFix _ rep)) f =
-  case sop rep of
-    Tag c poa -> f (ConstrI c) (listPrfNP poa) poa
-
-
-diffT' ::
-     ( Eq1 ki, TestEquality ki)
-  => ListPrf xs
-  -> ListPrf ys
-  -> PoA ki (AnnFix ki codes phi) xs
-  -> PoA ki (AnnFix ki codes phi) ys
-  -> EST ki codes xs ys
-diffT' Nil Nil NP0 NP0 = NN ES0
-diffT' (Cons isxs) Nil (x :* xs) NP0 =
-  matchConstructor x $ \cx isxs' xs' ->
-    let d = diffT' (appendIsListLemma isxs' isxs) Nil (appendNP xs' xs) NP0
-        d' = getDiff d
-     in cn isxs isxs' cx (del isxs isxs' (1 + cost d') cx d') d
-      -- TODO(1) use smart constructors! CN c (Del c (getDiff d)) d
-diffT' Nil (Cons isys) NP0 (y :* ys) =
-  matchConstructor y $ \c isys' ys' ->
-    let i = diffT' Nil (appendIsListLemma isys' isys) NP0 (appendNP ys' ys)
-        i' = getDiff i 
-     in nc isys isys' c (ins isys isys' (1 + cost i') c i') i
-diffT' (Cons isxs) (Cons isys) (x :* xs) (y :* ys) =
-  matchConstructor x $ \cx isxs' xs' ->
-    matchConstructor y $ \cy isys' ys' ->
-      let i = extendi isxs' isxs cx c
-          d = extendd isys' isys cy c
-          -- NOTE, c is shared to calculate i and d!
-          c =
-            diffT'
-              (appendIsListLemma isxs' isxs)
-              (appendIsListLemma isys' isys)
-              (appendNP xs' xs)
-              (appendNP ys' ys)
-       in cc
-            isxs
-            isxs'
-            isys
-            isys'
-            cx
-            cy
-            (bestDiffT cx cy isxs isxs' isys isys' i d c)
-            i
-            d
-            c
-
-extendd ::
-     (Eq1 ki, TestEquality ki)
-  => ListPrf (Tyof codes cy)
-  -> ListPrf ys
-  -> Cof ki codes y cy
-  -> EST ki codes xs (Tyof codes cy :++: ys)
-  -> EST ki codes xs (y ': ys)
-extendd isys' isys cy dt@(NN d) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
-extendd isys' isys cy dt@(NC _ _  _ d _) = nc isys isys' cy (ins isys isys' (1 + cost d) cy d) dt
-extendd isys' isys cy dt@(CN _ _ _ _ _) = extendd' isys' isys cy dt
-extendd isys' isys cy dt@(CC _ _ _ _ _ _ _ _ _ _) = extendd' isys' isys cy dt
-
-extendd' ::
-     (Eq1 ki, TestEquality ki)
-  => ListPrf (Tyof codes cy)
-  -> ListPrf ys
-  -> Cof ki codes y cy
-  -> EST ki codes (x ': xs) (Tyof codes cy :++: ys)
-  -> EST ki codes (x ': xs) (y ': ys)
-extendd' isys' isys cy dt =
-  extractd dt $ \isxs' isxs cx dt' ->
-    let i = dt
-        d = extendd isys' isys cy dt'
-        c = dt'
-     in cc
-          isxs
-          isxs'
-          isys
-          isys'
-          cx
-          cy
-          (bestDiffT cx cy isxs isxs' isys isys' i d c)
-          i
-          d
-          c
-
-extractd ::
-     TestEquality ki
-  => EST ki codes (x ': xs) ys'
-  -> (forall cx. ListPrf (Tyof codes cx) -> ListPrf xs -> Cof ki codes x cx -> EST ki codes (Tyof codes cx :++: xs) ys' -> r)
-  -> r
-extractd (CC _ isxs _ isys c _ d' _ d _) k = k isxs (sourceTail d') c d
-extractd (CN _ isxs c d' d) k = k isxs (sourceTail d') c d
-
-extendi ::
-     (Eq1 ki, TestEquality ki)
-  => ListPrf (Tyof codes cx)
-  -> ListPrf xs
-  -> Cof ki codes x cx
-  -> EST ki codes (Tyof codes cx :++: xs) ys
-  -> EST ki codes (x ': xs) ys
-extendi isxs' isxs cx dt@(NN d) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
-extendi isxs' isxs cx dt@(CN _ _ _ d _) = cn isxs isxs' cx (del isxs isxs' (1 + cost d) cx d) dt
-extendi isxs' isxs cx dt@(NC _ _ _ _ _) = extendi' isxs' isxs cx dt
-extendi isxs' isxs cx dt@(CC _ _ _ _ _ _ _ _ _ _) = extendi' isxs' isxs cx dt
-
-extendi' ::
-     (Eq1 ki, TestEquality ki)
-  => ListPrf (Tyof codes cx)
-  -> ListPrf xs
-  -> Cof ki codes x cx
-  -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
-  -> EST ki codes (x : xs) (y ': ys)
-extendi' isxs' isxs cx dt =
-  extracti dt $ \isys' isys cy dt' ->
-    let i = extendi isxs' isxs cx dt'
-        d = dt
-        c = dt'
-     in cc
-          isxs
-          isxs'
-          isys
-          isys'
-          cx
-          cy
-          (bestDiffT cx cy isxs isxs' isys isys' i d c)
-          i
-          d
-          c
-
-cofToListPrf ::
-     IsList (Tyof codes cy) => Cof ki codes y cy -> ListPrf (Tyof codes cy)
-cofToListPrf _ = listPrf
-
-
-extracti ::
-     (Eq1 ki, TestEquality ki)
-  => EST ki codes xs' (y ': ys)
-  -> (forall cy. ListPrf (Tyof codes cy)
-              -> ListPrf ys
-              -> Cof ki codes y cy 
-              -> EST ki codes xs' (Tyof codes cy :++: ys) 
-              -> r)
-  -> r
-extracti (CC _ isxs _ isys _ c d i _ _) k = k isys (targetTail d) c i
-extracti (NC _ isxs c d i) k = k isxs (targetTail d) c i
-
-bestDiffT ::
-     (Eq1 ki, TestEquality ki)
-  => Cof ki codes x cx
-  -> Cof ki codes y cy
-  -> ListPrf xs
-  -> ListPrf (Tyof codes cx)
-  -> ListPrf ys
-  -> ListPrf (Tyof codes cy)
-  -> EST ki codes (x ': xs) (Tyof codes cy :++: ys)
-  -> EST ki codes (Tyof codes cx :++: xs) (y ': ys)
-  -> EST ki codes (Tyof codes cx :++: xs) (Tyof codes cy :++: ys)
-  -> ES ki codes (x ': xs) (y ': ys)
-bestDiffT cx cy isxs isxs' isys isys' i d c =
-  case heqCof cx cy of
-    Just (Refl, Refl) ->
-      -- TODO: I think this is a bug, we need to consider inserts
-      -- or deletes as well? 
-      let c' = getDiff c
-      in cpy isxs isys isxs' (cost c') cx c' -- cpy isxs' isxs isys cx (getDiff c)
-    Nothing ->
-      -- TOD: It's wasteful to calculate cost every time. Lets do this instead
-      -- costI = getCost (getDiff i)
-      -- costD = getCost (getDiff d)
-      --
-      -- if costI <= costD
-      --  then  ins (1 + costI)  (getDiff i)
-      --  else  del (1 + costD)  (getDiff d)
-      --
-      -- this will stop us from calculating cost Over and Over again
-      let i' = getDiff i
-          d' = getDiff d
-      in meet (ins isys isys' (1 + cost i') cy i') (del isxs isxs' (1 + cost d') cx d')
-
-      -}

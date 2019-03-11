@@ -31,9 +31,8 @@ import Options.Applicative
 
 import qualified Generics.MRSOP.AG as AG
 import Generics.MRSOP.Base
-import qualified Generics.MRSOP.Diff2 as Diff
+import qualified Generics.MRSOP.Diff3 as Diff
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
-import qualified Generics.MRSOP.Diff.Merge as Merge
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
 import qualified Generics.MRSOP.GDiff as GDiff
 import qualified Generics.MRSOP.GDiffCopyExperiment as GDiffOld
@@ -111,7 +110,7 @@ data MergeMode
   | MergeStats
 
 data Cmd
-  = AST FilePath
+  = AST Bool FilePath
   | Diff DiffMode FilePath FilePath
   | Merge FilePath
           FilePath
@@ -168,18 +167,21 @@ parseCmd =
         Just x -> pure x
         Nothing -> Options.Applicative.empty
 
-    astParser = AST <$> argument "file"
+    astParser = AST <$> switch (long "ann") <*> argument "file"
     argument = strArgument . metavar
 
 
-printLanguage :: Language -> FilePath -> IO ()
-printLanguage (Language parseFile) fp = do
+printLanguage :: Bool -> Language -> FilePath -> IO ()
+printLanguage ann (Language parseFile) fp = do
   x  <- parseFile fp
-  Text.putStrLn .
-    GraphViz.dotToText fp .
-    GraphViz.visualizeFix . 
-    AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra $
-    x
+  if ann 
+    then
+      Text.putStrLn .
+        GraphViz.dotToText fp .
+        GraphViz.visualizeFix . 
+        AG.mapAnn (\(Const x) -> Const (getSum x)) . AG.synthesize AG.sizeAlgebra $
+        x
+    else Text.putStrLn .  GraphViz.dotToText fp .  GraphViz.visualizeFix $ x
 
 diffLanguage :: Language -> DiffMode -> FilePath -> FilePath -> IO ()
 diffLanguage (Language parseFile) mode fp1 fp2 = do
@@ -202,9 +204,9 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
             WithDuration -> fmap (measTime . fst) (measure gdiff' 1)
             WithoutDuration -> pure (1.0 / 0.0)
       case target' of
-        Right target' ->
+        Just target' ->
           when (not (eq1 target target')) (fail "targets weren't equal")
-        Left x -> fail $ "generated dif didn't apply :" ++ x
+        Nothing -> fail $ "generated dif didn't apply"
       Prelude.putStrLn . List.intercalate "," $ 
         [ show $ sourceSize
         , show $ targetSize
@@ -237,17 +239,17 @@ mergeLanguage (Language parseFile) a o b = do
   let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
   let oa      = Translate.diffAlmu es_oa_o es_oa_a
   let ob      = Translate.diffAlmu es_ob_o es_ob_b
-  let m'      = Merge.mergeAlmu oa ob
+  let m'      = Diff.mergeAlmu oa ob
 
   case m' of
-    Left err -> fail $ "Failed to generate merge patch: " ++ (show err)
-    Right m -> 
+    Nothing -> fail $ "Failed to generate merge patch" 
+    Just m -> 
       case Diff.applyAlmu m a' of
-        Left ma -> fail $ "MA failed to apply : " ++  ma
-        Right res1 ->
+        Nothing-> fail $ "MA failed to apply"
+        Just res1 ->
           case Diff.applyAlmu m  b' of
-            Left mb -> fail $ "MB failed to apply : " ++ mb
-            Right res2 ->
+            Nothing -> fail $ "MB failed to apply"
+            Just res2 ->
               if eq1 res1 res2
               then pure ()
               else fail "MA != MB"
@@ -256,9 +258,9 @@ mergeLanguage (Language parseFile) a o b = do
 commandHandler :: Cmd -> IO ()
 commandHandler x =
   case x of
-    AST file -> 
+    AST ann file -> 
       case getLanguage file of
-        Just lang -> printLanguage lang file
+        Just lang -> printLanguage ann lang file
         Nothing -> fail "Unsupported language"
     Diff opts left right -> do
       let lang = do
