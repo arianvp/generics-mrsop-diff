@@ -108,9 +108,54 @@ t1l' = deep @FamTreeInt t1l
 
 t2l' = deep @FamTreeInt t2l
 
+type P = Almu TreeSingl CodesTreeInt Z Z
+
+data Outcome
+  = FailedA Bool | FailedB Bool | Conflict | Ok | Panic
+  deriving Show
+
+willItMerge :: Tree Int -> Tree Int -> Tree Int -> Outcome
+willItMerge a o b =
+  let a'      = deep @FamTreeInt a
+      b'      = deep @FamTreeInt b
+      o'      = deep @FamTreeInt o
+      oa      = diffTree o a
+      ob      = diffTree o b
+      on_b'   = mergeAlmu oa ob
+      on_a'   = mergeAlmu ob oa
+   in case (,) <$> on_a' <*> on_b' of
+      Nothing -> Conflict
+      Just (ona, onb) ->
+        case applyAlmu ona b' of
+          Nothing -> FailedA (applyAlmu oa o' == Just a') 
+          Just res1 ->
+            case applyAlmu onb a' of
+              Nothing -> FailedB (applyAlmu ob o' == Just b')
+              Just res2 ->
+                if eq1 res1 res2
+                then Ok
+                else Panic
+
+diffTree :: Tree Int -> Tree Int -> P
+diffTree o b =
+  let b'      = deep @FamTreeInt b
+      o'      = deep @FamTreeInt o
+      es_ob   = GDiff.diff' o' b'
+      es_ob_o = Translate.countCopies $ Annotate.annSrc  o' es_ob
+      es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
+   in Translate.diffAlmu es_ob_o es_ob_b
+
+o1 , a1 , b1 :: Tree Int
+
+o1 = Three 1 (Two 2 Leaf Leaf) (Two 3 Leaf Leaf) Leaf
+b1 = Three 1 (Two 2 Leaf Leaf) (Two 30 Leaf Leaf) Leaf
+a1 = Three 1 (Two 5 Leaf Leaf) (Two 3 Leaf Leaf) Leaf
+         
+
+{-
 -- the zipper representation of the tLong function
 pLong ::
-     Spine TreeSingl CodesTreeInt (Lkup Z CodesTreeInt)
+     Spine TreeSingl CodesTreeInt (Lkup Z CodesTreeInt) 
   -> Almu TreeSingl CodesTreeInt Z
 pLong =
   Peel
