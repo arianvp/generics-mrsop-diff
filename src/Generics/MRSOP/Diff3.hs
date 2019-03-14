@@ -2,6 +2,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE GADTs #-}
@@ -19,7 +20,7 @@ import Control.Monad ((<=<))
 
 --  Trivial patch on constants is 
 data TrivialK (ki :: kon -> *) :: kon -> * where
-  Trivial :: ki kon -> ki kon -> TrivialK ki kon
+  Trivial :: ki kon -> ki kon -> TrivialK ki kon 
 
 data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki codes ('K kon)
@@ -30,6 +31,8 @@ data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   AX :: At ki codes x -> Al ki codes xs ys -> Al ki codes (x ': xs)  (x ': ys)
   ADel :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes (x ': xs) ys
   AIns :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes xs (x ': ys)
+
+
 
 newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
 
@@ -81,7 +84,7 @@ data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [[Atom kon]] -> [[Atom 
   SCns 
     :: Constr s1 c1 
     -> NP (At ki codes) (Lkup c1 s1)
-    -> Spine ki codes s1 s2
+    -> Spine ki codes s1 s1
   SChg
     :: Constr s1 c1
     -> Constr s2 c2
@@ -189,7 +192,7 @@ mergeAts (x :* xs) (y :* ys) = (:*) <$> mergeAt x y <*> mergeAts xs ys
 
 mergeSpine :: Eq1 ki => SNat ix -> SNat iy -> Spine ki codes (Lkup ix codes) (Lkup iy codes) -> Spine ki codes (Lkup ix codes) (Lkup iy codes) -> Maybe (Spine ki codes (Lkup ix codes) (Lkup iy codes))
 mergeSpine _ _ Scp s = pure s
-mergeSpine _ _ s Scp = pure s
+mergeSpine _ _ s Scp = pure Scp
 mergeSpine _ _ (SCns cx xs) (SCns cy ys) = do
   Refl <- testEquality cx cy
   SCns cx <$> mergeAts xs ys

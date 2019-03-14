@@ -239,16 +239,17 @@ mergeLanguage (Language parseFile) a o b = do
   let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
   let oa      = Translate.diffAlmu es_oa_o es_oa_a
   let ob      = Translate.diffAlmu es_ob_o es_ob_b
-  let m'      = Diff.mergeAlmu oa ob
+  let on_a'   = Diff.mergeAlmu oa ob
+  let on_b'   = Diff.mergeAlmu ob oa
 
-  case m' of
+  case (,) <$> on_a' <*> on_b' of
     Nothing -> fail $ "Failed to generate merge patch" 
-    Just m -> 
-      case Diff.applyAlmu m a' of
-        Nothing-> fail $ "MA failed to apply"
+    Just (on_a, on_b) -> 
+      case Diff.applyAlmu on_a a' of
+        Nothing-> fail $ "on_a failed to apply"
         Just res1 ->
-          case Diff.applyAlmu m  b' of
-            Nothing -> fail $ "MB failed to apply"
+          case Diff.applyAlmu on_b  b' of
+            Nothing -> fail $ "on_b failed to apply"
             Just res2 ->
               if eq1 res1 res2
               then pure ()
