@@ -6,12 +6,16 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Generics.MRSOP.Diff3 where
   
 
+import Data.List (intersperse)
+
 import Data.Type.Equality (testEquality, (:~:)(Refl))
 import Data.Proxy
+import Data.Functor.Const
 import Control.Monad (guard)
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
@@ -21,9 +25,16 @@ import Control.Monad ((<=<))
 data TrivialK (ki :: kon -> *) :: kon -> * where
   Trivial :: ki kon -> ki kon -> TrivialK ki kon
 
+instance Show1 ki => Show (TrivialK ki x) where
+  show (Trivial x y) = show1 x ++ "|" ++ show1 y
+
 data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki codes ('K kon)
   AtFix :: (IsNat ix) => Almu ki codes ix ix -> At ki codes ('I ix)
+
+instance Show1 ki => Show1 (At ki codes) where
+  show1 (AtSet t) = show t
+  show1 (AtFix a) = show a
   
 data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   A0 :: Al ki codes '[] '[]
@@ -31,8 +42,14 @@ data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
   ADel :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes (x ': xs) ys
   AIns :: NA ki (Fix ki codes) x -> Al ki codes xs ys -> Al ki codes xs (x ': ys)
 
-newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
+instance Show1 ki => Show (Al ki codes xs ys) where
+  show A0 = "A0"
+  show (AX x xs) = "(AX " ++ show1 x  ++ " " ++ show xs  ++ ")"
+  show (ADel x xs) = "(ADel " ++ show x  ++ " " ++ show xs  ++ ")"
+  show (AIns x xs) = "(AIns " ++ show x  ++ " " ++ show xs  ++ ")"
 
+newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
+  deriving Show 
 
 -- | An NP p xs, but there exists an x in xs such that h x
 --
@@ -61,6 +78,17 @@ data Ctx (ki :: kon -> *)
 type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
 type DelCtx ki codes ix xs = Ctx ki codes (AlmuMin ki codes) ix xs
 
+instance Show x => Show1 (Const x) where
+  show1 (Const x) = show x
+
+instance Show1 ki => Show (InsCtx ki codes ix xs) where
+  show (H p poa) = "(H " ++ show p ++ " " ++ show poa ++ ")"
+  show (T n c)   = "(T " ++ show n  ++ " " ++ show c ++ ")"
+instance Show1 ki => Show (DelCtx ki codes ix xs) where
+  show (H p poa) = "(H " ++ show p ++ " " ++ show poa ++ ")"
+  show (T n c)   = "(T " ++ show n  ++ " " ++ show c ++ ")"
+
+
 data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
   Spn :: Spine ki codes (Lkup ix codes) (Lkup iy codes) -> Almu ki codes ix iy
   Ins
@@ -73,7 +101,28 @@ data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
     -> DelCtx ki codes iy (Lkup c (Lkup ix codes))
     -> Almu ki codes ix iy
   -- TODO ins del
-      
+
+showC :: Constr x y -> String
+showC = ('C':) . show . go
+  where
+    go :: Constr x y -> Int
+    go CZ = 0
+    go (CS s) = 1 + go s
+
+instance (Show1 ki) => Show (Almu ki codes ix iy) where
+  show (Spn s) = "(Spn " ++ show s ++ ")"
+  show (Ins c ic) = "(Ins " ++ showC c ++ " " ++ show ic ++ ")"
+  show (Del c ic) = "(Del " ++ showC c ++ " " ++ show ic ++ ")"
+
+instance (Show1 p) => Show1 (NP p) where
+  show1 np = parens . concat . intersperse " "  $ elimNP show1 np
+    where
+      parens x = "(" ++ x  ++ ")"
+
+instance (Show1 ki) => Show (Spine ki codes ix iy) where
+  show Scp = "COPY"
+  show (SCns c x) = "(Scns " ++ showC c ++ " " ++ show1 x ++ ")" 
+  show (SChg c1 c2 a) = "(SChg " ++ showC c1  ++ " " ++ showC c2  ++ " " ++ show a  ++ ")"
 
 -- OR what about:  ix iy
 data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [[Atom kon]] -> [[Atom kon]] -> * where
@@ -87,6 +136,7 @@ data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [[Atom kon]] -> [[Atom 
     -> Constr s2 c2
     -> Al ki codes (Lkup c1 s1) (Lkup c2 s2)
     -> Spine ki codes s1 s2
+
 
 
 applyAt

@@ -25,14 +25,13 @@ import Data.Text.Lazy (Text)
 import qualified Data.Text.Lazy as Text
 import qualified Data.Text.Lazy.IO as IO
 import Generics.MRSOP.Base
-import Generics.MRSOP.Diff
-import Generics.MRSOP.GraphViz
-import Generics.MRSOP.GraphViz.Deep
-import Generics.MRSOP.GraphViz.Diff
+import qualified Generics.MRSOP.GDiff as GDiff
+import Generics.MRSOP.Diff3
+import qualified Generics.MRSOP.Diff.Annotate as Annotate
+import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
 import Generics.MRSOP.Opaque
 import Generics.MRSOP.TH
 import Generics.MRSOP.Util hiding (Cons, Nil)
-import Generics.MRSOP.Zipper.Deep
 
 data Tree a
   = Leaf
@@ -88,13 +87,6 @@ t3' = deep @FamTreeInt t3
 
 -- t3Vis = writeFile "t3.dot" (showDot (visualizeFix t3'))
 t4' = deep @FamTreeInt t4
-
--- quick tool for visualizing this hting
-vis :: String -> Almu TreeSingl CodesTreeInt Z -> IO ()
-vis name =
-  IO.writeFile (name ++ ".dot") .
-  renderDot .
-  toDot . digraph (Str (Text.pack name)) . runDotSM 0 . visualizeAlmu
 
 -- t4Vis = writeFile "t4.dot" (showDot (visualizeFix t4'))
 tLong :: Tree Int -> Tree Int
@@ -269,3 +261,4 @@ p23 =
                   AX NP0 (NA_I (deep Leaf) :* NP0) (AtFix (now Scp)) $
                   AX NP0 NP0 (AtFix (now Scp)) $ A0 NP0 NP0)))) :*
         NP0))
+-}

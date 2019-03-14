@@ -241,7 +241,7 @@ mergeLanguage (Language parseFile) a o b = do
   let ob      = Translate.diffAlmu es_ob_o es_ob_b
   let m'      = Diff.mergeAlmu oa ob
 
-  case m' of
+  case (,) <$> on_a <*> on_b  of
     Nothing -> fail $ "Failed to generate merge patch" 
     Just m -> 
       case Diff.applyAlmu m a' of

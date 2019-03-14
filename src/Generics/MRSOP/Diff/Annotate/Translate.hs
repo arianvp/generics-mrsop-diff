@@ -24,12 +24,46 @@ import Data.Monoid
   )
 import Data.Semigroup (Max(Max, getMax), (<>))
 import Data.Type.Equality
-import Generics.MRSOP.AG (mapAnn, monoidAlgebra, synthesizeAnn, productAnn)
-import Generics.MRSOP.Base
+import Generics.MRSOP.AG (mapAnn, monoidAlgebra)
+import Generics.MRSOP.Base hiding (annCata)
 import Generics.MRSOP.Diff.Annotate
 import Generics.MRSOP.Diff3
 import Generics.MRSOP.Util hiding (Cons, Nil)
 import Unsafe.Coerce (unsafeCoerce)
+
+-- | Product of two F-algebra's that depend on the previous pass
+productAnn
+  :: forall ki psi phi chi xs ix. 
+     IsNat ix =>
+     (forall iy. IsNat iy => psi iy -> Rep ki phi xs               -> phi iy)
+  -> (forall iy. IsNat iy => psi iy -> Rep ki chi xs               -> chi iy)
+  ->             psi ix -> Rep ki (Product phi chi) xs -> Product phi chi ix
+productAnn f g ann rep =
+  let x = f ann (mapRep (\(Pair x y) -> x) rep)
+      y = g ann (mapRep (\(Pair x y) -> y) rep)
+  in Pair x y
+
+-- | Synthesized attributes
+synthesizeAnn ::
+     forall ki codes chi phi ix.
+     IsNat ix =>
+     (forall iy. IsNat iy => chi iy -> Rep ki phi (Lkup iy codes) -> phi iy)
+  -> AnnFix ki codes chi ix
+  -> AnnFix ki codes phi ix
+synthesizeAnn f = annCata alg
+  where
+    alg ::
+         forall iy. IsNat iy =>
+         chi iy
+      -> Rep ki (AnnFix ki codes phi) (Lkup iy codes)
+      -> AnnFix ki codes phi iy
+    alg ann rep = AnnFix (f ann (mapRep getAnn rep)) rep
+
+
+annCata :: IsNat ix => (forall iy. IsNat iy => chi iy -> Rep ki phi (Lkup iy codes) -> phi iy)
+        -> AnnFix ki codes chi ix
+        -> phi ix
+annCata f (AnnFix a x) = f a (mapRep (annCata f) x)
 
 -- | TODO make something nicer, maybe a table
 showDatatypeName :: DatatypeName -> String

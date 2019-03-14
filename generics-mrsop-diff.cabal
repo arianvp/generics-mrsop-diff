@@ -59,7 +59,6 @@ library
     Generics.MRSOP.GraphViz.Diff
     Generics.MRSOP.GraphViz.Diff2
     Generics.MRSOP.GraphViz.Zipper
-    Generics.MRSOP.Hyper
     Examples.Lua
     Examples.TwoThreetree
     Examples.MergePlayground
@@ -95,9 +94,7 @@ library
                        language-c,
                        graphviz,
                        mtl,
-                       hyper,
                        semigroupoids,
-                       hs-digems,
                        text,
                        parsec
   
