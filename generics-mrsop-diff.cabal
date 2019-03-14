@@ -31,6 +31,7 @@ executable mrdiff
     filepath,
     graphviz,
     text,
+    QuickCheck,
     criterion
 
 test-suite generics-mrsop-diff-testsuite

@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# OPTIONS_GHC -fwarn-incomplete-patterns #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE DataKinds #-}
@@ -13,7 +14,7 @@ module Generics.MRSOP.Diff3 where
 
 import Data.List (intersperse)
 
-import Data.Type.Equality (testEquality, (:~:)(Refl))
+import Data.Type.Equality 
 import Data.Proxy
 import Data.Functor.Const
 import Control.Monad (guard)
@@ -49,7 +50,7 @@ instance Show1 ki => Show (Al ki codes xs ys) where
   show (AIns x xs) = "(AIns " ++ show x  ++ " " ++ show xs  ++ ")"
 
 newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
-  deriving Show 
+  deriving newtype Show 
 
 -- | An NP p xs, but there exists an x in xs such that h x
 --
@@ -78,8 +79,10 @@ data Ctx (ki :: kon -> *)
 type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
 type DelCtx ki codes ix xs = Ctx ki codes (AlmuMin ki codes) ix xs
 
-instance Show x => Show1 (Const x) where
-  show1 (Const x) = show x
+-- instance Show x => Show1 (Const x) where
+--   show1 (Const x) = show x
+instance Show1 (Const ()) where
+  show1 _ = ""
 
 instance Show1 ki => Show (InsCtx ki codes ix xs) where
   show (H p poa) = "(H " ++ show p ++ " " ++ show poa ++ ")"

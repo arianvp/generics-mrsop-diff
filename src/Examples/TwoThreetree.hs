@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -33,6 +34,20 @@ import Generics.MRSOP.Opaque
 import Generics.MRSOP.TH
 import Generics.MRSOP.Util hiding (Cons, Nil)
 
+import GHC.Generics (Generic)
+import Test.QuickCheck
+
+instance Arbitrary a => Arbitrary (Tree a) where
+  arbitrary = sized $ \n ->
+    case n of
+      0 -> return Leaf
+      _ -> resize (n-1)
+         $ frequency [ (5 , return Leaf)
+                     , (10, Two <$> arbitrary <*> arbitrary <*> arbitrary)
+                     , (10, Three <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary)
+                     ]
+                     
+
 data Tree a
   = Leaf
   | Two a
@@ -42,7 +57,7 @@ data Tree a
           (Tree a)
           (Tree a)
           (Tree a)
-  deriving (Show, Eq)
+  deriving (Show, Eq , Generic)
 
 data TreeKon =
   TreeInt
@@ -103,8 +118,8 @@ t2l' = deep @FamTreeInt t2l
 type P = Almu TreeSingl CodesTreeInt Z Z
 
 data Outcome
-  = FailedA Bool | FailedB Bool | Conflict | Ok | Panic
-  deriving Show
+  = FailedA String | FailedB String | Conflict | Ok | Panic
+  deriving (Show , Eq)
 
 willItMerge :: Tree Int -> Tree Int -> Tree Int -> Outcome
 willItMerge a o b =
@@ -116,17 +131,24 @@ willItMerge a o b =
       on_b'   = mergeAlmu oa ob
       on_a'   = mergeAlmu ob oa
    in case (,) <$> on_a' <*> on_b' of
-      Nothing -> Conflict
+      Nothing -> Ok -- Conflict
       Just (ona, onb) ->
         case applyAlmu ona b' of
-          Nothing -> FailedA (applyAlmu oa o' == Just a') 
-          Just res1 ->
+          Left r -> FailedA r
+          Right res1 ->
             case applyAlmu onb a' of
-              Nothing -> FailedB (applyAlmu ob o' == Just b')
-              Just res2 ->
+              Left r -> FailedB r
+              Right res2 ->
                 if eq1 res1 res2
                 then Ok
                 else Panic
+
+g3 :: Gen (Tree Int , Tree Int , Tree Int)
+g3 = resize 5 arbitrary
+
+qc :: IO ()
+qc = quickCheck $ withMaxSuccess 10000 $ forAll g3 $ \(a, o, b)
+   -> willItMerge a o b === Ok
 
 diffTree :: Tree Int -> Tree Int -> P
 diffTree o b =
@@ -139,10 +161,17 @@ diffTree o b =
 
 o1 , a1 , b1 :: Tree Int
 
-o1 = Three 1 (Two 2 Leaf Leaf) (Two 3 Leaf Leaf) Leaf
-b1 = Three 1 (Two 2 Leaf Leaf) (Two 30 Leaf Leaf) Leaf
-a1 = Three 1 (Two 5 Leaf Leaf) (Two 3 Leaf Leaf) Leaf
-         
+a1 = Two (-4) (Two 10 Leaf Leaf) Leaf -- (Two 3 (Two 2 Leaf (Three 1 (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf) Leaf)) (Three (-1) (Two (-1) (Two 0 Leaf Leaf) Leaf) (Three (-1) (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf)) Leaf)) (Two 2 Leaf Leaf)
+o1 = Two (-4) Leaf Leaf
+b1 = Two (-3) Leaf Leaf -- (Three 2 (Two 2 (Two (-1) Leaf (Three 0 Leaf Leaf Leaf)) Leaf) Leaf (Three 0 (Three 0 (Three 0 Leaf Leaf Leaf) (Three 0 Leaf Leaf Leaf) (Three 0 Leaf Leaf Leaf)) (Two (-1) (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf)) (Three 1 Leaf (Two 0 Leaf Leaf) Leaf)))
+
+{-
+Three 3 (Two 0 (Three 1 (Two 1 Leaf (Three 0 Leaf Leaf Leaf)) (Two (-1) (Two 0 Leaf Leaf) (Two 0 Leaf Leaf)) (Three 1 (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf))) Leaf) Leaf (Two 0 (Two 2 (Two 0 (Three 0 Leaf Leaf Leaf) (Three 0 Leaf Leaf Leaf)) Leaf) (Two 0 (Two 1 Leaf Leaf) (Three (-1) (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf) Leaf)))
+ 
+ Two (-2) Leaf Leaf
+ 
+ Two (-3) (Three (-1) Leaf (Three 0 (Two 1 (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf)) (Two (-1) (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf)) (Two (-1) (Two 0 Leaf Leaf) (Two 0 Leaf Leaf))) (Two (-1) (Three 0 Leaf (Three 0 Leaf Leaf Leaf) Leaf) (Three (-1) (Three 0 Leaf Leaf Leaf) Leaf (Two 0 Leaf Leaf)))) (Three (-2) (Three 1 (Three 0 (Two 0 Leaf Leaf) Leaf (Three 0 Leaf Leaf Leaf)) (Two 0 (Two 0 Leaf Leaf) (Two 0 Leaf Leaf)) (Three (-1) (Three 0 Leaf Leaf Leaf) (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf))) (Two (-2) (Two 0 (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf)) (Two 1 Leaf (Three 0 Leaf Leaf Leaf))) (Three (-2) (Two 0 Leaf Leaf) (Three (-1) (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf) (Two 0 Leaf Leaf)) (Two 0 (Two 0 Leaf Leaf) (Three 0 Leaf Leaf Leaf))))
+-}
 
 {-
 -- the zipper representation of the tLong function
