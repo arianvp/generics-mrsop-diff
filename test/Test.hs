@@ -15,7 +15,7 @@ import Data.List
 import Generics.MRSOP.Base
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
-import qualified Generics.MRSOP.Diff2 as STDiff
+import qualified Generics.MRSOP.Diff  as STDiff
 import qualified Generics.MRSOP.GDiff as GDiff
 import Generics.MRSOP.Util
 
@@ -79,10 +79,6 @@ rhs''' = Translate.countCopies $ rhs''
 diff = Translate.diffAlmu lhs''' rhs'''
 
 
---
---  expected =  Ins Two (0 * Leaf)
-expected :: STDiff.Almu TreeSingl  CodesTreeInt Z
-expected = undefined
 
 
 tests :: IO [Test]
