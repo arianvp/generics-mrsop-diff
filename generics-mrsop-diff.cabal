@@ -45,24 +45,16 @@ library
   -- Modules exported by the library.
   exposed-modules: 
     Generics.MRSOP.Diff
-    Generics.MRSOP.Diff2
-    Generics.MRSOP.Diff3
-    Generics.MRSOP.Diff.Merge
     Generics.MRSOP.Diff.Annotate
     Generics.MRSOP.Diff.Annotate.Translate
-    Generics.MRSOP.Diff.Enumerate
-    Generics.MRSOP.GDiffCopyExperiment
     Generics.MRSOP.GDiff
     Generics.MRSOP.GDiff.Util
     Generics.MRSOP.GraphViz
     Generics.MRSOP.GraphViz.Deep
-    Generics.MRSOP.GraphViz.Diff
-    Generics.MRSOP.GraphViz.Diff2
-    Generics.MRSOP.GraphViz.Zipper
-    Generics.MRSOP.Hyper
+    -- Generics.MRSOP.GraphViz.Diff
+    -- Generics.MRSOP.GraphViz.Diff2
     Examples.Lua
     Examples.TwoThreetree
-    Examples.MergePlayground
     Language.Clojure.AST
     Language.Clojure.Parser
  
@@ -95,9 +87,8 @@ library
                        language-c,
                        graphviz,
                        mtl,
-                       hyper,
+                       QuickCheck,
                        semigroupoids,
-                       hs-digems,
                        text,
                        parsec
   

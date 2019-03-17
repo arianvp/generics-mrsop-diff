@@ -18,7 +18,6 @@ import Data.Text.Encoding (encodeUtf8)
 import Generics.MRSOP.TH
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util hiding (Cons, Nil)
-import Data.Digems.Generic.Digest
 
 
 data SepOldExprList =
@@ -92,16 +91,16 @@ data CljSingl (kon :: CljKon) :: * where
   SCljTag :: Tag -> CljSingl CljTag
   SCljSep :: Sep -> CljSingl CljSep
 
-instance Digestible Text where
-  digest = hash . encodeUtf8
-
-instance Digestible1 CljSingl where
-  digest1 (SCljText text) = digest text
-  digest1 (SCljFormTy a) = digest (pack $ show a)
-  digest1 (SCljCollTy a) = digest (pack $ show a)
-  digest1 (SCljTerm a) = digest (pack $ show a)
-  digest1 (SCljTag a) = digest (pack $ show a)
-  digest1 (SCljSep a) = digest (pack $ show a)
+-- instance Digestible Text where
+--   digest = hash . encodeUtf8
+-- 
+-- instance Digestible1 CljSingl where
+--   digest1 (SCljText text) = digest text
+--   digest1 (SCljFormTy a) = digest (pack $ show a)
+--   digest1 (SCljCollTy a) = digest (pack $ show a)
+--   digest1 (SCljTerm a) = digest (pack $ show a)
+--   digest1 (SCljTag a) = digest (pack $ show a)
+--   digest1 (SCljSep a) = digest (pack $ show a)
   
 
 deriving instance Show (CljSingl k)

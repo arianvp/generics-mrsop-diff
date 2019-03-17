@@ -31,18 +31,17 @@ import Options.Applicative
 
 import qualified Generics.MRSOP.AG as AG
 import Generics.MRSOP.Base
-import qualified Generics.MRSOP.Diff3 as Diff
+import qualified Generics.MRSOP.Diff as Diff
 import qualified Generics.MRSOP.Diff.Annotate as Annotate
 import qualified Generics.MRSOP.Diff.Annotate.Translate as Translate
 import qualified Generics.MRSOP.GDiff as GDiff
-import qualified Generics.MRSOP.GDiffCopyExperiment as GDiffOld
 import Generics.MRSOP.Util
 
 import qualified Data.GraphViz.Printing as GraphViz
 import qualified Data.GraphViz.Types.Monadic as GraphViz
 import qualified Generics.MRSOP.GraphViz as GraphViz
 import qualified Generics.MRSOP.GraphViz.Deep as GraphViz
-import qualified Generics.MRSOP.GraphViz.Diff2 as GraphViz
+-- import qualified Generics.MRSOP.GraphViz.Diff2 as GraphViz
 
 import qualified Options.Applicative
 import qualified System.FilePath
@@ -204,9 +203,9 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
             WithDuration -> fmap (measTime . fst) (measure gdiff' 1)
             WithoutDuration -> pure (1.0 / 0.0)
       case target' of
-        Just target' ->
+        Right target' ->
           when (not (eq1 target target')) (fail "targets weren't equal")
-        Nothing -> fail $ "generated dif didn't apply"
+        Left x -> fail $ "generated dif didn't apply: " ++ x
       Prelude.putStrLn . List.intercalate "," $ 
         [ show $ sourceSize
         , show $ targetSize
@@ -214,17 +213,6 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
         , fp1
         , fp2
         ]
-
-
-
-
-  {-case Diff.applyAlmu s left of
-    Right x ->
-      if eq1 x right
-        then print "it applied"
-        else fail "generated diff was inconsistent"
-    Left x -> fail $ "generated diff  didn't apply : " ++ x
-  -}
 
 mergeLanguage :: Language -> FilePath -> FilePath -> FilePath -> IO ()
 mergeLanguage (Language parseFile) a o b = do
@@ -246,11 +234,11 @@ mergeLanguage (Language parseFile) a o b = do
     Nothing -> fail $ "Failed to generate merge patch" 
     Just (on_a, on_b) -> 
       case Diff.applyAlmu on_a a' of
-        Nothing-> fail $ "on_a failed to apply"
-        Just res1 ->
+        Left x -> fail $ "on_a failed to apply: " ++ x
+        Right res1 ->
           case Diff.applyAlmu on_b  b' of
-            Nothing -> fail $ "on_b failed to apply"
-            Just res2 ->
+            Left x -> fail $ "on_b failed to apply: " ++ x
+            Right res2 ->
               if eq1 res1 res2
               then pure ()
               else fail "MA != MB"

@@ -105,6 +105,10 @@ data VisAl = VisAl
   , target :: [Cell]
   }
 
+instance Semigroup VisAl where
+  (<>) = undefined
+  
+
 instance Monoid VisAl where
   mempty = VisAl mempty mempty
   mappend (VisAl s t) (VisAl s' t') = VisAl (mappend s s') (mappend t t')

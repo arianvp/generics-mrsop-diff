@@ -19,18 +19,18 @@ import Data.Type.Equality
 import Generics.MRSOP.TH
 import Generics.MRSOP.Base
 import Generics.MRSOP.Util
-import Data.Digems.Generic.Digest
 
 data LuaKon = LuaText
 data LuaSingl (kon :: LuaKon) :: * where
   SLuaText :: Text -> LuaSingl LuaText
 
+{-
 instance Digestible Text where
   digest = hash . encodeUtf8
 
 instance Digestible1 LuaSingl where
   digest1 (SLuaText text) = digest text
-  
+-}  
 
 deriving instance Show (LuaSingl k)
 deriving instance Eq (LuaSingl k)
