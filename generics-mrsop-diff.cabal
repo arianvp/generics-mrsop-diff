@@ -51,8 +51,7 @@ library
     Generics.MRSOP.GDiff.Util
     Generics.MRSOP.GraphViz
     Generics.MRSOP.GraphViz.Deep
-    -- Generics.MRSOP.GraphViz.Diff
-    -- Generics.MRSOP.GraphViz.Diff2
+    Generics.MRSOP.GraphViz.Diff
     Examples.Lua
     Examples.TwoThreetree
     Language.Clojure.AST

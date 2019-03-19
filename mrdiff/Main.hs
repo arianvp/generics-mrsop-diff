@@ -41,7 +41,7 @@ import qualified Data.GraphViz.Printing as GraphViz
 import qualified Data.GraphViz.Types.Monadic as GraphViz
 import qualified Generics.MRSOP.GraphViz as GraphViz
 import qualified Generics.MRSOP.GraphViz.Deep as GraphViz
--- import qualified Generics.MRSOP.GraphViz.Diff2 as GraphViz
+import qualified Generics.MRSOP.GraphViz.Diff as GraphViz
 
 import qualified Options.Applicative
 import qualified System.FilePath
@@ -197,7 +197,7 @@ diffLanguage (Language parseFile) mode fp1 fp2 = do
 
   case mode of
     ES -> print gdiff
-    Dot -> error "TODO but involves stdiff, should fix"
+    Dot -> Text.putStrLn . GraphViz.dotToText "lol" . GraphViz.visualizeAlmu  $ stdiff
     Stats s -> do
       x <- case s of
             WithDuration -> fmap (measTime . fst) (measure gdiff' 1)
@@ -229,9 +229,8 @@ mergeLanguage (Language parseFile) a o b = do
   let ob      = Translate.diffAlmu es_ob_o es_ob_b
   let on_a'   = Diff.mergeAlmu oa ob
   let on_b'   = Diff.mergeAlmu ob oa
-
   case (,) <$> on_a' <*> on_b' of
-    Nothing -> fail $ "Failed to generate merge patch" 
+    Nothing -> Prelude.putStrLn . List.intercalate "," $ [ a , o , b , "0" ]
     Just (on_a, on_b) -> 
       case Diff.applyAlmu on_a a' of
         Left x -> fail $ "on_a failed to apply: " ++ x
@@ -240,7 +239,8 @@ mergeLanguage (Language parseFile) a o b = do
             Left x -> fail $ "on_b failed to apply: " ++ x
             Right res2 ->
               if eq1 res1 res2
-              then pure ()
+              then 
+                Prelude.putStrLn . List.intercalate "," $ [ a , o , b , "1" ]
               else fail "MA != MB"
 
 

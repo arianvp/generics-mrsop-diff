@@ -32,7 +32,8 @@ instance Digestible1 LuaSingl where
   digest1 (SLuaText text) = digest text
 -}  
 
-deriving instance Show (LuaSingl k)
+instance Show (LuaSingl k) where
+  show (SLuaText x) = show x
 deriving instance Eq (LuaSingl k)
 instance Show1 LuaSingl where show1 = show
 instance Eq1 LuaSingl where eq1 = (==)

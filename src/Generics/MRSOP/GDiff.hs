@@ -282,7 +282,7 @@ split (Cons p) (x :* rs) =
 
 matchCof ::
      (Eq1 ki)
-  => Cof ki codes a t
+  => Cof ki codes a t  -- NOTE: cof is a relation. not a function,
   -> NA ki (Fix ki codes) a
   -> Maybe (PoA ki (Fix ki codes) t)
 matchCof (ConstrI c1 prf) (NA_I (Fix x)) = match c1 x
