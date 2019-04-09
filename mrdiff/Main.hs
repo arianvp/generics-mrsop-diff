@@ -227,15 +227,15 @@ mergeLanguage (Language parseFile) a o b = do
   let es_ob_b = Translate.countCopies $ Annotate.annDest b' es_ob
   let oa      = Translate.diffAlmu es_oa_o es_oa_a
   let ob      = Translate.diffAlmu es_ob_o es_ob_b
-  let on_a'   = Diff.mergeAlmu oa ob
-  let on_b'   = Diff.mergeAlmu ob oa
+  let on_b'   = Diff.mergeAlmu oa ob
+  let on_a'   = Diff.mergeAlmu ob oa
   case (,) <$> on_a' <*> on_b' of
     Nothing -> Prelude.putStrLn . List.intercalate "," $ [ a , o , b , "0" ]
     Just (on_a, on_b) -> 
-      case Diff.applyAlmu on_a a' of
+      case Diff.applyAlmu on_a b' of
         Left x -> fail $ "on_a failed to apply: " ++ x
         Right res1 ->
-          case Diff.applyAlmu on_b  b' of
+          case Diff.applyAlmu on_b  a' of
             Left x -> fail $ "on_b failed to apply: " ++ x
             Right res2 ->
               if eq1 res1 res2
