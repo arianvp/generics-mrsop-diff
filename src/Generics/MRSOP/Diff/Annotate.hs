@@ -107,6 +107,7 @@ annSrc' ::
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) xs
 annSrc' xs ES0 = NP0
+annSrc' NP0 _ = NP0
 annSrc' xs (Ins _ c es) = annSrc' xs es
 annSrc' (x :* xs) (Del _ c es) =
   let poa = fromJust $ matchCof c x
@@ -121,7 +122,8 @@ annDest' ::
   -> ES ki codes xs ys
   -> PoA ki (AnnFix ki codes (Const Ann)) ys
 annDest' xs ES0 = NP0
-annDest' xs (Del _ c es) = annDest' xs es
+annDest' NP0 _ = NP0
+annDest' (x :* xs) (Del _ c es) = annDest' (x :* xs) es
 annDest' (x :* xs) (Ins _ c es)
  =
   let poa = fromJust $ matchCof c x

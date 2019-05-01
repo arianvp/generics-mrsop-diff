@@ -103,7 +103,15 @@ visualizeAl'
 visualizeAl' source target al =
   case al of
     A0        ->  pure mempty
-    AIns x xs -> (mempty {target = [ LabelCell [BGColor (toColor Green)] (Text [Str (pack " ")])]} <>) <$> visualizeAl' source target xs
+    AIns x xs ->  do
+      aha <- preallocatePortName
+      at' <- visualizeNA x
+      case at' of
+        Konstant k ->  (mempty {target = [ LabelCell [BGColor (toColor Green), Port aha] (Text [Str (pack k)])]} <>)  <$> visualizeAl' source target xs
+        Recurse r -> do
+          makeEdgePN (target, aha) r
+          (mempty {target = [ LabelCell [BGColor (toColor Green), Port aha] (Text [Str (pack " ")])]} <>)  <$> visualizeAl' source target xs
+
     ADel x xs -> (mempty {source = [ LabelCell [BGColor (toColor Red  )] (Text [Str (pack " ")])]} <>) <$> visualizeAl' source target xs
     AX   x xs -> do
       sp <- preallocatePortName
@@ -129,6 +137,8 @@ visualizeAl c1 c2 al = do
   visAl <- visualizeAl' sourceTable targetTable al
   mkTable sourceTable c1 (source visAl)
   mkTable targetTable c2 (target visAl)
+
+  lift $ edge sourceTable targetTable [Style [SItem Invisible []]]
   pure sourceTable
 
 --    +--------+-----+-----+-----+-----+ 

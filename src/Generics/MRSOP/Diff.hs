@@ -9,6 +9,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Generics.MRSOP.Diff where
   
@@ -35,7 +36,7 @@ data At (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> * where
   AtSet :: TrivialK ki kon -> At ki codes ('K kon)
   AtFix :: (IsNat ix) => Almu ki codes ix ix -> At ki codes ('I ix)
 
-instance Show1 ki => Show1 (At ki codes) where
+instance (HasDatatypeInfo ki fam codes, Show1 ki) => Show1 (At ki codes) where
   show1 (AtSet t) = show t
   show1 (AtFix a) = show a
   
@@ -47,14 +48,16 @@ data Al (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -
 
 
 
-instance Show1 ki => Show (Al ki codes xs ys) where
+instance (HasDatatypeInfo ki fam codes, Show1 ki) => Show (Al ki codes xs ys) where
   show A0 = "A0"
   show (AX x xs) = "(AX " ++ show1 x  ++ " " ++ show xs  ++ ")"
   show (ADel x xs) = "(ADel " ++ show x  ++ " " ++ show xs  ++ ")"
   show (AIns x xs) = "(AIns " ++ show x  ++ " " ++ show xs  ++ ")"
 
 newtype AlmuMin ki codes ix iy = AlmuMin  { unAlmuMin :: Almu ki codes iy ix }
-  deriving newtype Show 
+
+instance (IsNat ix,IsNat iy, HasDatatypeInfo ki fam codes, Show1 ki) => Show (AlmuMin ki codes ix iy) where
+  show (AlmuMin x) = show x
 
 -- | An NP p xs, but there exists an x in xs such that h x
 --
@@ -84,10 +87,10 @@ type InsCtx ki codes ix xs = Ctx ki codes (Almu ki codes) ix xs
 type DelCtx ki codes ix xs = Ctx ki codes (AlmuMin ki codes) ix xs
 
 
-instance Show1 ki => Show (InsCtx ki codes ix xs) where
+instance (IsNat ix, HasDatatypeInfo ki fam codes, Show1 ki) => Show (InsCtx ki codes ix xs) where
   show (H p poa) = "(H " ++ show p ++ " " ++ show poa ++ ")"
   show (T n c)   = "(T " ++ show n  ++ " " ++ show c ++ ")"
-instance Show1 ki => Show (DelCtx ki codes ix xs) where
+instance (IsNat ix, HasDatatypeInfo ki fam codes, Show1 ki) => Show (DelCtx ki codes ix xs) where
   show (H p poa) = "(H " ++ show p ++ " " ++ show poa ++ ")"
   show (T n c)   = "(T " ++ show n  ++ " " ++ show c ++ ")"
 
@@ -105,27 +108,37 @@ data Almu (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Nat -> Nat -> * where
     -> Almu ki codes ix iy
   -- TODO ins del
 
-showC :: Constr x y -> String
-showC = ('C':) . show . go
-  where
-    go :: Constr x y -> Int
-    go CZ = 0
-    go (CS s) = 1 + go s
 
-instance (Show1 ki) => Show (Almu ki codes ix iy) where
-  show (Spn s) = "(Spn " ++ show s ++ ")"
+instance forall ki fam codes ix iy. (IsNat ix, IsNat iy, Show1 ki, HasDatatypeInfo ki fam codes) => Show (Almu ki codes ix iy) where
+  show (Spn s) = "(Spn " ++ showSpine (getSNat @ix Proxy) (getSNat @iy Proxy) s ++ ")"
   show (Ins c ic) = "(Ins " ++ showC c ++ " " ++ show ic ++ ")"
+    where showC c = constructorName . constrInfoLkup c $ (datatypeInfo (Proxy @fam) (getSNat @iy Proxy))
   show (Del c ic) = "(Del " ++ showC c ++ " " ++ show ic ++ ")"
+    where showC c = constructorName . constrInfoLkup c $ (datatypeInfo (Proxy @fam) (getSNat @ix Proxy))
 
 instance (Show1 p) => Show1 (NP p) where
   show1 np = parens . concat . intersperse " "  $ elimNP show1 np
     where
       parens x = "(" ++ x  ++ ")"
 
-instance (Show1 ki) => Show (Spine ki codes ix iy) where
+
+showSpine :: forall ki fam codes ix iy. (Show1 ki, HasDatatypeInfo ki fam codes, IsNat ix,  IsNat iy) => SNat ix -> SNat iy -> Spine ki codes (Lkup ix codes) (Lkup iy codes) -> String
+showSpine six siy Scp = "Scp"
+showSpine six siy (SCns c x) =  "(Scns " ++ showC c six ++ " " ++ show1 x ++ ")" 
+    where showC c six = constructorName . constrInfoLkup c $ (datatypeInfo (Proxy @fam) six)
+showSpine six siy (SChg c1 c2 a) = "(SChg " ++ showCX  ++ " " ++ showCY ++ " " ++ show a  ++ ")"
+    where showCX = constructorName . constrInfoLkup c1 $ (datatypeInfo (Proxy @fam) six)
+          showCY = constructorName . constrInfoLkup c2 $ (datatypeInfo (Proxy @fam) siy)
+{-
+instance (HasDatatypeInfo ki fam codes, Show1 ki) => Show (Spine ki codes x y) where
   show Scp = "COPY"
   show (SCns c x) = "(Scns " ++ showC c ++ " " ++ show1 x ++ ")" 
+    where 
+      showC 
+      showC c = constructorName . consterInfoLookup c (datatypeInfo (Proxy @fam) (getSNat @ix Proxy))
   show (SChg c1 c2 a) = "(SChg " ++ showC c1  ++ " " ++ showC c2  ++ " " ++ show a  ++ ")"
+    where showC c = constructorName . consterInfoLookup c (datatypeInfo (Proxy @fam) (getSNat @ix Proxy))
+-}
 
 -- OR what about:  ix iy
 data Spine (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [[Atom kon]] -> [[Atom kon]] -> * where
@@ -151,8 +164,6 @@ instance Show1 SNat where
      go SZ = 0
      go (SS s) = 1 + go s
 
-instance Show1 (Constr r) where
-  show1 = showC
 
 applyAt
   :: C ki
@@ -178,11 +189,11 @@ applyAl (ADel x dxs) (x' :* xs) =
   guard' "al del" (eq1 x x') *> applyAl dxs xs
   -- applyAl dxs xs
 
-testEquality' :: (Show1 f , TestEquality f)
+testEquality' :: (TestEquality f)
               => f a -> f b -> Either String (a :~: b)
 testEquality' x y = case testEquality x y of
   Just r -> Right r
-  Nothing -> Left ("te: " ++ show1 x ++ ", " ++ show1 y)
+  Nothing -> Left "err"
 
 applySpine 
   :: C ki

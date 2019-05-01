@@ -24,7 +24,7 @@ import Data.Type.Equality
 import Generics.MRSOP.Base hiding (listPrfNP)
 import Generics.MRSOP.Base.Metadata
 import Generics.MRSOP.GDiff.Util
-import Generics.MRSOP.Util (Nat, Eq1(eq1), IsNat, (:++:), Lkup, Show1(show1), Idx, El(El), getSNat)
+import Generics.MRSOP.Util (SNat,Nat, Eq1(eq1), IsNat, (:++:), Lkup, Show1(show1), Idx, El(El), getSNat)
 
 import qualified Generics.MRSOP.AG as AG
 
@@ -35,6 +35,9 @@ data Cof (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: Atom kon -> [Atom kon] ->
 
   -- ^ Requires no arguments to complete
   ConstrK :: ki k -> Cof ki codes (K k) '[]
+
+cofIdx :: forall ki codes xs n. IsNat n => Cof ki codes (I n) xs -> SNat n
+cofIdx _ = getSNat @n Proxy
 
 data ES (ki :: kon -> *) (codes :: [[[Atom kon]]]) :: [Atom kon] -> [Atom kon] -> * where
   ES0 :: ES ki codes '[] '[]
@@ -353,10 +356,10 @@ applyES (Cpy _ c es) xs = insCof c <$> (delCof c xs >>= applyES es)
 -- When Showing, we do not know what the family that we're showing is,
 -- as edit scripts are not parameterised over the family.
 -- hence, we can not get the datatype info
-showCof ::
+showCof :: forall ki fam codes a c.
      (HasDatatypeInfo ki fam codes, Show1 ki) => Cof ki codes a c -> String
 showCof (ConstrK k) = show1 k
-showCof (ConstrI c _) = show c
+showCof x@(ConstrI c _) = constructorName . constrInfoLkup c $ datatypeInfo (Proxy @fam) (cofIdx x)
 
 instance (HasDatatypeInfo ki fam codes, Show1 ki) =>
          Show (ES ki codes xs ys) where

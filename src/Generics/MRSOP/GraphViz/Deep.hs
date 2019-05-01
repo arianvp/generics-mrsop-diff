@@ -78,12 +78,12 @@ npToTable ann dataName constrName xs = do
         HTable
           Nothing
           []
-          [ Cells
+          [ {- Cells
               [ LabelCell
                   [ColSpan (fromIntegral $ length cells)]
                   (Text [Str (pack dataName) ])
               ]
-          , Cells cells
+          , -} Cells cells
           ]
   lift $ node self [shape PlainText, toLabel table, xTextLabel (pack ann)]
   pure self

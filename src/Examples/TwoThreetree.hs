@@ -93,6 +93,9 @@ t3 = Three 1 Leaf (Two 2 Leaf Leaf) (Three 3 Leaf Leaf Leaf)
 
 t4 = Two 3 Leaf Leaf
 
+d1 = diffTree t1 t2
+d2 = diffTree t1 t4
+
 t1' = deep @FamTreeInt t1
 
 -- t1Vis = writeFile "t1.dot" (showDot (visualizeFix t1'))
@@ -103,6 +106,20 @@ t3' = deep @FamTreeInt t3
 
 -- t3Vis = writeFile "t3.dot" (showDot (visualizeFix t3'))
 t4' = deep @FamTreeInt t4
+
+
+es13 = GDiff.diff' t1' t3'
+es14 = GDiff.diff' t1' t4'
+
+t13as = Annotate.annSrc t1' es13
+
+t13ad = Annotate.annDest t3' es13
+
+t14as = Annotate.annSrc t1' es14
+t14ad = Annotate.annDest t4' es14
+
+d13 = Translate.diffAlmu (Translate.countCopies t13as) (Translate.countCopies t13ad)
+d14 = Translate.diffAlmu (Translate.countCopies t14as) (Translate.countCopies t14ad)
 
 -- t4Vis = writeFile "t4.dot" (showDot (visualizeFix t4'))
 tLong :: Tree Int -> Tree Int
